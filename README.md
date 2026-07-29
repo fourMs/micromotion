@@ -4,7 +4,7 @@ Analysis of human micromotion in motion time series: optical marker data, body-w
 accelerometers, and force-plate centre of pressure.
 
 The measure the package exists for is quantity of motion — the average speed of a body part,
-band-limited to 0.3–10 Hz, in millimetres per second. It applies equally to all three sensor
+band-limited to 0.2–10 Hz, in millimetres per second. It applies equally to all three sensor
 families because the shared abstraction is the frequency band, not the instrument.
 
 ## Why it exists
@@ -43,7 +43,7 @@ space-delimited and headerless.
 
 There are two conventions in circulation and they are not interchangeable.
 
-`micromotion` is 0.3–10 Hz. It is the only band that can be applied to every sensor, so it
+`micromotion` is 0.2–10 Hz. It is the only band that can be applied to every sensor, so it
 is the one any cross-collection comparison must use.
 
 `optical_legacy` is a 10 Hz low-pass with no lower edge. It keeps sub-0.3 Hz postural drift,

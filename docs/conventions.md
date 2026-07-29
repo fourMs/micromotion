@@ -30,6 +30,35 @@ mm.qom(acc, fs, kind="acceleration", band="optical_legacy")
 # cannot be integrated without one...
 ```
 
+
+## Why 0.2 Hz, and why a median
+
+The lower edge was 0.3 Hz until 2026-07-29 — inherited from earlier work rather than chosen.
+Swept across seven optical datasets and 665 recordings, the between-dataset spread is:
+
+| lower edge | spread |
+|---|---|
+| 0.15 Hz | 3.2 % |
+| **0.20 Hz** | **2.1 %** |
+| 0.25 Hz | 2.7 % |
+| 0.30 Hz | 6.2 % |
+| 0.40 Hz | 10.1 % |
+
+A clear optimum, and also where the 20 Hz origin dataset stops being an outlier in either
+direction.
+
+The edge interacts with the statistic, which is easy to miss. At 0.2 Hz the *median* speed
+converges to 2.1 per cent and the mean only to 4.6; at 0.3 Hz it was the other way round.
+Report the median at this band. A mean here would be looser than what it replaced.
+
+Two things were checked before adopting it. A lower edge closer to DC risks integration drift
+on accelerometer data, which is the failure the edge exists to prevent: the mean-to-median
+speed ratio, which climbs when drift leaks in, is 2.07 at 0.2 Hz against 2.00 at 0.3, so it is
+flat and integration is safe. And the filter transient lengthens to 40 seconds at each end
+rather than 27, so a recording shorter than about two minutes has no clean interior at all.
+That rules the band out for short trials; it does not affect standstill protocols, which run
+six minutes or more.
+
 ## What the difference costs
 
 Measured on one championship edition, the band-pass reads **15.5 per cent below** the

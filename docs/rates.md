@@ -46,7 +46,7 @@ rate. Excluding it is correct; interpolating it in corrupts the comparison silen
 
 ## The common rate
 
-`mm.COMMON_RATE` is 20 Hz. It is the Nyquist rate of the 0.3–10 Hz band, so nothing the band
+`mm.COMMON_RATE` is 20 Hz. It is the Nyquist rate of the 0.2–10 Hz band, so nothing the band
 keeps is lost, and it is low enough that the slowest collections need no upsampling.
 
 It costs about **2 per cent** against the native-rate value on 200 Hz optical data. Report
