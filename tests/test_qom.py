@@ -176,3 +176,23 @@ def test_ordinary_bands_do_not_warn():
     with _w.catch_warnings():
         _w.simplefilter("error")
         mm.bandpass(np.random.default_rng(0).normal(size=4000), 200.0, 0.3, 10.0)
+
+
+def test_nyquist_margin_is_overridable():
+    """The corpus uses 0.999 where this package defaults to 0.99; both must be reachable."""
+    fs = 20.0
+    t = np.arange(0, 300, 1 / fs)
+    rng = np.random.default_rng(0)
+    x = np.sin(2 * np.pi * 2.0 * t) + 0.2 * rng.normal(size=len(t))
+    a = mm.lowpass(x, fs, 10.0)                     # clamped to 9.9
+    b = mm.lowpass(x, fs, 10.0, margin=0.999)       # clamped to 9.99
+    assert not np.allclose(a, b)
+    assert np.corrcoef(a, b)[0, 1] > 0.999
+
+
+def test_margin_reaches_bandpass_too():
+    fs = 20.0
+    x = np.random.default_rng(0).normal(size=4000)
+    a = mm.bandpass(x, fs, 0.3, 10.0)
+    b = mm.bandpass(x, fs, 0.3, 10.0, margin=0.999)
+    assert not np.allclose(a, b)

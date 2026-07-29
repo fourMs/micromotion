@@ -58,11 +58,23 @@ Nyquist range, then filter.
 """
 
 
-def _edges(fs: float, lo: float, hi: float) -> tuple[float, float]:
+NYQUIST_MARGIN = 0.99
+"""How close to Nyquist an upper band edge may sit, as a fraction.
+
+A filter designed right at Nyquist has no transition band left, so the edge is pulled in.
+The default is conservative. The Still Standing corpus uses 0.999 throughout, which matters
+whenever the band edge is already near Nyquist -- a 10 Hz low-pass on 20 Hz data becomes
+9.9 Hz here and 9.99 Hz there, and on real optical data that moved quantity of motion by
+7e-5. Pass ``margin`` to match whatever convention the surrounding analysis uses.
+"""
+
+
+def _edges(fs: float, lo: float, hi: float,
+           margin: float = NYQUIST_MARGIN) -> tuple[float, float]:
     ny = fs / 2.0
     if lo <= 0 or lo >= ny:
         raise ValueError(f"low edge {lo} Hz is not below Nyquist {ny} Hz")
-    hi = min(hi, ny * 0.99)
+    hi = min(hi, ny * margin)
     if hi > 0 and fs / hi > NARROW_BAND_RATIO:
         warnings.warn(
             f"band {lo}-{hi} Hz is very low against a {fs} Hz sampling rate "
@@ -78,22 +90,27 @@ def _edges(fs: float, lo: float, hi: float) -> tuple[float, float]:
     return lo / ny, hi / ny
 
 
-def bandpass(x, fs: float, lo: float | None = BAND[0], hi: float = BAND[1], order: int = ORDER):
+def bandpass(x, fs: float, lo: float | None = BAND[0], hi: float = BAND[1],
+             order: int = ORDER, margin: float = NYQUIST_MARGIN):
     """Zero-phase band-limiting along the first axis.
 
     ``lo=None`` gives a pure low-pass, which is the :data:`OPTICAL_LEGACY_BAND` convention.
     """
     if lo is None:
-        return lowpass(x, fs, hi, order)
-    wl, wh = _edges(fs, lo, hi)
+        return lowpass(x, fs, hi, order, margin)
+    wl, wh = _edges(fs, lo, hi, margin)
     sos = signal.butter(order, [wl, wh], btype="band", output="sos")
     return signal.sosfiltfilt(sos, np.asarray(x, float), axis=0)
 
 
-def lowpass(x, fs: float, fc: float = BAND[1], order: int = ORDER):
-    """Zero-phase low-pass along the first axis."""
+def lowpass(x, fs: float, fc: float = BAND[1], order: int = ORDER,
+            margin: float = NYQUIST_MARGIN):
+    """Zero-phase low-pass along the first axis.
+
+    ``margin`` is how close to Nyquist ``fc`` may sit; see :data:`NYQUIST_MARGIN`.
+    """
     ny = fs / 2.0
-    fc = min(fc, ny * 0.99)
+    fc = min(fc, ny * margin)
     sos = signal.butter(order, fc / ny, btype="low", output="sos")
     return signal.sosfiltfilt(sos, np.asarray(x, float), axis=0)
 
