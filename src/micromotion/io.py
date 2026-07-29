@@ -237,7 +237,9 @@ def read_equivital(path: str) -> MotionRecord:
     t = (ts - ts.iloc[0]).dt.total_seconds().to_numpy()
     cols = list(df.columns[1:])
 
-    data = df[cols].to_numpy(float)
+    # copy(): pandas returns a read-only view under copy-on-write, and the rail masking
+    # below writes in place. Without this, reading a respiration file raises.
+    data = df[cols].to_numpy(float).copy()
     unit, kind = "counts", "acceleration"
     if any("Accelerometer" in c for c in cols):
         mag = np.median(np.linalg.norm(data, axis=1))

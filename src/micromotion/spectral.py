@@ -142,3 +142,75 @@ def detect_breaths(x, fs: float, band: tuple[float, float] = RESPIRATORY_BAND,
     return {"peaks_s": peaks / fs, "troughs_s": troughs / fs, "cycle_s": cycles,
             "rate_per_min": float(60.0 / np.median(cycles)) if len(cycles) else float("nan"),
             "n_breaths": len(peaks)}
+
+
+def detect_breaths_adaptive(x, fs: float, band: tuple[float, float] = RESPIRATORY_BAND,
+                            vel_frac: float = 0.55, baseline_hz: float = 0.2) -> dict:
+    """Breath detection that rejects chest movement which is not breathing.
+
+    Peak-and-trough detection, which :func:`detect_breaths` does, counts any sufficiently
+    prominent bump. On a belt worn by someone standing that includes postural sway, weight
+    shifts and swallows, all of which look like small breaths.
+
+    This asks a different question. A breath is a sustained rise in chest expansion whose
+    velocity exceeds a threshold set from the signal's own positive-derivative mean, and which
+    crosses an adaptive baseline -- a heavily low-passed copy of the signal rather than zero.
+    A rise that never crosses that baseline did not start from an exhaled state and is
+    discarded. That rejection step is what removes the sway.
+
+    Returns inspiration and expiration onsets, cycle durations and the rate. Expiration onset
+    is taken as the end of the rise, which assumes passive expiration.
+
+    After Finn Upham's respiration work, reimplemented and used with permission.
+
+    Do not reach for this by default, on the evidence available here. It was added on the
+    expectation that rejecting non-breath rises would beat plain peak detection, and measured
+    against it that expectation did not hold. On twelve HpSp respiration-belt recordings the
+    two agree: median error against the spectral estimate 1.82 breaths per minute for both.
+    On eight Stillness2025 chest accelerometers, which is the case the rejection step was
+    supposed to help, it is markedly worse -- median error against the same participant's belt
+    10.3 breaths per minute against 3.6 for :func:`detect_breaths`, over-counting throughout.
+
+    That may be the parameters rather than the idea; the velocity threshold is derived from a
+    belt's amplitude distribution and an accelerometer's is not the same shape. It is kept
+    because the approach is sound in its original setting and because someone should be able
+    to tune it, not because it is currently the better detector.
+    """
+    from .filters import bandpass, lowpass
+
+    x = np.asarray(x, float)
+    y = bandpass(x, fs, *band)
+    d = np.gradient(y, 1.0 / fs)
+
+    pos = d[d > 0]
+    if not len(pos):
+        return {"inspiration_s": np.array([]), "expiration_s": np.array([]),
+                "cycle_s": np.array([]), "rate_per_min": float("nan"), "n_breaths": 0}
+    thresh = pos.mean() * vel_frac
+
+    # Crossings of an adaptive baseline, not of zero: the belt drifts.
+    base = lowpass(y, fs, min(baseline_hz, fs / 2 * 0.4), order=2)
+    above = y > base
+
+    rising = d > thresh
+    edges = np.diff(rising.astype(int))
+    starts = np.flatnonzero(edges == 1) + 1
+    ends = np.flatnonzero(edges == -1) + 1
+    if len(ends) and len(starts) and ends[0] < starts[0]:
+        ends = ends[1:]
+    n = min(len(starts), len(ends))
+    starts, ends = starts[:n], ends[:n]
+
+    insp, expi = [], []
+    for s, e in zip(starts, ends):
+        # A genuine breath rises through the baseline; a sway bump does not.
+        if e > s and above[s:e].any() and not above[s:e].all():
+            insp.append(s / fs)
+            expi.append(e / fs)
+    insp, expi = np.asarray(insp), np.asarray(expi)
+    cycles = np.diff(insp) if len(insp) > 1 else np.array([])
+    return {
+        "inspiration_s": insp, "expiration_s": expi, "cycle_s": cycles,
+        "rate_per_min": float(60.0 / np.median(cycles)) if len(cycles) else float("nan"),
+        "n_breaths": len(insp),
+    }
