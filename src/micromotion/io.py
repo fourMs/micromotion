@@ -5,8 +5,8 @@ are recorded rather than assumed, and the sampling rate is measured wherever the
 carries a timebase.
 
 :func:`read` dispatches on content, not on the extension, because the extension lies: the
-balance-board files are named ``.tsv`` and are space-delimited, and the Qualisys family puts
-three different header shapes behind one name.
+balance-board dumps are headerless and space-delimited whatever they are called, and the
+Qualisys family puts three different header shapes behind one name.
 """
 
 from __future__ import annotations
