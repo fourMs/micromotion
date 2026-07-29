@@ -387,3 +387,71 @@ def plv(a, b, fs: float, band: tuple[float, float] | None = None) -> dict:
     pb = np.angle(_signal.hilbert(b - b.mean()))
     z = np.exp(1j * (pa - pb))
     return {"plv": float(np.abs(z.mean())), "preferred_phase": float(np.angle(z.mean()))}
+
+
+def apen(x, m: int = 2, r: float | None = None) -> float:
+    """Approximate entropy.
+
+    The older sibling of :func:`sampen`, and biased: it counts each template as matching
+    itself, which pulls the estimate towards regularity, and the bias grows as the series
+    gets shorter. Provided because the balance literature reports it and comparisons need
+    it. For new work prefer :func:`sampen`, which drops the self-match.
+    """
+    x = np.asarray(x, float)
+    x = x[np.isfinite(x)]
+    n = len(x)
+    if n < m + 20:
+        return float("nan")
+    r = 0.2 * np.std(x) if r is None else r
+    if r <= 0:
+        return float("nan")
+
+    def phi(mm):
+        emb = np.lib.stride_tricks.sliding_window_view(x, mm)
+        tree = cKDTree(emb)
+        counts = np.array(tree.query_ball_point(emb, r, p=np.inf, return_length=True))
+        return float(np.mean(np.log(counts / len(emb))))
+
+    return float(phi(m) - phi(m + 1))
+
+
+def dcca(a, b, scales=None, order: int = 1) -> dict:
+    """Detrended cross-correlation between two non-stationary series.
+
+    An ordinary correlation between two signals that each wander is dominated by the
+    wandering. This detrends both inside windows of many sizes and correlates what is left,
+    giving a coefficient per timescale.
+
+    That per-scale answer is the point: two bodies can be uncorrelated second to second and
+    correlated over a minute, and a single number cannot express it. Returns ``rho`` against
+    ``scales``, running from -1 to 1.
+    """
+    a = np.asarray(a, float)
+    b = np.asarray(b, float)
+    n = min(len(a), len(b))
+    a, b = a[:n], b[:n]
+    m = np.isfinite(a) & np.isfinite(b)
+    if m.sum() < 100:
+        return {"scales": np.array([]), "rho": np.array([])}
+    a, b = a[m], b[m]
+    n = len(a)
+    A, B = np.cumsum(a - a.mean()), np.cumsum(b - b.mean())
+    if scales is None:
+        scales = np.unique(np.round(np.logspace(np.log10(10), np.log10(n // 4), 16))
+                           ).astype(int)
+    rho = []
+    for s in scales:
+        nseg = n // s
+        if nseg < 4:
+            rho.append(np.nan)
+            continue
+        t = np.arange(s)
+        V = np.polynomial.polynomial.polyvander(t, order)
+        sa = A[: nseg * s].reshape(nseg, s).T
+        sb = B[: nseg * s].reshape(nseg, s).T
+        ra = sa - V @ np.linalg.lstsq(V, sa, rcond=None)[0]
+        rb = sb - V @ np.linalg.lstsq(V, sb, rcond=None)[0]
+        fab = np.mean(ra * rb)
+        faa, fbb = np.mean(ra * ra), np.mean(rb * rb)
+        rho.append(fab / np.sqrt(faa * fbb) if faa > 0 and fbb > 0 else np.nan)
+    return {"scales": np.asarray(scales), "rho": np.asarray(rho, float)}

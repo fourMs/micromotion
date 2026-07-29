@@ -235,7 +235,7 @@ def qom(
             if gyro is None:
                 raise ValueError("variant 'tilt_corrected' needs a gyroscope signal")
             speed = speed_from_acceleration(
-                _remove_tilt(x, gyro, fs, unit), fs, "m/s^2", lo, hi
+                remove_tilt(x, gyro, fs, unit), fs, "m/s^2", lo, hi
             )
         elif variant == "raw":
             speed = speed_from_acceleration(x, fs, unit, lo, hi)
@@ -264,7 +264,7 @@ def qom(
     )
 
 
-def _remove_tilt(acc, gyro, fs: float, unit: str) -> np.ndarray:
+def remove_tilt(acc, gyro, fs: float, unit: str = "m/s^2") -> np.ndarray:
     """Subtract the gravity component that rotation moves between axes.
 
     The sensor's orientation is tracked by integrating the gyroscope, the gravity vector is
@@ -292,3 +292,23 @@ def _remove_tilt(acc, gyro, fs: float, unit: str) -> np.ndarray:
 
     g_mag = float(np.median(np.linalg.norm(a, axis=1)))
     return a - g_hat * g_mag
+
+
+def tilt_fraction(acc, gyro, fs: float, unit: str = "m/s^2") -> dict:
+    """How much of a body-worn accelerometer's quantity of motion is tilt rather than travel.
+
+    An accelerometer cannot tell leaning from moving: rotating in the gravity field produces
+    an acceleration with no displacement. Where a gyroscope is present the rotation is known,
+    so the gravity component it accounts for can be removed and the two compared.
+
+    Measured on the fNIRS session this returns 1.56, meaning the raw figure is a little over
+    half again the translational one. Do not read a single session as a population value; the
+    point is that the inflation is measurable rather than assumed, and the assumption in
+    circulation was 1.3 to 1.5.
+    """
+    raw = qom(acc, fs, kind="acceleration", unit=unit).mean_mm_s
+    corrected = qom(remove_tilt(acc, gyro, fs, unit), fs,
+                    kind="acceleration", unit="m/s^2").mean_mm_s
+    return {"raw_mm_s": raw, "translation_mm_s": corrected,
+            "inflation": raw / corrected if corrected else float("nan"),
+            "tilt_fraction": 1 - corrected / raw if raw else float("nan")}

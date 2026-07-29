@@ -129,3 +129,54 @@ def regularize(t, x, fs_out: float | None = None, max_gap_s: float | None = None
             out[(grid > t[i]) & (grid < t[i + 1])] = np.nan
 
     return grid, (out[:, 0] if x.ndim == 1 else out)
+
+
+def interpolate_gaps(x, max_gap: int = 200):
+    """Bridge short runs of NaN, leave long ones alone.
+
+    Filters cannot run across missing samples, so gaps have to be handled before anything
+    else. Bridging a dropped frame is reconstruction; bridging a 469-second hole is
+    invention, and the difference is only a matter of degree, which is why the threshold is
+    explicit and the long gaps stay NaN for the caller to exclude.
+
+    Works column by column. Leading and trailing gaps are never filled, since there is
+    nothing on one side to interpolate from.
+    """
+    a = np.array(x, float)
+    one_d = a.ndim == 1
+    if one_d:
+        a = a[:, None]
+    for j in range(a.shape[1]):
+        v = a[:, j]
+        bad = np.isnan(v)
+        if not bad.any() or bad.all():
+            continue
+        good = np.flatnonzero(~bad)
+        idx = np.flatnonzero(bad)
+        for run in np.split(idx, np.flatnonzero(np.diff(idx) != 1) + 1):
+            if len(run) <= max_gap and run[0] > 0 and run[-1] < len(v) - 1:
+                v[run] = np.interp(run, good, v[good])
+    return a[:, 0] if one_d else a
+
+
+def gap_report(x, fs: float) -> dict:
+    """Where the missing data is, and how it is distributed.
+
+    A single missing fraction hides the distinction that matters: one per cent scattered
+    evenly is a usable recording, and one per cent in a single block in the middle is two
+    recordings.
+    """
+    a = np.asarray(x, float)
+    bad = np.isnan(a)
+    if a.ndim > 1:
+        bad = bad.any(axis=1)
+    if not bad.any():
+        return {"missing_frac": 0.0, "n_gaps": 0, "longest_gap_s": 0.0}
+    idx = np.flatnonzero(bad)
+    runs = np.split(idx, np.flatnonzero(np.diff(idx) != 1) + 1)
+    return {
+        "missing_frac": float(bad.mean()),
+        "n_gaps": len(runs),
+        "longest_gap_s": float(max(len(r) for r in runs) / fs),
+        "median_gap_s": float(np.median([len(r) for r in runs]) / fs),
+    }
