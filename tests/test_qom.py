@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 import micromotion as mm
+from micromotion import filters  # noqa: F401
 
 
 def sine(amp_mm, f, fs, dur_s):
@@ -125,8 +126,14 @@ def test_position_rejects_accelerometer_only_variants():
 
 
 def test_binning_flags_the_partial_final_bin():
+    """Needs a recording long enough to have a clean middle.
+
+    At the 0.2 Hz lower edge the filter transient runs 40 s at each end, so anything under
+    about two minutes is edge all the way through. That is a real constraint of the band, not
+    an artefact: a short recording cannot be band-limited this low and still have an interior.
+    """
     fs = 100.0
-    _, x, _ = sine(3.0, 1.0, fs, 62.5)
+    _, x, _ = sine(3.0, 1.0, fs, 302.5)
     b = mm.qom(x, fs, kind="position").binned(5.0)
     assert b.iloc[-1].edge == "partial"
     assert (b.edge == "ok").sum() > 0
@@ -196,3 +203,12 @@ def test_margin_reaches_bandpass_too():
     a = mm.bandpass(x, fs, 0.3, 10.0)
     b = mm.bandpass(x, fs, 0.3, 10.0, margin=0.999)
     assert not np.allclose(a, b)
+
+
+def test_short_recordings_are_all_edge_at_this_band():
+    """The cost of the 0.2 Hz lower edge, made explicit rather than discovered later."""
+    fs = 100.0
+    _, x, _ = sine(3.0, 1.0, fs, 60.0)
+    b = mm.qom(x, fs, kind="position").binned(5.0)
+    assert (b.edge == "ok").sum() == 0
+    assert mm.filters.edge_transient_samples(fs) / fs == pytest.approx(40.0, abs=1.0)
