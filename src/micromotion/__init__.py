@@ -17,7 +17,7 @@ what frequencies, :mod:`~micromotion.circular` in which direction, and
 reads the files and :mod:`~micromotion.resample` enforces the rate rules.
 """
 
-from . import align, circular, dynamics, posture
+from . import align, circular, dynamics, group, posture
 from . import balance, mocap, physio
 from .balance import dfa
 from .balance import (
@@ -32,6 +32,13 @@ from .balance import (
     stabilogram_diffusion,
     sway_orientation,
     sway_texture,
+)
+from .group import (
+    coincidence_test,
+    event_train,
+    participation_ratio,
+    sequential_stability,
+    sliding_null,
 )
 from .mocap import compare_modality_envelopes, dominant_frequency, read_qtm_tsv
 from .physio import respiration_rate, spectral_band_fractions
@@ -92,9 +99,15 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
+    "sliding_null",
+    "sequential_stability",
+    "participation_ratio",
+    "group",
+    "event_train",
+    "coincidence_test",
     "accel_to_speed",
     "axial_rayleigh",
     "balance",
