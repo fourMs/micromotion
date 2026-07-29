@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+title: "micromotion: analysis of human micromotion in motion time series"
+message: "If you use this software, please cite it."
+type: software
+authors:
+  - family-names: Jensenius
+    given-names: Alexander Refsum
+    orcid: "https://orcid.org/0000-0003-4703-9411"
+    affiliation: "RITMO Centre for Interdisciplinary Studies in Rhythm, Time and Motion, University of Oslo"
+repository-code: "https://github.com/fourMs/micromotion"
+abstract: >-
+  One implementation of quantity of motion — the average speed of a body part,
+  band-limited to 0.3-10 Hz, in millimetres per second — for optical marker data,
+  body-worn accelerometers and force-plate centre of pressure, together with the
+  readers, resampling rules, scaling measures and alignment methods that surround it.
+keywords:
+  - micromotion
+  - standstill
+  - quantity of motion
+  - motion capture
+  - accelerometer
+  - postural sway
+license: GPL-3.0-or-later
+version: 0.2.0
