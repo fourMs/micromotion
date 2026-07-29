@@ -155,3 +155,24 @@ def test_unknown_integration_rule_is_refused():
     a = np.zeros((1000, 3))
     with pytest.raises(ValueError, match="unknown rule"):
         mm.qom(a, fs, integrate="simpson")
+
+
+def test_very_low_band_against_a_high_rate_warns():
+    """The silent failure this guard exists for: 0.1-0.5 Hz at 250 Hz.
+
+    In transfer-function form that design has a pole radius of 0.9979 and a measured passband
+    gain of 0.84 at 0.15 Hz where it should be 0.99 -- sixteen per cent low, with nothing
+    raised and nothing visibly wrong. Second-order sections give 0.9875.
+    """
+    fs = 250.0
+    x = np.sin(2 * np.pi * 0.15 * np.arange(0, 600, 1 / fs))
+    with pytest.warns(RuntimeWarning, match="very low against"):
+        y = mm.bandpass(x, fs, 0.1, 0.5, order=3)
+    assert np.std(y) / np.std(x) == pytest.approx(0.99, abs=0.02)
+
+
+def test_ordinary_bands_do_not_warn():
+    import warnings as _w
+    with _w.catch_warnings():
+        _w.simplefilter("error")
+        mm.bandpass(np.random.default_rng(0).normal(size=4000), 200.0, 0.3, 10.0)

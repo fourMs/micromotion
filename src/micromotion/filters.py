@@ -12,6 +12,8 @@ noise begins to dominate the signal of a person standing still.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 from scipy import signal
 
@@ -37,11 +39,37 @@ side must therefore use :data:`BAND` throughout, and say so.
 ORDER = 4
 
 
+NARROW_BAND_RATIO = 40.0
+"""Warn when the sampling rate exceeds the upper band edge by more than this.
+
+A band-pass whose edges sit very close to zero in normalised frequency is numerically
+fragile, and how fragile depends on how it is realised. Second-order sections, which this
+module uses, stay accurate far longer than the transfer-function form -- but not forever, and
+a caller designing their own filter should be warned before they are bitten.
+
+The failure is silent and it is not hypothetical. A 0.1-0.5 Hz third-order band-pass at
+250 Hz, written in the usual ``butter(3, [lo/ny, hi/ny])`` transfer-function form, has a
+largest pole radius of 0.9979 and a measured passband gain of 0.84 at 0.15 Hz where it should
+be 0.99. Nothing raises, nothing looks wrong, and every amplitude downstream is 16 per cent
+low. The same design as second-order sections gives 0.9875.
+
+The fix when this warns is to decimate first, so the band sits comfortably inside the new
+Nyquist range, then filter.
+"""
+
+
 def _edges(fs: float, lo: float, hi: float) -> tuple[float, float]:
     ny = fs / 2.0
     if lo <= 0 or lo >= ny:
         raise ValueError(f"low edge {lo} Hz is not below Nyquist {ny} Hz")
     hi = min(hi, ny * 0.99)
+    if hi > 0 and fs / hi > NARROW_BAND_RATIO:
+        warnings.warn(
+            f"band {lo}-{hi} Hz is very low against a {fs} Hz sampling rate "
+            f"(ratio {fs / hi:.0f}:1). Second-order sections hold up here, but a "
+            "transfer-function filter of the same design would not, and accuracy degrades "
+            "as the ratio grows. Consider decimating first.",
+            RuntimeWarning, stacklevel=3)
     if hi <= lo:
         raise ValueError(
             f"sampling rate {fs} Hz is too low for a {lo}-{hi} Hz band; "
