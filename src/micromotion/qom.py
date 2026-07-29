@@ -37,6 +37,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
+from scipy.integrate import cumulative_trapezoid
 
 from . import filters
 from .spectral import cardiac_peak
@@ -105,10 +106,27 @@ def speed_from_acceleration(
     lo: float = filters.BAND[0],
     hi: float = filters.BAND[1],
     notch_hz: float | None = None,
+    integrate: str = "rectangle",
 ) -> np.ndarray:
     """Band-limited speed, in mm/s, from acceleration.
 
     ``acc`` is (n_samples, n_axes). ``unit`` is ``"m/s^2"`` or ``"g"``.
+
+    ``integrate`` selects the quadrature rule, and the choice is not cosmetic. Both are in
+    use in this corpus: the StillStanding365 and fNIRS pipelines integrate with the trapezoid
+    rule, the Stillness2025, Taqasim and 2024 championship pipelines with a rectangle sum.
+    They differ by about 0.26 per cent on real phone data, which is small but is a systematic
+    bias rather than noise -- the rectangle rule lags the signal by half a sample.
+
+    Neither rule is universally right here, so the default is the one that keeps this
+    package's own published numbers self-consistent: ``"rectangle"`` is what the harmonised
+    cross-collection table and every figure derived from it were computed with, and it
+    reproduces the deposited Taqasim value (93.140 against 93.091 mm/s) where the trapezoid
+    rule gives 93.405. Pass ``integrate="trapezoid"`` to reproduce StillStanding365 and
+    fNIRS, whose deposited pipelines use it.
+
+    Which rule the project should standardise on is an open question, deliberately not
+    settled by this default.
     """
     a = _to_2d(acc)
     if unit == "g":
@@ -118,7 +136,12 @@ def speed_from_acceleration(
     a = filters.bandpass(a, fs, lo, hi)
     if notch_hz:
         a = filters.notch(a, fs, notch_hz)
-    v = np.cumsum(a, axis=0) / fs
+    if integrate == "trapezoid":
+        v = cumulative_trapezoid(a, dx=1.0 / fs, initial=0, axis=0)
+    elif integrate == "rectangle":
+        v = np.cumsum(a, axis=0) / fs
+    else:
+        raise ValueError(f"unknown rule {integrate!r}; use 'trapezoid' or 'rectangle'")
     v = filters.bandpass(v, fs, lo, hi)
     return np.linalg.norm(v, axis=1) * MM_PER_M
 
@@ -191,6 +214,7 @@ def qom(
     variant: str = "raw",
     band: str = "micromotion",
     gyro=None,
+    integrate: str = "rectangle",
 ) -> QomResult:
     """Quantity of motion for one recording.
 
@@ -230,7 +254,8 @@ def qom(
         if variant == "compensated":
             mag = np.linalg.norm(x, axis=1)
             hz = cardiac_peak(mag, fs)
-            speed = speed_from_acceleration(x, fs, unit, lo=0.5, hi=hi, notch_hz=hz)
+            speed = speed_from_acceleration(x, fs, unit, lo=0.5, hi=hi, notch_hz=hz,
+                                            integrate=integrate)
         elif variant == "tilt_corrected":
             if gyro is None:
                 raise ValueError("variant 'tilt_corrected' needs a gyroscope signal")
@@ -238,7 +263,7 @@ def qom(
                 remove_tilt(x, gyro, fs, unit), fs, "m/s^2", lo, hi
             )
         elif variant == "raw":
-            speed = speed_from_acceleration(x, fs, unit, lo, hi)
+            speed = speed_from_acceleration(x, fs, unit, lo, hi, integrate=integrate)
         else:
             raise ValueError(f"unknown variant {variant!r}")
     elif kind == "position":

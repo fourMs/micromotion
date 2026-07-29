@@ -130,3 +130,28 @@ def test_binning_flags_the_partial_final_bin():
     b = mm.qom(x, fs, kind="position").binned(5.0)
     assert b.iloc[-1].edge == "partial"
     assert (b.edge == "ok").sum() > 0
+
+
+def test_both_integration_rules_are_available_and_differ():
+    """Both are in use in the source corpus, and they are not interchangeable.
+
+    The rectangle sum lags the signal by half a sample, so it reads slightly low. The gap is
+    about a quarter of a per cent on real data: small, systematic, and not noise.
+    """
+    fs = 200.0
+    t = np.arange(0, 120, 1 / fs)
+    rng = np.random.default_rng(0)
+    a = np.column_stack([
+        -3.0 * (2 * np.pi * 1.0) ** 2 * np.sin(2 * np.pi * 1.0 * t) / 1000.0
+        + 0.002 * rng.normal(size=len(t)) for _ in range(3)])
+    rect = mm.qom(a, fs, integrate="rectangle").mean_mm_s
+    trap = mm.qom(a, fs, integrate="trapezoid").mean_mm_s
+    assert rect != trap
+    assert abs(trap / rect - 1) < 0.02
+
+
+def test_unknown_integration_rule_is_refused():
+    fs = 100.0
+    a = np.zeros((1000, 3))
+    with pytest.raises(ValueError, match="unknown rule"):
+        mm.qom(a, fs, integrate="simpson")
