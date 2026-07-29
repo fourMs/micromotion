@@ -22,7 +22,7 @@ dependencies = ["numpy>=1.24", "scipy>=1.10", "pandas>=2.0"]
 test = ["pytest>=7"]
 
 [project.urls]
-Homepage = "https://github.com/alexarje/micromotion"
+Homepage = "https://github.com/fourMs/micromotion"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/micromotion"]
