@@ -18,6 +18,34 @@ reads the files and :mod:`~micromotion.resample` enforces the rate rules.
 """
 
 from . import align, circular, dynamics, posture
+from . import balance, mocap, physio
+from .balance import dfa
+from .balance import (
+    axial_rayleigh,
+    confidence_ellipse_area,
+    convex_hull_area,
+    cop_sway_metrics,
+    principal_axis_projection,
+    sample_entropy,
+    spatial_extent,
+    spectral_edges,
+    stabilogram_diffusion,
+    sway_orientation,
+    sway_texture,
+)
+from .mocap import compare_modality_envelopes, dominant_frequency, read_qtm_tsv
+from .physio import respiration_rate, spectral_band_fractions
+from .qom import (
+    accel_to_speed,
+    band_limited_qom,
+    bin_series,
+    body_scale,
+    envelope,
+    grid_qom,
+    group_qom,
+    normalized_qom,
+    pose_qom,
+)
 from .align import apply_lag, find_transient, instantaneous_rate, search_lag, xcorr_lag
 from .filters import BAND, OPTICAL_LEGACY_BAND, bandpass, highpass, lowpass, notch
 from .io import (
@@ -64,9 +92,38 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
+    "accel_to_speed",
+    "axial_rayleigh",
+    "balance",
+    "band_limited_qom",
+    "bin_series",
+    "body_scale",
+    "compare_modality_envelopes",
+    "confidence_ellipse_area",
+    "convex_hull_area",
+    "cop_sway_metrics",
+    "dfa",
+    "dominant_frequency",
+    "envelope",
+    "grid_qom",
+    "group_qom",
+    "mocap",
+    "normalized_qom",
+    "physio",
+    "pose_qom",
+    "principal_axis_projection",
+    "read_qtm_tsv",
+    "respiration_rate",
+    "sample_entropy",
+    "spatial_extent",
+    "spectral_band_fractions",
+    "spectral_edges",
+    "stabilogram_diffusion",
+    "sway_orientation",
+    "sway_texture",
     "BAND",
     "BANDS",
     "COMMON_RATE",
