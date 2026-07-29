@@ -47,8 +47,13 @@ There are two conventions in circulation and they are not interchangeable.
 is the one any cross-collection comparison must use.
 
 `optical_legacy` is a 10 Hz low-pass with no lower edge. It keeps sub-0.3 Hz postural drift,
-which for optical position is real movement, and it is the convention behind the published
-championship figures. On the 2015 championship it reads 15.5 per cent above the band-pass.
+which for optical position is real movement, and it is the convention the earlier championship
+figures were computed with. On the 2015 championship it reads 15.5 per cent above the
+band-pass. The project moved off it on 2026-07-29, for a reason worth knowing: a 10 Hz
+low-pass degenerates as the sampling rate approaches 20 Hz, where its cutoff reaches Nyquist
+and it stops filtering entirely. On the 20 Hz origin dataset it removed 0.0000 per cent of the
+signal energy while removing 27.9 per cent from 200 Hz recordings, so the two were never the
+same measure. It is kept here to reproduce older results, not to produce new ones.
 
 The lower edge is optional for position and mandatory for acceleration: gravity is a DC
 term, and integrating a signal with any residual offset produces a ramp that swamps the
