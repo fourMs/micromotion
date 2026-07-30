@@ -139,3 +139,174 @@ def spectral_band_fractions(signal, fs, bands, *, total_band=(0.1, 8.0),
     for name, (lo, hi) in bands.items():
         out[name] = float(P[(f >= lo) & (f < hi)].sum() / total)
     return out
+
+
+def _centred_diff(y: np.ndarray) -> np.ndarray:
+    """First difference evaluated at the sample points rather than between them.
+
+    ``np.diff`` returns values that belong at the midpoints, which shifts every downstream
+    threshold by half a sample and drops one point. This interpolates the forward differences
+    from the midpoints back onto the original grid, extrapolating at the ends -- the behaviour
+    of ``respy.diffed``.
+    """
+    d = np.diff(y)
+    mid = np.arange(len(d)) + 0.5
+    return np.interp(np.arange(len(y)), mid, d,
+                     left=d[0] if len(d) else 0.0, right=d[-1] if len(d) else 0.0)
+
+
+def _butter_zero_phase(y: np.ndarray, fs: float, cutoff, btype: str, order: int = 2):
+    from scipy.signal import butter, filtfilt
+    nyq = 0.5 * fs
+    wn = np.asarray(cutoff, float) / nyq
+    wn = float(wn.reshape(-1)[0]) if wn.size == 1 else wn   # scipy wants a scalar for low/high
+    return filtfilt(*butter(order, wn, btype=btype), y)
+
+
+def respiration_onsets(x, fs: float, *, lowpass_hz: float = 1.0,
+                       onset_frac: float = 0.55, baseline_hz: float = 0.2) -> dict:
+    """Inspiration and expiration onset times from a chest-expansion recording.
+
+    Inspiration onset is defined by chest-expansion *velocity* crossing a threshold rather than
+    by a local minimum, which is what makes this robust on quiet standing: a belt on a standing
+    body carries sway and weight shifts that produce local minima with no breath behind them.
+    Expiration onset is the end of that rise, which assumes passive expiration.
+
+    The threshold is taken from the signal's own distribution -- ``onset_frac`` times the mean
+    positive velocity -- and candidate rises are then required to contain an upward crossing of
+    a heavily low-passed copy of the signal, so a rise that never returns to an exhaled baseline
+    is discarded.
+
+    Zero-crossing technique after Matsuda et al. and Upham (2018). Ported from Finn Upham's
+    ``respy`` (MIT, 2023) and reimplemented on numpy; see :func:`respiratory_phases` for why.
+
+    Returns ``inspiration_s``, ``expiration_s``, the normalised signal, and its velocity.
+    """
+    y = np.asarray(x, float)
+    if y.ndim != 1:
+        raise ValueError("respiration_onsets expects a 1-D waveform")
+    finite = np.isfinite(y)
+    if finite.sum() < 3:
+        raise ValueError("respiration_onsets needs at least three finite samples")
+    if not finite.all():                       # NaNs sneak in; filtfilt would spread them
+        y = np.interp(np.arange(len(y)), np.flatnonzero(finite), y[finite])
+    y = y - y.mean()
+
+    filt = _butter_zero_phase(y, fs, [lowpass_hz], "lowpass")
+    scale = fs * np.median(np.abs(np.diff(filt)))
+    norm = filt / scale if scale > 0 else filt
+    vel = _centred_diff(norm)
+
+    thresh = vel[vel > 0].mean() * onset_frac if (vel > 0).any() else 0.0
+
+    # candidate rises: contiguous runs where velocity exceeds the threshold
+    flat = _butter_zero_phase(norm, fs, [baseline_hz], "lowpass")
+    crossings = np.diff(np.sign(norm - flat), prepend=np.nan)   # +2 marks an upward crossing
+    up = np.flatnonzero(crossings == 2)
+
+    V = np.where(vel < thresh, 0.0, vel)
+    a = np.diff(np.sign(V), prepend=np.nan)
+    seg_in = np.flatnonzero(a > 0.5) - 2        # respy backs the onset off two samples
+    seg_out = np.flatnonzero(a < -0.5)
+    seg_in, seg_out = _trim_segments(seg_in, seg_out)
+
+    # drop rises that never cross the baseline: chest movement that is not a breath
+    for lo, hi in zip(seg_in, seg_out):
+        if not np.any((up >= lo) & (up <= hi)):
+            V[max(lo, 0):hi + 1] = 0.0
+    a = np.diff(np.sign(V), prepend=np.nan)
+    seg_in, seg_out = _trim_segments(np.flatnonzero(a > 0.5), np.flatnonzero(a < -0.5))
+
+    return {"inspiration_s": seg_in / fs, "expiration_s": seg_out / fs,
+            "inspiration_i": seg_in, "expiration_i": seg_out,
+            "normalised": norm, "velocity": vel, "n_breaths": len(seg_in)}
+
+
+def _trim_segments(seg_in: np.ndarray, seg_out: np.ndarray):
+    """Drop an incomplete rise at either end, so every onset has a matching offset."""
+    if len(seg_out) and len(seg_in) and seg_out[0] < seg_in[0]:
+        seg_out = seg_out[1:]
+    n = min(len(seg_in), len(seg_out))
+    return np.clip(seg_in[:n], 0, None), seg_out[:n]
+
+
+def respiratory_phases(x, fs: float, *, scale_high: float = 0.7, scale_low: float = 0.3,
+                       **kw) -> dict:
+    """Decompose a respiration recording into the phases of the breath cycle.
+
+    A breathing *rate* says how often; this says where in each cycle the body is. That matters
+    here specifically, because the post-expiration pause is the moment in the cycle when the
+    body is most nearly still, so relating breathing to micromotion wants phases rather than a
+    rate.
+
+    Returns boolean masks over the input samples:
+
+    ``inspiration``, ``expiration``
+        the two half-cycles.
+    ``inspiration_high``, ``expiration_high``
+        high-flow moments judged against the whole recording -- the ``scale_high`` quantile of
+        velocity within each phase.
+    ``inspiration_v``, ``expiration_v``
+        high-flow moments judged *within each breath*, against that breath's own peak velocity.
+        Use these when breath size varies across the recording, which it does during settling.
+    ``post_expiration``
+        the pause after expiration has slowed to ``scale_low`` of its own peak rate.
+
+    The defaults come from the coordination analysis in Upham (2018).
+
+    Ported from Finn Upham's ``respy`` (MIT, 2023) with permission, and reimplemented on numpy.
+    The port is not gratuitous: ``respy.Resp_phases`` assigns through ``df[col].loc[idx]``, which
+    under pandas copy-on-write silently does not write, so on pandas 2 and later it returns all
+    twelve of its phase columns empty without raising. Verified against ``respy`` 0.1.1 on
+    pandas 3.0.3, where every phase column came back 0.0 per cent populated.
+
+    References
+    ----------
+    Upham, F. (2018). *Detecting the Adaptation of Listeners' Respiration to Heard Music*.
+    PhD thesis, New York University.
+    """
+    o = respiration_onsets(x, fs, **kw)
+    n = len(o["normalised"])
+    norm, vel = o["normalised"], o["velocity"]
+    ins, exp = o["inspiration_i"], o["expiration_i"]
+
+    out = {k: np.zeros(n, bool) for k in
+           ("inspiration", "expiration", "inspiration_high", "expiration_high",
+            "inspiration_v", "expiration_v", "post_expiration")}
+
+    for lo, hi in zip(ins, exp):                       # inspiration: onset to offset
+        out["inspiration"][lo:hi + 1] = True
+    for hi, lo in zip(exp[:-1], ins[1:]):              # expiration: offset to the next onset
+        out["expiration"][hi:lo + 1] = True
+
+    # sequence-wise: one threshold for the whole recording, per phase
+    if out["inspiration"].any():
+        t = np.quantile(vel[out["inspiration"]], scale_high)
+        out["inspiration_high"] = out["inspiration"] & (vel >= t)
+    if out["expiration"].any():
+        t = np.quantile(vel[out["expiration"]], 1 - scale_high)
+        out["expiration_high"] = out["expiration"] & (vel <= t)
+
+    # breath-wise: each half-cycle against its own peak rate
+    for lo, hi in zip(ins, exp):
+        seg = vel[lo:hi + 1]
+        if len(seg) and seg.max() > 0:
+            out["inspiration_v"][lo:hi + 1] = seg > seg.max() * scale_high
+    for hi, lo in zip(exp[:-1], ins[1:]):
+        seg = vel[hi:lo + 1]
+        if not len(seg):
+            continue
+        if seg.min() < 0:
+            out["expiration_v"][hi:lo + 1] = seg < seg.min() * scale_high
+            # the pause: after the steepest point, once the rate has fallen below scale_low of it
+            k = int(np.argmin(seg))
+            slowed = seg.copy()
+            slowed[:k] = seg.min()                     # never call the run-up a pause
+            out["post_expiration"][hi:lo + 1] = slowed > seg.min() * scale_low
+
+    out["inspiration_onset_s"] = o["inspiration_s"]
+    out["expiration_onset_s"] = o["expiration_s"]
+    out["normalised"] = norm
+    out["velocity"] = vel
+    out["n_breaths"] = o["n_breaths"]
+    return out

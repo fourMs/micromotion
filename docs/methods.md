@@ -142,6 +142,46 @@ slow postural oscillation. Both are inside the micromotion band, which is why a 
     respiration can land near the low end of the cardiac search band. Check that a "cardiac" peak
     is not twice the respiratory one before believing it.
 
+### Where in the breath cycle?
+
+```python
+mm.respiration_onsets(x, fs)      # inspiration and expiration onset times
+mm.respiratory_phases(x, fs)      # boolean masks over the cycle
+```
+
+A breathing rate says how often. This says where in each cycle the body is, which is the more
+useful question when relating breathing to stillness: the post-expiration pause is the moment in
+the cycle when the body is most nearly still, so a measure of micromotion that ignores phase is
+averaging across a systematically varying quantity.
+
+Inspiration onset is defined by chest-expansion *velocity* crossing a threshold rather than by a
+local minimum. That distinction is what makes it usable on quiet standing, where a belt also picks
+up sway, weight shifts and swallows, all of which produce local minima with no breath behind them.
+The threshold comes from the signal's own distribution, and a candidate rise is kept only if it
+contains an upward crossing of a heavily low-passed copy of the signal — so a rise that never
+returned to an exhaled baseline is rejected. Expiration onset is the end of the rise, which assumes
+passive expiration.
+
+`respiratory_phases` returns `inspiration` and `expiration`, high-flow moments judged both against
+the whole recording (`*_high`) and within each individual breath (`*_v`), and `post_expiration`.
+Prefer the per-breath variants when breath size varies across a recording, which it does while
+someone is settling.
+
+- Upham (2018). *Detecting the Adaptation of Listeners' Respiration to Heard Music*. PhD thesis,
+  New York University. The phase definitions and the default thresholds come from its coordination
+  analysis.
+
+!!! note "Provenance, and why this is a port"
+
+    This is Finn Upham's method, from his [`respy`](https://pypi.org/project/respy/) package
+    (MIT), reimplemented here on numpy with permission. The reimplementation is not gratuitous:
+    `respy.Resp_phases` assigns through `df[col].loc[idx]`, which under pandas copy-on-write does
+    not write, so from pandas 2 onward it returns all twelve of its phase columns empty without
+    raising anything. Measured against `respy` 0.1.1 on pandas 3.0.3, every phase column came back
+    0.0 per cent populated. The onset detector, which still works there, was used as the oracle:
+    across six recordings and 2331 breaths the two agree on inspiration onset to a median of
+    0.000 s, with this port finding 1.4 per cent more breaths at the recording boundaries.
+
 ---
 
 ## How is it structured in time?

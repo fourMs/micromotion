@@ -41,7 +41,8 @@ from .group import (
     sliding_null,
 )
 from .mocap import compare_modality_envelopes, dominant_frequency, read_qtm_tsv
-from .physio import respiration_rate, spectral_band_fractions
+from .physio import (respiration_onsets, respiration_rate, respiratory_phases,
+                     spectral_band_fractions)
 from .qom import (
     accel_to_speed,
     band_limited_qom,
@@ -110,7 +111,7 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 __all__ = [
     "sliding_null",
@@ -141,6 +142,8 @@ __all__ = [
     "principal_axis_projection",
     "read_qtm_tsv",
     "respiration_rate",
+    "respiration_onsets",
+    "respiratory_phases",
     "sample_entropy",
     "spatial_extent",
     "spectral_band_fractions",

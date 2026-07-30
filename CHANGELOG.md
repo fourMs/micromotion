@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.8.0
+
+Added respiratory phase decomposition to `physio`: `respiration_onsets` and `respiratory_phases`.
+A breathing rate says how often; these say where in the cycle the body is, which is the more
+useful question for standstill work because the post-expiration pause is the moment in the breath
+when the body is most nearly still. `respiratory_phases` returns the two half-cycles, high-flow
+moments judged both across the recording and within each individual breath, and the pause itself.
+
+Inspiration onset is defined by chest-expansion velocity crossing a threshold taken from the
+signal's own distribution, not by a local minimum, and a candidate rise is kept only if it crosses
+a heavily low-passed baseline. That rejection step is what makes it usable on quiet standing,
+where a belt also records sway, weight shifts and swallows -- all of which produce local minima
+with no breath behind them.
+
+This is Finn Upham's method, from his `respy` package (MIT, 2023), reimplemented here on numpy
+with permission. The reimplementation is not gratuitous: `respy.Resp_phases` assigns through
+`df[col].loc[idx]`, which under pandas copy-on-write does not write, so from pandas 2 onward it
+returns all twelve of its phase columns empty without raising anything. Measured against `respy`
+0.1.1 on pandas 3.0.3, every phase column came back 0.0 per cent populated.
+
+Validated against the one `respy` function that still works. Across six respiration-belt
+recordings and 2331 breaths the two agree on inspiration onset to a median of 0.000 s, 100 per
+cent within 0.5 s, with this implementation finding 1.4 per cent more breaths at the recording
+boundaries. Phase coverage is physiological: inspiration 21-28 per cent of samples, expiration
+70-79, post-expiration pause 26-43.
+
 ## 0.7.0
 
 Added `validate`, a module of checks that fail loudly on the errors this corpus makes silently.
