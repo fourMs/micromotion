@@ -19,12 +19,33 @@ import numpy as np
 from scipy import signal
 
 COMMON_RATE = 20.0
-"""Hz. The cross-collection analysis rate.
+"""Hz. The rate at which every collection can be compared, including the slowest.
 
-Not a compromise: the micromotion band stops at 10 Hz, so 20 Hz is its Nyquist rate and
-everything above it is discarded by the band-pass anyway. It is also the native rate of the
-slowest collection, so reaching it never requires upsampling. See
-``deposit/SAMPLING_RATES.md``.
+It is the greatest common divisor of the corpus's optical rates -- 20, 100, 120 and 200 Hz --
+so every recording reaches it by an integer decimation and none requires upsampling. That is
+its one virtue, and it is a real one: it is the only rate at which the natively-20 Hz origin
+study can be placed beside the rest at all.
+
+It is a lossy rate, not a free one. The argument that the band stops at 10 Hz so 20 Hz discards
+nothing does not survive measurement, because a 10 Hz upper edge cannot be realised at 20 Hz:
+Nyquist sits exactly on it, the margin rule pulls the edge inside, and the anti-alias filter is
+already rolling off below it. Decimating 34 natively-200 Hz person-recordings and re-measuring
+moves quantity of motion by -2.09 per cent at the median, and between -0.30 and -10.57 per cent
+across recordings. A per-recording spread that wide is a distortion rather than a bias: it
+cannot be measured once and corrected away.
+
+Prefer :data:`HARMONISED_RATE` where every series in the comparison can reach it. Use this one
+when the comparison must include a 20 Hz collection, and say in the output that it is the lossy
+view.
+"""
+
+HARMONISED_RATE = 100.0
+"""Hz. The preferred rate for a comparison whose series can all reach it.
+
+Native for several collections, an exact halving from 200 Hz, and a 6-to-5 polyphase step from
+120 Hz. Measured against native 200 Hz values it costs +0.02 per cent at the median and stays
+within +/-0.85 per cent, against -2.09 and up to -10.57 at 20 Hz. It also leaves the 0.2-10 Hz
+band comfortably inside Nyquist rather than sitting on it.
 """
 
 

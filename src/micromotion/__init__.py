@@ -1,7 +1,7 @@
 """micromotion: analysis of human micromotion in motion time series.
 
 The measure this package exists for is quantity of motion: the average speed of a body part,
-band-limited to 0.3-10 Hz, in millimetres per second. It applies equally to optical markers,
+band-limited to 0.2-10 Hz, in millimetres per second. It applies equally to optical markers,
 body-worn accelerometers, and force-plate centre of pressure, because the shared abstraction
 is the band and not the sensor.
 
@@ -17,7 +17,7 @@ what frequencies, :mod:`~micromotion.circular` in which direction, and
 reads the files and :mod:`~micromotion.resample` enforces the rate rules.
 """
 
-from . import align, circular, dynamics, group, posture
+from . import align, circular, dynamics, group, posture, validate
 from . import balance, mocap, physio
 from .balance import dfa
 from .balance import (
@@ -79,8 +79,16 @@ from .qom import (
     tilt_fraction,
 )
 from .record import MotionRecord
+from .validate import (
+    Finding,
+    duplicate_files,
+    longest_finite_span,
+    raise_on_error,
+    validate_series,
+)
 from .resample import (
     COMMON_RATE,
+    HARMONISED_RATE,
     gap_report,
     interpolate_gaps,
     measured_rate,
@@ -141,6 +149,13 @@ __all__ = [
     "BAND",
     "BANDS",
     "COMMON_RATE",
+    "HARMONISED_RATE",
+    "Finding",
+    "duplicate_files",
+    "longest_finite_span",
+    "raise_on_error",
+    "validate",
+    "validate_series",
     "G",
     "MotionRecord",
     "OPTICAL_LEGACY_BAND",

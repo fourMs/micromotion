@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+Added `validate`, a module of checks that fail loudly on the errors this corpus makes silently.
+Every check exists because the failure it catches happened, went unnoticed, and produced a
+believable wrong number: gaps written as three exact zeros and read as a point on the floor, a
+gap running off the end of a series emptying it through the band-pass, timestamps that step
+backwards, a documented rate out by a factor of 37, a C3D conversion truncating at the 16-bit
+ceiling, a sensor stored at a higher rate than it was sampled at, and the same recording
+deposited twice under two names. `validate_series` runs the applicable ones and
+`raise_on_error` turns them into a build gate.
+
+Run against the deposited optical records it found 14 series carrying zero-triplet gaps, one of
+them 41 per cent of the recording, in a collection that had not been repaired.
+
+`longest_finite_span` is exposed alongside it: what to measure over when a gap cannot be
+bridged, which had been written out by hand in three separate places.
+
+`HARMONISED_RATE` (100 Hz) is added and `COMMON_RATE` (20 Hz) keeps its value but loses its
+justification. The claim that the band stops at 10 Hz so 20 Hz discards nothing does not survive
+measurement: a 10 Hz upper edge cannot be realised at 20 Hz, and decimating 34 natively-200 Hz
+person-recordings moves quantity of motion by -2.09 per cent at the median and between -0.30 and
+-10.57 per cent across recordings. That per-recording spread is a distortion rather than a bias,
+so it cannot be corrected away. 100 Hz costs +0.02 per cent and stays inside +/-0.85.
+
+The package docstring still described the 0.3 Hz band that 0.6.0 replaced.
+
 ## 0.6.0
 
 First release published to PyPI.
