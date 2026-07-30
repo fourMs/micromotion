@@ -14,6 +14,13 @@ deposited twice under two names. `validate_series` runs the applicable ones and
 Run against the deposited optical records it found 14 series carrying zero-triplet gaps, one of
 them 41 per cent of the recording, in a collection that had not been repaired.
 
+`edge_motion` and `settling_time` ask whether a recording is standstill throughout. Deposited
+standstill data should contain standstill, and much of this corpus does not: measured against
+each recording's own settled interior, all 64 Taqasim recordings and all 365 StillStanding365
+days move at more than twice their settled level at an edge, and one HpSp recording ends at
+1608 mm/s, which is walking. `settling_time` says how much to trim rather than leaving it to a
+guess — the fixed twelve seconds StillStanding365 uses should be about thirty-five.
+
 `longest_finite_span` is exposed alongside it: what to measure over when a gap cannot be
 bridged, which had been written out by hand in three separate places.
 

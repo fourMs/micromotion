@@ -81,6 +81,8 @@ from .qom import (
 from .record import MotionRecord
 from .validate import (
     Finding,
+    edge_motion,
+    settling_time,
     duplicate_files,
     longest_finite_span,
     raise_on_error,
@@ -152,6 +154,8 @@ __all__ = [
     "HARMONISED_RATE",
     "Finding",
     "duplicate_files",
+    "edge_motion",
+    "settling_time",
     "longest_finite_span",
     "raise_on_error",
     "validate",

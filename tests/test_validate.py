@@ -139,3 +139,61 @@ def test_raise_on_error_reports_every_error_at_once():
         validate.raise_on_error(findings)
     assert "first" in str(e.value) and "second" in str(e.value)
     validate.raise_on_error([validate.Finding("b", "warning", "fine")])
+
+
+def _speed(n, fs, base=4.0, seed=1):
+    rng = np.random.default_rng(seed)
+    return np.abs(rng.normal(base, base * 0.15, n))
+
+
+def test_edge_motion_catches_people_walking_into_position():
+    """The 2017 and 2018 Sverm exports: untrimmed, opening with the participants settling."""
+    fs = 200.0
+    v = _speed(int(400 * fs), fs)
+    v[: int(10 * fs)] *= 5
+    found = validate.edge_motion(v, fs, where="standstill0012")
+    assert len(found) == 1
+    assert found[0].severity == "warning" and "first" in found[0].message
+
+
+def test_edge_motion_catches_a_moving_end_too():
+    fs = 200.0
+    v = _speed(int(400 * fs), fs)
+    v[-int(10 * fs):] *= 6
+    found = validate.edge_motion(v, fs)
+    assert len(found) == 1 and "last" in found[0].message
+
+
+def test_a_properly_trimmed_recording_is_silent():
+    """The 2021 export, trimmed to begin after everyone had settled."""
+    fs = 200.0
+    assert validate.edge_motion(_speed(int(400 * fs), fs), fs) == []
+
+
+def test_edge_motion_declines_to_judge_a_short_recording():
+    """Under the baseline window there is no settled interior to compare against."""
+    fs = 200.0
+    assert validate.edge_motion(_speed(int(30 * fs), fs), fs) == []
+
+
+def test_settling_time_measures_what_to_trim():
+    """A recording that opens moving and closes settled."""
+    fs = 200.0
+    v = _speed(int(400 * fs), fs)
+    v[: int(25 * fs)] *= 6
+    head, tail = validate.settling_time(v, fs)
+    assert 20 <= head <= 30
+    assert tail == 0.0
+
+
+def test_settling_time_is_zero_at_both_ends_when_already_trimmed():
+    fs = 200.0
+    assert validate.settling_time(_speed(int(400 * fs), fs), fs) == (0.0, 0.0)
+
+
+def test_settling_time_reports_the_ceiling_when_it_never_settles():
+    fs = 200.0
+    v = _speed(int(400 * fs), fs)
+    v[: int(150 * fs)] *= 8
+    head, _ = validate.settling_time(v, fs, max_s=60.0)
+    assert head == 60.0

@@ -207,6 +207,80 @@ def frame_count(n: int, where: str = "") -> list[Finding]:
     return []
 
 
+def edge_motion(speed, fs: float, where: str = "", edge_s: float = 10.0,
+                baseline_s: tuple[float, float] = (60.0, 300.0),
+                factor: float = 2.0) -> list[Finding]:
+    """Whether a recording opens or closes with movement rather than standstill.
+
+    A deposited standstill recording should contain standstill and nothing else. In practice
+    exports are trimmed by hand, or not trimmed at all, and what survives at the edges is people
+    walking into position, settling, or being told the recording has ended. That inflates
+    anything computed over a short window and is invisible in a whole-recording median.
+
+    ``speed`` is a band-limited speed series, whatever sensor it came from. The comparison is
+    against the recording's own settled interior rather than an absolute threshold, because the
+    quantity varies by two orders of magnitude across sensors in this corpus.
+
+    Returns one finding per affected end, at ``"warning"``: settling is a fact about the
+    recording to be recorded, not necessarily a fault to be fixed.
+    """
+    speed = np.asarray(speed, float)
+    n = len(speed)
+    lo, hi = int(baseline_s[0] * fs), int(min(baseline_s[1] * fs, n))
+    if n < int(2 * edge_s * fs) + 1 or hi - lo < int(10 * fs):
+        return []
+    base = float(np.nanmedian(speed[lo:hi]))
+    if not np.isfinite(base) or base <= 0:
+        return []
+    k = int(edge_s * fs)
+    out = []
+    for end, seg in (("start", speed[:k]), ("end", speed[-k:])):
+        v = float(np.nanmedian(seg))
+        if np.isfinite(v) and v > factor * base:
+            out.append(_finding(
+                "edge_motion", "warning",
+                f"the first {edge_s:.0f} s move at {v:.3g} against a settled {base:.3g} "
+                f"({v / base:.1f}x)" if end == "start" else
+                f"the last {edge_s:.0f} s move at {v:.3g} against a settled {base:.3g} "
+                f"({v / base:.1f}x)", where))
+    return out
+
+
+def settling_time(speed, fs: float, baseline_s: tuple[float, float] = (60.0, 300.0),
+                  factor: float = 1.5, window_s: float = 5.0,
+                  max_s: float = 120.0) -> tuple[float, float]:
+    """How long each end of a recording takes to reach its settled level, in seconds.
+
+    Returns ``(head, tail)``: the time to trim from the start and from the end so that what
+    remains is within ``factor`` of the recording's own settled interior. Zero means that end is
+    already settled. Use it to choose a trim rather than guessing one — a fixed twelve seconds
+    was not enough for any recording in the collection it was chosen for.
+
+    The search stops at ``max_s`` and returns that value, which should be read as "still moving
+    when we stopped looking" rather than as a measurement.
+    """
+    speed = np.asarray(speed, float)
+    n = len(speed)
+    lo, hi = int(baseline_s[0] * fs), int(min(baseline_s[1] * fs, n))
+    if hi - lo < int(10 * fs):
+        return 0.0, 0.0
+    base = float(np.nanmedian(speed[lo:hi]))
+    if not np.isfinite(base) or base <= 0:
+        return 0.0, 0.0
+    w = max(1, int(window_s * fs))
+    limit = min(int(max_s * fs), n // 2)
+
+    def scan(x):
+        t = 0
+        while t + w <= limit:
+            if np.nanmedian(x[t:t + w]) <= factor * base:
+                return t / fs
+            t += w
+        return limit / fs
+
+    return scan(speed), scan(speed[::-1])
+
+
 def duplicate_files(paths, where: str = "") -> list[Finding]:
     """Files in a set that are byte-identical.
 
