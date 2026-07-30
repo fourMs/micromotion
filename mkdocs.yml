@@ -25,6 +25,7 @@ nav:
   - The two bands: conventions.md
   - Sampling rates: rates.md
   - Reading files: formats.md
+  - Validating data: validation.md
   - Working with other packages: interop.md
   - API reference: api.md
 

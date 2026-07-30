@@ -38,5 +38,6 @@ Most of the design is about refusing comparisons that look reasonable and are no
 | know which filter convention to use | [The two bands](conventions.md) |
 | compare across datasets | [Sampling rates](rates.md) |
 | load a file | [Reading files](formats.md) |
+| check data before trusting it | [Validating data](validation.md) |
 | combine with MGT or ambiscape | [Working with other packages](interop.md) |
 | look up a function | [API reference](api.md) |

@@ -44,13 +44,37 @@ wrong.
 If a series cannot reach the target rate it does not belong in a comparison built at that
 rate. Excluding it is correct; interpolating it in corrupts the comparison silently.
 
-## The common rate
+## Which rate to harmonise at
 
-`mm.COMMON_RATE` is 20 Hz. It is the Nyquist rate of the 0.2–10 Hz band, so nothing the band
-keeps is lost, and it is low enough that the slowest collections need no upsampling.
+Two constants, and the choice between them matters more than it looks.
 
-It costs about **2 per cent** against the native-rate value on 200 Hz optical data. Report
-both if it matters.
+```python
+mm.HARMONISED_RATE     # 100.0 — use this where every series can reach it
+mm.COMMON_RATE         #  20.0 — use this only when a 20 Hz collection must be included
+```
+
+`COMMON_RATE` is 20 Hz because that is the greatest common divisor of the optical rates in the
+source corpus — 20, 100, 120 and 200 Hz — so every recording reaches it by an integer decimation
+and none needs upsampling. That is its one virtue, and it is a real one: it is the only rate at
+which a natively-20 Hz collection can be placed beside the rest at all.
+
+It is not free, and the argument that it is does not survive measurement. A 10 Hz upper edge
+cannot be realised at 20 Hz: Nyquist sits exactly on it, the margin rule pulls the edge inside,
+and the anti-alias filter is already rolling off below it. Decimating 34 natively-200 Hz
+person-recordings and re-measuring:
+
+| Target | Median change | Range across recordings |
+|---|---|---|
+| 120 Hz | +0.11 % | −0.83 to +0.60 % |
+| **100 Hz** | **+0.02 %** | **−0.84 to +0.47 %** |
+| 20 Hz | −2.09 % | −0.30 to **−10.57 %** |
+
+The last column is the important one. A per-recording error running from a third of a per cent
+to more than ten is a distortion rather than a bias, so nothing downstream can correct it.
+Prefer 100 Hz; where you must use 20, say so and call it the lossy view.
+
+Non-integer ratios are fine — 120 → 100 Hz is a 6-to-5 polyphase step and costs about a tenth of
+a per cent.
 
 ## Irregular sampling
 
