@@ -10,7 +10,7 @@ authors:
 repository-code: "https://github.com/fourMs/micromotion"
 abstract: >-
   One implementation of quantity of motion — the average speed of a body part,
-  band-limited to 0.3-10 Hz, in millimetres per second — for optical marker data,
+  band-limited to 0.2-10 Hz, in millimetres per second — for optical marker data,
   body-worn accelerometers and force-plate centre of pressure, together with the
   readers, resampling rules, scaling measures and alignment methods that surround it.
 keywords:
@@ -21,4 +21,5 @@ keywords:
   - accelerometer
   - postural sway
 license: GPL-3.0-or-later
-version: 0.2.0
+version: 0.6.0
+date-released: "2026-07-30"

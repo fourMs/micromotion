@@ -8,13 +8,21 @@ version = "0.6.0"
 description = "Micromotion analysis of motion time series: mocap, IMU and force plate"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "GPL-3.0-or-later" }
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 authors = [{ name = "Alexander Refsum Jensenius", email = "a.r.jensenius@imv.uio.no" }]
 keywords = ["micromotion", "standstill", "motion capture", "accelerometer", "quantity of motion"]
 classifiers = [
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Information Analysis",
 ]
 dependencies = ["numpy>=1.24", "scipy>=1.10", "pandas>=2.0"]
 
@@ -23,6 +31,10 @@ test = ["pytest>=7"]
 
 [project.urls]
 Homepage = "https://github.com/fourMs/micromotion"
+Documentation = "https://fourms.github.io/micromotion/"
+Repository = "https://github.com/fourMs/micromotion"
+Changelog = "https://github.com/fourMs/micromotion/blob/main/CHANGELOG.md"
+Issues = "https://github.com/fourMs/micromotion/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/micromotion"]

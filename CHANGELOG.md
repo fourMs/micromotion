@@ -1,5 +1,82 @@
 # Changelog
 
+## 0.6.0
+
+First release published to PyPI.
+
+**The lower band edge moved from 0.3 Hz to 0.2 Hz, and every number this package produces changes
+with it.** 0.3 was inherited rather than chosen. Swept across seven optical datasets and 665
+recordings, the between-dataset spread is 3.2 per cent at 0.15 Hz, 2.1 at 0.20, 2.7 at 0.25, 6.2
+at 0.30 and 10.1 at 0.40. 0.2 is a clear optimum and is where the 20 Hz origin dataset stops being
+an outlier in either direction. Checked against the failure this edge exists to prevent: on
+accelerometer data the mean-to-median speed ratio, which rises when integration drift leaks in, is
+2.07 at 0.2 Hz against 2.00 at 0.3 — flat, so integration is safe. Absolute values rise about 73
+per cent because more low-frequency content is kept.
+
+One real cost, now under test: the filter transient runs 40 s at each end rather than 27, so a
+recording under about two minutes has no clean interior at all.
+
+- `bandpass` warns when the sampling rate exceeds the upper band edge by more than 40:1. Porting
+  the analysis scripts turned up a filter that is wrong in published work rather than merely
+  different: a 0.1–0.5 Hz third-order band-pass at 250 Hz, written the usual way as
+  `butter(3, [lo/ny, hi/ny])` with `filtfilt`, has a largest pole radius of 0.9979 and a measured
+  passband gain of 0.84 at 0.15 Hz where it should be 0.99. Nothing raises and nothing looks
+  wrong; every amplitude downstream is sixteen per cent low. This package uses second-order
+  sections and was never affected, but it accepted such a band silently, and a caller designing
+  their own filter deserves to be told. The warning names the fix, which is to decimate first.
+- `bandpass` and `lowpass` take a `margin` argument. The upper edge was pinned at 0.99 of Nyquist
+  with no way to change it, and the Still Standing corpus uses 0.999 throughout, so no script
+  written against that convention could be ported.
+- `detect_breaths_adaptive`, added with its benchmark and an explicit note not to default to it.
+  The expectation was that rejecting chest rises which never cross an adaptive baseline would beat
+  plain peak detection. Measured, it does not: on twelve belt recordings the two agree, and on
+  eight chest accelerometers — the case the rejection was meant to help — it over-counts badly,
+  10.3 breaths/min against 3.6 for the peak-based detector.
+- The balance readers are described by content rather than by a `.tsv` extension they no longer
+  have.
+
+164 tests.
+
+## 0.5.0
+
+The integration rule used to turn acceleration into speed is now selectable, and it was hiding a
+systematic 0.26 per cent. This package integrated with a rectangle sum; the StillStanding365 and
+fNIRS pipelines use the trapezoid rule, and on real phone data the two differ consistently because
+the rectangle sum lags the signal by half a sample.
+
+Both are available. The default stays rectangle, and not because it is the better rule — it is
+not. It is what the harmonised cross-collection table and every figure derived from it were
+computed with, and it reproduces the deposited Taqasim value, 93.140 against 93.091 mm/s, where
+trapezoid gives 93.405. Changing the default would silently invalidate numbers already published.
+Which rule the project standardises on is left open.
+
+## 0.4.0
+
+Added `group`, for the question everything else here could not ask. The rest of the package
+describes one recording or relates a pair; this answers whether a room full of people moved at the
+same moments.
+
+- `event_train` — continuous signal to point process, thresholded relative to each person's own
+  variability, so a quiet participant and a loud one both register events.
+- `coincidence_test` — surrogates shift each person by an independent bounded random offset, so
+  every individual keeps their own event rate and local structure and only the between-person
+  alignment is destroyed.
+- `participation_ratio` — the fraction of people whose motion fell after an event. Sign-based, so
+  sensors differing by an order of magnitude do not shift it.
+
+## 0.3.0
+
+Absorbed the quantity-of-motion modules from `musicalgestures`, whose unreleased main branch
+carried `band_limited_qom`, `accel_to_speed`, `read_qtm_tsv`, `cop_sway_metrics` and
+`respiration_rate`, all credited in their docstrings to the same source study as this package.
+Rather than ship a competing fifth implementation of the project's central measure, they move here
+and MGT depends on micromotion.
+
+MGT's behaviour is preserved exactly rather than silently reconciled. `band_limited_qom` still
+defaults to a 0.3–15 Hz band, differentiates with a two-point difference and does not band-limit
+again afterwards; on a 200 Hz optical recording it still returns 5.675 mm/s against 5.455 for this
+package's `qom()`. They are different measures and are documented as such.
+
 ## 0.2.0
 
 Added the function families an audit against the source study's 159 analysis scripts found
