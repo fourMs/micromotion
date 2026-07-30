@@ -197,3 +197,61 @@ def test_settling_time_reports_the_ceiling_when_it_never_settles():
     v[: int(150 * fs)] *= 8
     head, _ = validate.settling_time(v, fs, max_s=60.0)
     assert head == 60.0
+
+
+# --------------------------------------------------------------- marker_average
+
+def _rigid_markers(n=600, dead=(), gap_frac=0.0, seed=0):
+    """Three markers on one rigid segment: same motion, small fixed offsets."""
+    rng = np.random.default_rng(seed)
+    base = np.cumsum(rng.standard_normal((n, 3)) * 0.5, axis=0) + [0, 0, 1800]
+    out = {}
+    for i, name in enumerate(("HF", "HL", "HR")):
+        x = base + [10 * i, 5 * i, 0]
+        if name in dead:
+            x = np.zeros_like(x)
+        elif gap_frac:
+            x = x.copy()
+            x[: int(gap_frac * n)] = 0.0
+        out[name] = x
+    return out
+
+
+def test_marker_average_clean_set_passes():
+    assert mm.validate.marker_average(_rigid_markers()) == []
+
+
+def test_marker_average_flags_a_dead_marker():
+    f = mm.validate.marker_average(_rigid_markers(dead=("HF",)))
+    assert len(f) == 1 and f[0].severity == "error"
+    assert "1 of 3" in f[0].message
+
+
+def test_marker_average_reports_the_bias_factor():
+    """One dead marker of three understates amplitude by a third — that is the whole point."""
+    f = mm.validate.marker_average(_rigid_markers(dead=("HF",)))
+    assert "33.3 %" in f[0].message and "0.667" in f[0].message
+
+
+def test_marker_average_bias_matches_a_real_average():
+    """The predicted factor should match what a naive nanmean actually does."""
+    m = _rigid_markers(dead=("HF",))
+    naive = np.nanmean(np.stack(list(m.values())), axis=0)
+    repaired = []
+    for x in m.values():
+        y = x.astype(float).copy()
+        y[(y == 0.0).all(axis=1)] = np.nan
+        if np.isfinite(y).any():
+            repaired.append(y)
+    good = np.nanmean(np.stack(repaired), axis=0)
+    ratio = np.ptp(naive[:, 0]) / np.ptp(good[:, 0])
+    assert abs(ratio - 2 / 3) < 0.02
+
+
+def test_marker_average_warns_on_a_partly_gapped_marker():
+    f = mm.validate.marker_average(_rigid_markers(gap_frac=0.7))
+    assert f and all(x.severity == "warning" for x in f)
+
+
+def test_marker_average_empty_input():
+    assert mm.validate.marker_average({}) == []

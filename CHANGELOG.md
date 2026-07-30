@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.8.1
+
+Added `validate.marker_average`, a check for a failure this corpus had been carrying silently.
+
+Averaging several markers into one position -- a "head" from three head markers -- is routine, and
+it launders gaps. Pipelines repair gaps at the end, on the series they are about to measure, which
+is too late: the mean of two real coordinates and one zero triplet is a perfectly finite point that
+no later gap check will ever flag.
+
+The bias is clean and multiplicative, because markers on one rigid segment move together. With `n`
+markers of which `k` carry no data, the average moves at `(n - k) / n` of the true amplitude, so one
+dead marker of three understates motion by exactly a third. Partial gaps push the other way, each
+gap frame dragging the average half a metre toward the origin and back, inflating the result.
+
+Both were live in one 86-session collection. 22 files had head-marker gaps and four had a marker
+never tracked at all; correcting it moved 19 files by more than half a per cent, the largest by 79,
+and the maximum quantity of motion fell from 38.9 to 15.2 mm/s. The median moved one per cent --
+which is why it went unnoticed. A robust statistic is robust to a real defect too, and a steady
+headline number is not evidence that the recordings under it are sound.
+
 ## 0.8.0
 
 Added respiratory phase decomposition to `physio`: `respiration_onsets` and `respiratory_phases`.

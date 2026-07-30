@@ -41,6 +41,51 @@ factor of eleven, from 0.08 % of the samples.
 Exact zeros on all axes at once do not occur in real optical data, so the default tolerance is
 zero.
 
+### `marker_average` — a gap that survives averaging
+
+The check above is not enough on its own, because of *where* the repair usually happens. Pipelines
+tend to repair gaps at the end, on the series they are about to measure. That is correct until you
+average several markers into one position — a "head" from three head markers, say — because the
+average destroys the evidence on the way in. The mean of two real coordinates and one zero triplet
+is a perfectly finite point, and no later gap check will ever flag it.
+
+```python
+mm.validate.marker_average({"HF": hf, "HL": hl, "HR": hr})
+```
+
+The damage is a clean multiplicative bias, because markers on one rigid segment move together.
+With `n` markers of which `k` carry no data, the averaged position moves at about `(n - k) / n` of
+the true amplitude, and any speed derived from it is understated by the same factor. One dead
+marker out of three is exactly two thirds — a third less motion, reported without complaint.
+
+Partial gaps are worse in the opposite direction. Each gap frame drags the average a third of the
+way to the origin and back, which is a spurious excursion of roughly half a metre for a standing
+head, so the measure is *inflated* wherever the gaps are.
+
+This is not hypothetical. In one 86-session collection, 22 files had head-marker gaps and four had
+a marker that was never tracked at all. Correcting it moved 19 of the 86 by more than half a per
+cent, the largest by 79 per cent, and collapsed the tail: the maximum quantity of motion fell from
+38.9 to 15.2 mm/s and the 99th percentile from 24.7 to 12.7.
+
+!!! warning "Why it went unnoticed for years"
+
+    The median across that collection moved from 5.38 to 5.45 mm/s — about one per cent. A robust
+    statistic is robust to this too, so the headline number looked stable the whole time while
+    individual recordings were wrong by a factor of two in both directions. If you average markers,
+    check them; do not infer from a steady median that nothing is wrong.
+
+Repair each marker to `NaN` first, then use `nanmean`:
+
+```python
+stack = []
+for x in (hf, hl, hr):
+    x = np.asarray(x, float).copy()
+    x[(x == 0.0).all(axis=1)] = np.nan
+    if np.isfinite(x).any():
+        stack.append(x)
+head = np.nanmean(np.stack(stack), axis=0)
+```
+
 ### `finite_fraction` and `longest_finite_span` — a series emptied by its own filter
 
 A gap running off the start or end of a series cannot be interpolated: there is nothing on the far

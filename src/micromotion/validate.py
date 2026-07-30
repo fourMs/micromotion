@@ -71,6 +71,61 @@ def zero_triplets(x, where: str = "", max_fraction: float = 0.0) -> list[Finding
         where)]
 
 
+def marker_average(markers, where: str = "", max_gap_fraction: float = 0.5) -> list[Finding]:
+    """Check a set of markers before averaging them into one position.
+
+    Averaging several markers into a single "head" or "trunk" position is routine and looks
+    harmless. It is not, if the gaps have not been repaired first, because the usual repair
+    happens at the *end* of a pipeline and an average destroys the evidence on the way in: the
+    mean of two real coordinates and one zero triplet is a perfectly finite point that no later
+    gap check will flag.
+
+    The damage is a clean multiplicative bias. Markers on one rigid segment move together, so
+    with ``n`` markers of which ``k`` are dead, the averaged position moves at about
+    ``(n - k) / n`` of the true amplitude -- and a speed derived from it is understated by the
+    same factor. One marker dead out of three is exactly two thirds, which reads as a third
+    less motion.
+
+    This happened. Four recordings in one 86-session collection carried a head marker that was
+    never tracked, and their quantity of motion was reported 33.3 per cent low for as long as
+    the collection existed, looking like unusually still standing rather than like a fault.
+
+    Pass a mapping of name to (n, 3) array. Repair each marker with
+    :func:`micromotion.validate.zero_triplets` and NaN before averaging, then use ``nanmean``.
+    """
+    findings: list[Finding] = []
+    if not markers:
+        return findings
+    dead, partial = [], []
+    for name, arr in dict(markers).items():
+        x = np.atleast_2d(np.asarray(arr, float).T).T
+        if x.shape[1] < 2 or not len(x):
+            continue
+        bad = (x == 0.0).all(axis=1) | ~np.isfinite(x).all(axis=1)
+        frac = float(bad.mean())
+        if frac >= 1.0:
+            dead.append(name)
+        elif frac > max_gap_fraction:
+            partial.append((name, frac))
+
+    n = len(markers)
+    if dead:
+        bias = (n - len(dead)) / n if n else 0.0
+        findings.append(_finding(
+            "marker_average", "error",
+            f"{len(dead)} of {n} markers carry no data at all ({', '.join(sorted(dead))}). "
+            f"Averaging as-is understates the amplitude by about {100 * (1 - bias):.1f} % "
+            f"(factor {bias:.3f}). Repair gaps to NaN per marker and use nanmean",
+            where))
+    for name, frac in partial:
+        findings.append(_finding(
+            "marker_average", "warning",
+            f"marker {name} is {100 * frac:.1f} % gaps; averaging it in biases the result "
+            f"toward the origin over that stretch",
+            where))
+    return findings
+
+
 def finite_fraction(x, where: str = "", min_finite: float = 0.8) -> list[Finding]:
     """Whether enough of a series survived to measure, and whether any of it did.
 
