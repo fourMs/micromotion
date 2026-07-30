@@ -22,6 +22,7 @@ theme:
 nav:
   - Home: index.md
   - Getting started: quickstart.md
+  - Methods: methods.md
   - The two bands: conventions.md
   - Sampling rates: rates.md
   - Reading files: formats.md
