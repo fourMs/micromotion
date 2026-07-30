@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.3
+
+Added `validate.implausible_position`, for the gap that is not a zero.
+
+`zero_triplets` catches a dropped frame written as three exact zeros. It cannot catch a
+reconstruction that lands near the laboratory origin without being exactly on it: those samples are
+ordinary finite numbers and pass every sentinel test. The new check is physical instead — a marker
+on a standing body stays within a band around its own median height, and anything far outside that
+band is a tracking artefact rather than a posture. Markers whose median is not a standing height
+are skipped.
+
+Across 1018 optical person-recordings it fires twice: one recording places a head marker 139 mm
+below the floor for 63 samples, another at 491 mm against a median of 1716.
+
+The reason it is worth a check of its own is how uneven the damage is. Those 63 samples are 0.5 per
+cent of the recording and the median quantity of motion barely registers them, while the sway
+extent reads 977 mm where the true figure is about 48. Robustness is a property of a statistic, not
+of a dataset.
+
 ## 0.8.2
 
 `read_qualisys` now tolerates metadata keys it does not recognise instead of treating the first

@@ -126,6 +126,51 @@ def marker_average(markers, where: str = "", max_gap_fraction: float = 0.5) -> l
     return findings
 
 
+def implausible_position(x, where: str = "", axis: int = 2, min_fraction: float = 0.3,
+                         max_fraction: float = 2.5) -> list[Finding]:
+    """Samples that put a marker somewhere a body cannot be.
+
+    :func:`zero_triplets` catches a dropped frame written as three exact zeros. It cannot catch the
+    near miss: a reconstruction that lands *close* to the laboratory origin without being exactly
+    on it. Those samples pass every finiteness and sentinel test, because they are ordinary
+    numbers, and they are not rare enough to ignore -- a corpus of 1018 optical person-recordings
+    held two, one of which placed a head marker 139 mm *below the floor*.
+
+    The test is physical rather than statistical: a marker on a standing body stays within a band
+    around its own median height. Anything below ``min_fraction`` of that median, or above
+    ``max_fraction``, is a tracking artefact rather than a posture.
+
+    The damage is uneven, which is why this is worth checking separately. A median-based measure
+    barely notices 0.5 per cent of samples. Anything spatial is destroyed by them: on that Sverm
+    recording the sway extent read 977 mm where the true figure is about 48.
+
+    Only meaningful for a marker whose median height is a real standing height, so recordings
+    whose median falls below ``500`` in the array's own units are skipped.
+    """
+    x = np.atleast_2d(np.asarray(x, float).T).T
+    if x.shape[1] <= axis:
+        return []
+    z = x[:, axis]
+    z = z[np.isfinite(z)]
+    if len(z) < 100:
+        return []
+    med = float(np.median(z))
+    if med < 500:                       # not a standing-height marker; no expectation to test
+        return []
+    bad = (z < med * min_fraction) | (z > med * max_fraction)
+    n = int(bad.sum())
+    if n == 0:
+        return []
+    return [_finding(
+        "implausible_position", "error",
+        f"{n} of {len(z)} samples ({100 * n / len(z):.2f} %) place the marker outside "
+        f"{min_fraction:g}-{max_fraction:g} times its median height of {med:.0f}, reaching "
+        f"{z.min():.0f}. These are tracking artefacts, not postures; they survive a zero-triplet "
+        f"check because they are not exactly zero, and they wreck spatial measures while barely "
+        f"moving a median",
+        where)]
+
+
 def finite_fraction(x, where: str = "", min_finite: float = 0.8) -> list[Finding]:
     """Whether enough of a series survived to measure, and whether any of it did.
 

@@ -255,3 +255,49 @@ def test_marker_average_warns_on_a_partly_gapped_marker():
 
 def test_marker_average_empty_input():
     assert mm.validate.marker_average({}) == []
+
+
+# ----------------------------------------------------- implausible_position
+
+def _standing(n=600, height=1650.0, seed=0):
+    rng = np.random.default_rng(seed)
+    x = rng.standard_normal((n, 3)) * 5.0
+    x[:, 2] += height
+    return x
+
+
+def test_implausible_position_accepts_a_normal_recording():
+    assert mm.validate.implausible_position(_standing()) == []
+
+
+def test_implausible_position_flags_a_marker_below_the_floor():
+    x = _standing()
+    x[100:110, 2] = -139.0
+    f = mm.validate.implausible_position(x)
+    assert len(f) == 1 and f[0].severity == "error"
+    assert "10 of 600" in f[0].message
+
+
+def test_implausible_position_catches_what_zero_triplets_misses():
+    """The near miss: close to the origin, but not exactly on it."""
+    x = _standing()
+    x[50:60] = [-27.2, -124.4, -88.9]          # a real reconstruction near the origin
+    assert mm.validate.zero_triplets(x) == []   # not zeros, so the sentinel check is silent
+    assert len(mm.validate.implausible_position(x)) == 1
+
+
+def test_implausible_position_skips_a_low_marker():
+    """A foot marker has no standing-height expectation to test against."""
+    x = _standing(height=30.0)
+    x[10:20, 2] = -500.0
+    assert mm.validate.implausible_position(x) == []
+
+
+def test_implausible_position_flags_impossibly_high_too():
+    x = _standing()
+    x[200:205, 2] = 9000.0
+    assert len(mm.validate.implausible_position(x)) == 1
+
+
+def test_implausible_position_needs_enough_samples():
+    assert mm.validate.implausible_position(_standing(n=50)) == []

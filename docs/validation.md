@@ -41,6 +41,32 @@ factor of eleven, from 0.08 % of the samples.
 Exact zeros on all axes at once do not occur in real optical data, so the default tolerance is
 zero.
 
+### `implausible_position` — the gap that is not a zero
+
+`zero_triplets` catches a dropped frame written as three exact zeros. It cannot catch the near
+miss: a reconstruction that lands *close* to the laboratory origin without being exactly on it.
+Those samples are ordinary finite numbers and pass every sentinel and finiteness test.
+
+```python
+mm.validate.implausible_position(marker_xyz)
+```
+
+The test is physical rather than statistical. A marker on a standing body stays within a band
+around its own median height, so anything below a third of it, or above two and a half times it,
+is a tracking artefact and not a posture. Markers whose median height is not a standing height —
+feet, floor references — are skipped, since there is no expectation to test them against.
+
+Across 1018 optical person-recordings this fired twice. One placed a head marker **139 mm below
+the floor** for 63 samples; the other put one at 491 mm where its median was 1716.
+
+!!! warning "Why so few matters so much"
+
+    Those 63 samples are 0.5 per cent of the recording, and the median quantity of motion barely
+    registers them. The *spatial* measures do not survive at all: the sway extent of that recording
+    reads **977 mm where the true figure is about 48**. Robustness is a property of a statistic,
+    not of a dataset — a defect that a median ignores can still be the whole of what a range,
+    an area or a path length reports.
+
 ### `marker_average` — a gap that survives averaging
 
 The check above is not enough on its own, because of *where* the repair usually happens. Pipelines
