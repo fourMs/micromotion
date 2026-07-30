@@ -1,21 +1,14 @@
-# micromotion
+# Micromotion
 
-Analysis of human micromotion in motion time series: optical marker data, body-worn
-accelerometers, and force-plate centre of pressure.
+A Python toolbox for analysing human micromotion in various types of motion time series coming from optical marker data, body-worn
+accelerometers, respiration belts, and force plates.
 
-The measure the package exists for is quantity of motion — the average speed of a body part,
-band-limited to 0.2–10 Hz, in millimetres per second. It applies equally to all three sensor
-families because the shared abstraction is the frequency band, not the instrument.
+The core measure the package exists for is *quantity of motion* (QoM), which in this case is calculated as the average speed of a body part,
+band-limited to 0.2–10 Hz, in millimetres per second. It applies equally to data from different sensor families because the shared abstraction is the frequency band, not the instrument.
 
 ## Why it exists
 
-Across the Still Standing research repository there were 159 analysis scripts. Fifty-eight
-defined their own band-pass filter and thirty-seven computed quantity of motion. The
-project's central measure existed in dozens of copies that did not all agree, and the
-disagreements were invisible: two scripts returned 3.77 and 4.20 mm/s for the same series
-purely because their filter chains differed, and neither said so.
-
-That is the argument for a library. Not tidiness — reproducibility of the central quantity.
+The toolbox was introduced during construction of a unified analysis for all datasets in the Oslo Standstill Database. There were numerous scripts floating around and many different ways of filtering, thresholding and calculating QoM. To avoid further confusion, this toolbox aims to consolidate all of this into a single package. 
 
 ## Install
 
@@ -41,7 +34,7 @@ space-delimited and headerless.
 
 ## The two bands, and why it matters
 
-There are two conventions in circulation and they are not interchangeable.
+There are two conventions in circulation, and they are not interchangeable.
 
 `micromotion` is 0.2–10 Hz. It is the only band that can be applied to every sensor, so it
 is the one any cross-collection comparison must use.
@@ -50,8 +43,7 @@ is the one any cross-collection comparison must use.
 which for optical position is real movement, and it is the convention the earlier championship
 figures were computed with. On the 2015 championship it reads 15.5 per cent above the
 band-pass. The project moved off it on 2026-07-29, for a reason worth knowing: a 10 Hz
-low-pass degenerates as the sampling rate approaches 20 Hz, where its cutoff reaches Nyquist
-and it stops filtering entirely. On the 20 Hz origin dataset it removed 0.0000 per cent of the
+low-pass degenerates as the sampling rate approaches 20 Hz, where its cutoff reaches Nyquist, and it stops filtering entirely. On the 20 Hz origin dataset, it removed 0.0000 per cent of the
 signal energy while removing 27.9 per cent from 200 Hz recordings, so the two were never the
 same measure. It is kept here to reproduce older results, not to produce new ones.
 
@@ -63,7 +55,7 @@ number that looks plausible.
 ## Rules the package enforces
 
 **Measure the rate, do not read it.** `measured_rate` counts samples over the elapsed span
-rather than inverting the median interval. Where timestamps are rounded to milliseconds the
+rather than inverting the median interval. Where timestamps are rounded to milliseconds, the
 median-interval route returns exactly 250 Hz for a recording that runs at 256, and 636 Hz
 for one arriving at 106.
 
