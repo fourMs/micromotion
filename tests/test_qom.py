@@ -212,3 +212,43 @@ def test_short_recordings_are_all_edge_at_this_band():
     b = mm.qom(x, fs, kind="position").binned(5.0)
     assert (b.edge == "ok").sum() == 0
     assert mm.filters.edge_transient_samples(fs) / fs == pytest.approx(40.0, abs=1.0)
+
+
+def test_mgt_band_limited_qom_reads_high_and_we_know_exactly_why():
+    """Pin the MGT-versus-micromotion gap, and its attribution, so neither drifts.
+
+    `band_limited_qom` band-limits the position and not the speed derived from it, so the
+    velocity keeps energy above the stated upper edge. That, and not the differentiation rule,
+    is the whole of the difference. Both are kept: MGT's figures must keep reproducing.
+    """
+    import numpy as np
+    from micromotion import filters
+
+    fs = 200.0
+    rng = np.random.default_rng(7)
+    pos = np.cumsum(rng.normal(0, 0.05, (24000, 3)), axis=0) + [0.0, 0.0, 1700.0]
+
+    def speed(diff, second):
+        p = filters.bandpass(pos, fs, 0.3, 10.0)
+        v = np.diff(p, axis=0) * fs if diff == "first" else mm.derivative(p, fs)
+        if second:
+            v = filters.bandpass(v, fs, 0.3, 10.0)
+        return float(np.mean(np.linalg.norm(v, axis=1)))
+
+    mgt_recipe = speed("first", False)
+    only_diff_changed = speed("central", False)
+    only_second_pass_added = speed("first", True)
+    mm_recipe = speed("central", True)
+
+    # The differentiation rule is not where the difference lives.
+    assert abs(only_diff_changed - mgt_recipe) / mgt_recipe < 0.005
+
+    # The second band-pass is, and it lowers the result.
+    assert only_second_pass_added < mgt_recipe
+    assert abs(only_second_pass_added - mm_recipe) / mm_recipe < 0.005
+
+    # The package's own function agrees with its recipe, and MGT's with its own.
+    assert mm.speed_from_position(pos, fs, lo=0.3, hi=10.0).mean() == pytest.approx(
+        mm_recipe, rel=1e-6)
+    mgt, _ = mm.band_limited_qom(pos, fs, lo=0.3, hi=10.0)
+    assert float(np.mean(mgt)) == pytest.approx(mgt_recipe, rel=1e-6)

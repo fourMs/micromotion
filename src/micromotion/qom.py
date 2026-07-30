@@ -435,6 +435,27 @@ def band_limited_qom(pos, fs, lo=0.3, hi=15.0, order=4, auto_decimate=True):
     this unifies the band-limited QoM cores used on mocap markers (mm),
     MediaPipe landmarks (px) and slow postural sway across both studies.
 
+    .. warning::
+
+       The name overstates what this does, and it reads high as a result.
+       The *position* is band-limited; the speed derived from it is not.
+       Differentiation amplifies the high end, so the velocity carries energy
+       above ``hi`` that the stated band excludes, and none of it is removed.
+
+       Measured against :func:`speed_from_position`, which band-limits again
+       after differentiating, on a 200 Hz optical recording at a matched
+       0.3-10 Hz band: this returns 3.1475 mm/s against 2.9754, i.e. **5.5 per
+       cent high**. The decomposition is one-sided -- the differentiation rule
+       (first difference here, central difference there) accounts for 0.05 per
+       cent, and the missing second band-pass for the remaining 5.5. At the
+       respective defaults the gap is larger still, because this function
+       defaults to 0.3-15 Hz.
+
+       Prefer :func:`qom` or :func:`speed_from_position` for new work. This is
+       kept, unchanged, so that figures computed with ``musicalgestures``
+       continue to reproduce -- not because it is the better measure. Whichever
+       you use, say which.
+
     Args:
         pos (np.ndarray): Position trajectory of shape (N,) or (N, D) (e.g. D=2
             image coordinates or D=3 mocap coordinates). Non-finite samples are
