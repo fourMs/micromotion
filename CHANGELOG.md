@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
 
 Added `validate`, a module of checks that fail loudly on the errors this corpus makes silently.
 Every check exists because the failure it catches happened, went unnoticed, and produced a
@@ -32,6 +32,8 @@ person-recordings moves quantity of motion by -2.09 per cent at the median and b
 so it cannot be corrected away. 100 Hz costs +0.02 per cent and stays inside +/-0.85.
 
 The package docstring still described the 0.3 Hz band that 0.6.0 replaced.
+
+184 tests.
 
 ## 0.6.0
 
