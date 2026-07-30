@@ -137,6 +137,30 @@ which produces exactly this.
 Found by content rather than by name, because the usual cause is a rename that left the original
 behind under a name no manifest mentions.
 
+## What no check here will catch
+
+Three failures from one afternoon of real use, none of which this module can see, all of which
+produced a believable answer.
+
+**A unit that is recorded and then ignored.** A derived table carried `unit` per row and a consumer
+hardcoded `unit="g"`, inflating one collection by 9.80665. Nothing was missing or malformed; the
+wrong constant was simply applied. Read units from the data beside the numbers, and print a median
+in physical units where a human will see it — quiet standing is a few mm/s, and a figure in the
+tens is telling you something.
+
+**A rank statistic hiding a scale error.** When that bug was found, every Spearman correlation in
+the affected analysis was unchanged, because rank statistics are invariant to multiplication by a
+positive constant. A pipeline reporting only correlations is not checking its own scale.
+
+**Silent emptiness.** A glob returning zero files after a folder was restructured; a second after an
+extension was renamed; a join matching 1616 of 30639 rows because two files spelled a track name
+differently. Each carried on and produced a smaller, plausible result. Assert the counts you
+expect after every glob and join — `len(files) == n_expected`, `merged.shape[0] == left.shape[0]` —
+and fail rather than continue.
+
+The pattern across all three is the same, and it is the one this module exists for: **the dangerous
+failure is not the one that raises, it is the one that returns something reasonable.**
+
 ## Is it standstill throughout?
 
 A recording of stationary behaviour should contain stationary behaviour and nothing else. In
