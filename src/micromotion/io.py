@@ -21,6 +21,8 @@ import pandas as pd
 from .record import MotionRecord
 from .resample import measured_rate
 
+_METADATA_KEY = re.compile(r"^[A-Z][A-Z0-9_]*$")
+
 QUALISYS_KEYS = (
     "NO_OF_FRAMES",
     "NO_OF_CAMERAS",
@@ -61,11 +63,18 @@ def read_qualisys(path: str, drop_gaps: bool = True) -> MotionRecord:
     """
     lines = _decode(path)
     meta, n_header = {}, 0
-    for i, ln in enumerate(lines[:12]):
+    for i, ln in enumerate(lines[:16]):
         parts = ln.rstrip("\n").split("\t")
         key = parts[0].strip()
         if key in QUALISYS_KEYS:
             meta[key] = [p for p in parts[1:] if p.strip() != ""]
+            n_header = i + 1
+        elif _METADATA_KEY.match(key):
+            # An unknown metadata line, not the end of the header. QTM adds fields between
+            # versions -- exports since 2.0.0 open with FILE_VERSION -- and a parser that
+            # stops at the first key it does not recognise reads those files as having no
+            # header at all. Recorded but unused; the shape test below still finds the data.
+            meta.setdefault(key, [p for p in parts[1:] if p.strip() != ""])
             n_header = i + 1
         else:
             break

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.2
+
+`read_qualisys` now tolerates metadata keys it does not recognise instead of treating the first
+one as the end of the header.
+
+QTM 2.0.0 exports open with a `FILE_VERSION` line. The parser stopped at the first unknown key, so
+every file from that version read as having no header at all and raised "not a Qualisys export" --
+on files that are unambiguously Qualisys exports. Re-exporting an 86-session collection from a
+current QTM made all 86 unreadable at once, which is how this was found.
+
+Unknown lines whose key is bare uppercase are now recorded and skipped; a column-name row like
+`HF X` still ends the header, because it is not a metadata key. QTM will keep adding fields, and
+this is the behaviour that survives it.
+
 ## 0.8.1
 
 Added `validate.marker_average`, a check for a failure this corpus had been carrying silently.
