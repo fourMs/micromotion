@@ -340,15 +340,22 @@ def tilt_fraction(acc, gyro, fs: float, unit: str = "m/s^2") -> dict:
 
 
 # ---------------------------------------------------------------------------------------
-# Absorbed from musicalgestures (MGT) on 2026-07-29, which credited them to the same source
-# study as this package. MGT now depends on micromotion rather than carrying its own copies.
+# Brought in from musicalgestures (MGT) on 2026-07-29 -- but they originated here: their
+# docstrings credit the stillstanding and Westney-comparisons studies, and MGT had copied
+# them. The direction of travel is *from* this project, not toward it, and MGT has never
+# released them (still 1.6.9 as of 2026-07-31).
 #
-# These are kept byte-faithful to what MGT published, because their numbers are in use. They
-# are NOT the same measure as `qom` above: `band_limited_qom` defaults to a 0.3-15 Hz band,
-# differentiates with a two-point difference, and does not band-limit again afterwards. On
-# one 200 Hz optical recording it reads 4.0 per cent above `qom` at its own default and 2.6
-# per cent above it on a matched band. Prefer `qom` for new work; use these to reproduce
-# published MGT results.
+# They are NOT the same measure as `qom` above. `band_limited_qom` band-limits the *position*,
+# differentiates with a two-point difference, and does not band-limit again afterwards --
+# so the speed carries energy above `hi` that the stated band excludes. On one 200 Hz optical
+# recording it reads about 2.6 per cent above `qom` on a matched band, and the residual is
+# almost entirely that missing second pass (the differentiation rule accounts for 0.05).
+#
+# Their band defaults were 0.3-15 Hz until 2026-07-31 and are now `filters.BAND` like
+# everything else: nothing was published on 0.3-15 and nothing external depends on it, so the
+# second band existed only to be confused with the first.
+#
+# Prefer `qom` or `speed_from_position` for new work.
 # ---------------------------------------------------------------------------------------
 def _interp_nans(x):
     """Linearly interpolate non-finite entries of a 1-D array (returns a copy)."""
@@ -416,7 +423,7 @@ def bin_series(x, fs, bin_s=1.0):
     return x[:n * step].reshape(n, step).mean(axis=1)
 
 
-def band_limited_qom(pos, fs, lo=0.3, hi=15.0, order=4, auto_decimate=True):
+def band_limited_qom(pos, fs, lo=filters.BAND[0], hi=filters.BAND[1], order=4, auto_decimate=True):
     """
     Band-limited quantity of motion from a position trajectory: the position
     is band-pass filtered (zero phase) to `[lo, hi]` Hz and the QoM is the
@@ -437,19 +444,23 @@ def band_limited_qom(pos, fs, lo=0.3, hi=15.0, order=4, auto_decimate=True):
 
     .. note::
 
-       **Its defaults are 0.3-15 Hz, not the canonical 0.2-10.** That is
-       deliberate and it is not a compatibility shim for another package: this
-       function is the *older* one, written for the studies named above before
-       the band was settled at 0.2-10 Hz by a sweep across seven datasets.
-       :func:`qom` and :func:`speed_from_position` use ``filters.BAND``; this
-       one keeps the defaults its published results were computed with, so
-       those results stay reproducible.
+       **Defaults follow** ``filters.BAND`` **(0.2-10 Hz), like everything else
+       in the package.** They were 0.3-15 Hz until 2026-07-31, from before the
+       band was settled by a sweep across seven datasets. Nothing was ever
+       published on 0.3-15 and no other package depends on it, so carrying two
+       bands bought nothing but the chance of quoting a number from the wrong
+       one. One band, everywhere.
 
-       It was later copied into ``musicalgestures`` -- the direction of travel
-       is *from* here, not toward here -- which is why the two packages
-       disagree on the same recording. See the interop guide.
+       ``hi`` stays available because :func:`pose_qom` genuinely needs a lower
+       ceiling: image-space landmark jitter dominates above about 5 Hz.
 
-       **Use** :func:`speed_from_position` **for new work.**
+       This function was copied into ``musicalgestures`` -- the direction of
+       travel is *from* here -- which is why the two disagree on the same
+       recording. See the interop guide.
+
+       **Use** :func:`speed_from_position` **for new work**, which band-limits
+       again after differentiating; this one does not, and reads high as a
+       result.
 
     .. warning::
 
@@ -460,12 +471,12 @@ def band_limited_qom(pos, fs, lo=0.3, hi=15.0, order=4, auto_decimate=True):
 
        Measured against :func:`speed_from_position`, which band-limits again
        after differentiating, on a 200 Hz optical recording at a matched
-       0.3-10 Hz band: this returns 3.1475 mm/s against 2.9754, i.e. **5.5 per
+       band: this returns 3.1475 mm/s against 2.9754, i.e. **5.5 per
        cent high**. The decomposition is one-sided -- the differentiation rule
        (first difference here, central difference there) accounts for 0.05 per
        cent, and the missing second band-pass for the remaining 5.5. At the
        respective defaults the gap is larger still, because this function
-       defaults to 0.3-15 Hz.
+       band-limits only the position, not the speed derived from it.
 
        Prefer :func:`qom` or :func:`speed_from_position` for new work. This is
        kept, unchanged, so that figures computed with ``musicalgestures``
@@ -477,7 +488,7 @@ def band_limited_qom(pos, fs, lo=0.3, hi=15.0, order=4, auto_decimate=True):
             image coordinates or D=3 mocap coordinates). Non-finite samples are
             linearly interpolated per dimension.
         fs (float): Sampling rate of the trajectory (Hz).
-        lo (float, optional): Lower band edge (Hz). Defaults to 0.3.
+        lo (float, optional): Lower band edge (Hz). Defaults to ``filters.BAND[0]`` (0.2 Hz).
         hi (float, optional): Upper band edge (Hz), clipped to 0.9 x Nyquist.
             Defaults to 15.0.
         order (int, optional): Butterworth order of the direct band-pass.
@@ -531,7 +542,7 @@ def band_limited_qom(pos, fs, lo=0.3, hi=15.0, order=4, auto_decimate=True):
     return speed, fs_out
 
 
-def accel_to_speed(acc, fs, highpass=0.3, order=2, normalize_gravity=False):
+def accel_to_speed(acc, fs, highpass=filters.BAND[0], order=2, normalize_gravity=False):
     """
     Integrated speed from a 3-axis accelerometer: each axis is high-pass
     filtered (removing gravity and DC), integrated to velocity, high-pass
@@ -546,7 +557,7 @@ def accel_to_speed(acc, fs, highpass=0.3, order=2, normalize_gravity=False):
             with `normalize_gravity=True`).
         fs (float): Sampling rate (Hz).
         highpass (float, optional): High-pass cutoff (Hz) used both before and
-            after integration. Defaults to 0.3.
+            after integration. Defaults to ``filters.BAND[0]`` (0.2 Hz).
         order (int, optional): Butterworth order of the high-pass filters.
             Defaults to 2.
         normalize_gravity (bool, optional): If True, rescale the raw input so
@@ -570,7 +581,7 @@ def accel_to_speed(acc, fs, highpass=0.3, order=2, normalize_gravity=False):
     return np.linalg.norm(vel, axis=1)
 
 
-def group_qom(points, fs, lo=0.3, hi=15.0, **kwargs):
+def group_qom(points, fs, lo=filters.BAND[0], hi=filters.BAND[1], **kwargs):
     """
     Mean band-limited quantity of motion over a group of markers/landmarks,
     plus the group's mean speed envelope: each trajectory is passed through
@@ -584,7 +595,7 @@ def group_qom(points, fs, lo=0.3, hi=15.0, **kwargs):
         points (np.ndarray): Trajectories of shape (N, M, D): N frames, M
             markers/landmarks, D spatial dimensions.
         fs (float): Sampling rate (Hz).
-        lo (float, optional): Lower band edge (Hz). Defaults to 0.3.
+        lo (float, optional): Lower band edge (Hz). Defaults to ``filters.BAND[0]`` (0.2 Hz).
         hi (float, optional): Upper band edge (Hz). Defaults to 15.0.
         **kwargs: Passed on to `band_limited_qom`.
 
@@ -607,11 +618,11 @@ def group_qom(points, fs, lo=0.3, hi=15.0, **kwargs):
     return float(np.mean([s.mean() for s in speeds])), mean_speed, fs_out
 
 
-def pose_qom(landmarks, fs, lo=0.3, hi=5.0, **kwargs):
+def pose_qom(landmarks, fs, lo=filters.BAND[0], hi=5.0, **kwargs):
     """
     Band-limited quantity of motion of 2-D pose landmarks (px/s): a thin
     wrapper around `group_qom` with the band used for image-space pose
-    trajectories (0.3-5 Hz), where higher bands are dominated by landmark
+    trajectories (0.2-5 Hz), where higher bands are dominated by landmark
     jitter rather than motion.
 
     Source: Westney-comparisons study (Jensenius).
@@ -620,7 +631,7 @@ def pose_qom(landmarks, fs, lo=0.3, hi=5.0, **kwargs):
         landmarks (np.ndarray): Landmark trajectories of shape (N, L, 2) in
             pixels (a single landmark of shape (N, 2) is also accepted).
         fs (float): Sampling rate (Hz, e.g. video frame rate).
-        lo (float, optional): Lower band edge (Hz). Defaults to 0.3.
+        lo (float, optional): Lower band edge (Hz). Defaults to ``filters.BAND[0]`` (0.2 Hz).
         hi (float, optional): Upper band edge (Hz). Defaults to 5.0.
         **kwargs: Passed on to `band_limited_qom`.
 
@@ -665,7 +676,7 @@ def body_scale(landmarks, upper=(11, 12), lower=(23, 24)):
     return float(np.median(d)) if len(d) else np.nan
 
 
-def normalized_qom(landmarks, fs, scale=None, lo=0.3, hi=5.0,
+def normalized_qom(landmarks, fs, scale=None, lo=filters.BAND[0], hi=5.0,
                    upper=(11, 12), lower=(23, 24), **kwargs):
     """
     Body-scale-normalised quantity of motion (body-lengths per second):
@@ -681,7 +692,7 @@ def normalized_qom(landmarks, fs, scale=None, lo=0.3, hi=5.0,
         fs (float): Sampling rate (Hz).
         scale (float, optional): Precomputed body scale. Defaults to None (which
             computes `body_scale(landmarks, upper, lower)`).
-        lo (float, optional): Lower band edge (Hz). Defaults to 0.3.
+        lo (float, optional): Lower band edge (Hz). Defaults to ``filters.BAND[0]`` (0.2 Hz).
         hi (float, optional): Upper band edge (Hz). Defaults to 5.0.
         upper (tuple, optional): Shoulder landmark indices for `body_scale`. Defaults to (11, 12).
         lower (tuple, optional): Hip landmark indices for `body_scale`. Defaults to (23, 24).

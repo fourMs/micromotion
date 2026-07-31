@@ -252,3 +252,26 @@ def test_mgt_band_limited_qom_reads_high_and_we_know_exactly_why():
         mm_recipe, rel=1e-6)
     mgt, _ = mm.band_limited_qom(pos, fs, lo=0.3, hi=10.0)
     assert float(np.mean(mgt)) == pytest.approx(mgt_recipe, rel=1e-6)
+
+
+def test_every_band_default_comes_from_filters_BAND():
+    """No function may carry its own copy of the band.
+
+    Until 2026-07-31 four functions defaulted to 0.3-15 Hz while `filters.BAND` was
+    (0.2, 10.0) and `qom`/`speed_from_*` used it. Two bands in one package means a number can be
+    quoted from the wrong one, and the documentation had already drifted to match the wrong one in
+    five places. `pose_qom` and `normalized_qom` keep hi=5.0 deliberately -- image-space landmark
+    jitter dominates above it -- but their lower edge is the canonical one like everything else.
+    """
+    import inspect
+    import micromotion as mm
+    from micromotion import filters
+
+    lo, hi = filters.BAND
+    for fn in (mm.band_limited_qom, mm.group_qom, mm.pose_qom, mm.normalized_qom,
+               mm.speed_from_position, mm.speed_from_acceleration):
+        p = inspect.signature(fn).parameters
+        if "lo" in p:
+            assert p["lo"].default == lo, f"{fn.__name__} lo={p['lo'].default} != {lo}"
+        if "hi" in p and fn not in (mm.pose_qom, mm.normalized_qom):
+            assert p["hi"].default == hi, f"{fn.__name__} hi={p['hi'].default} != {hi}"

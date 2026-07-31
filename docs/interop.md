@@ -61,8 +61,9 @@ other and the body tracks neither, the null is about the body rather than about 
     | MGT `band_limited_qom`, forced to 0.3–10 Hz | 5.594 mm/s |
     | `micromotion.qom`, matched 0.3–10 Hz | 5.455 mm/s |
 
-    (The comparison was run at 0.3–10 Hz to match MGT. `micromotion`'s own canonical band is
-    **0.2–10 Hz**; these rows are a like-for-like test, not a statement of its default.)
+    (Rows 2 and 3 were run at a matched 0.3–10 Hz to isolate the algorithmic difference from
+    the band difference. Since 2026-07-31 every `micromotion` function defaults to **0.2–10 Hz**,
+    so the first row is the only one comparing defaults.)
 
     4.0 per cent apart at their respective defaults; 2.6 per cent apart on the same band. The
     residual comes from the differentiation and whether the result is band-limited a second

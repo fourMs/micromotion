@@ -11,7 +11,7 @@ cross-collection comparison must use.
 
 ## `optical_legacy` — 10 Hz low-pass, no lower edge
 
-Retains sub-0.3 Hz postural drift. For optical position that drift is real movement, and this
+Retains sub-0.2 Hz postural drift. For optical position that drift is real movement, and this
 is the convention behind most published standstill figures.
 
 ## Why the lower edge is optional for position and mandatory for acceleration

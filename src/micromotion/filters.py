@@ -39,7 +39,7 @@ OPTICAL_LEGACY_BAND = (None, 10.0)
 quantity of motion.
 
 It is kept because those numbers are in print, not because it is interchangeable with
-:data:`BAND`. Optical position is an absolute measurement, so sub-0.3 Hz postural drift in
+:data:`BAND`. Optical position is an absolute measurement, so sub-0.2 Hz postural drift in
 it is real movement and there is no reason to discard it. A body-worn accelerometer cannot
 offer the same choice: gravity is a DC term, and integrating any residual offset produces a
 ramp that swamps the result. So the lower edge is optional for position and mandatory for
