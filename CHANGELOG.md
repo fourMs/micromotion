@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.1 — 2026-07-31
+
+Fixes `__version__`, which the 0.9.0 release left at `0.8.3`: `pyproject.toml` was bumped and the
+hardcoded string in `__init__.py` was not, so an installed 0.9.0 reported the previous version.
+Anything recording "produced with micromotion X" would have recorded the wrong X. A test now reads
+`pyproject.toml` and asserts the two agree, so a release cannot repeat it.
+
 ## 0.9.0 — 2026-07-31
 
 ### Added
