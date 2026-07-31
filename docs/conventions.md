@@ -59,6 +59,34 @@ rather than 27, so a recording shorter than about two minutes has no clean inter
 That rules the band out for short trials; it does not affect standstill protocols, which run
 six minutes or more.
 
+## The edge is not modality-neutral
+
+The sweep above is over **optical** datasets, and the accelerometer check above is about drift.
+Drift is not the only thing that moves. Holding the pipeline fixed and changing only the lower
+edge from 0.3 to 0.2 Hz:
+
+| recorded quantity | change in reported speed |
+|---|---|
+| position, optical marker | +7 to +18 % |
+| acceleration, body-worn | +25 to +94 % |
+
+The asymmetry is structural. Speed comes from *differentiating* position and from *integrating*
+acceleration, so the operator converting the recorded quantity to velocity is multiplication by
+*f* in one case and division by *f* in the other. Measurement noise is roughly white in whatever
+the instrument records, which means the same sliver of extra low-frequency bandwidth is
+suppressed for a marker and amplified for an accelerometer. It is largest on chest-worn sensors,
+where 0.2 Hz sits on the respiration fundamental.
+
+What follows:
+
+- **Rankings survive; levels do not.** Where only the band differs, Spearman correlations stay
+  at 0.94 and above. Comparisons of who moved more are robust to this. Comparisons of *how many
+  millimetres per second* are not.
+- **State the band whenever quoting an absolute level from an accelerometer.** The same recording
+  supports two defensible numbers a factor of two apart.
+- **Treat cross-modality level comparisons as approximate**, however harmonised the band. A shared
+  band does not by itself make an optical and an inertial measure interchangeable.
+
 ## What the difference costs
 
 Measured on one championship edition, the band-pass reads **15.5 per cent below** the

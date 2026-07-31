@@ -199,7 +199,11 @@ def _read_physics_toolbox_raw(path: str) -> pd.DataFrame:
 
     The app's own CSV is not a plain CSV, and every one of these has cost time:
 
-    - **A blank first line.** The header is line 2.
+    - **Sometimes a blank first line**, putting the header on line 2 — and sometimes not. The Pro
+      build writes the header on line 1. Which you get depends on the app version rather than on
+      any setting, so the blank line is *detected* here rather than assumed. Skipping a line that
+      is not there consumes the header, promotes the first data row to column names, and yields a
+      frame with no ``time`` column and one fewer sample.
     - **Semicolon delimiter with a decimal comma.** Read with the default comma delimiter and
       the whole file becomes one string column per row.
     - **Unicode minus U+2212 (``−``), not ASCII hyphen.** Negative numbers silently become
@@ -213,7 +217,10 @@ def _read_physics_toolbox_raw(path: str) -> pd.DataFrame:
     Column availability varies by handset: the Galaxy A52s writes no ``p`` (pressure) column, so
     concatenating logs by position rather than by name misaligns every channel after ``wz``.
     """
-    df = pd.read_csv(path, sep=";", skiprows=1, dtype=str, encoding="utf-8")
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        first = fh.readline()
+    skip = 1 if not first.strip() else 0
+    df = pd.read_csv(path, sep=";", skiprows=skip, dtype=str, encoding="utf-8")
     df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
     df.columns = [c.strip() for c in df.columns]
     out = {}

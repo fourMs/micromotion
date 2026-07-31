@@ -92,3 +92,27 @@ def test_equivital_labels_each_signal_type(tmp_path):
         rec = mm.read_equivital(str(p))
         assert rec.kind == expected_kind, f"{name}: {rec.kind} != {expected_kind}"
         assert rec.unit != "counts" or expected_kind == "acceleration"
+
+
+def test_physics_toolbox_header_on_line_1_or_line_2(tmp_path):
+    """The blank first line is a property of the app build, not a constant.
+
+    The Pro build writes the header on line 1 and the older build writes a blank line first.
+    Assuming the blank line consumes the header, promotes the first data row to column names and
+    loses a sample -- so both layouts must parse identically.
+    """
+    body = ("time;gFx;gFy;gFz;Gain\n"
+            "0,10;0,1178;−0,5612;0,8295;−∞\n"
+            "0,20;0,1180;−0,5610;0,8290;−∞\n")
+    with_blank = tmp_path / "blank.csv"
+    with_blank.write_text("\n" + body, encoding="utf-8")
+    without = tmp_path / "noblank.csv"
+    without.write_text(body, encoding="utf-8")
+
+    a = mm.io._read_physics_toolbox_raw(str(with_blank))
+    b = mm.io._read_physics_toolbox_raw(str(without))
+    for d in (a, b):
+        assert list(d.columns) == ["time", "gFx", "gFy", "gFz", "Gain"]
+        assert len(d) == 2
+        assert d["gFy"].iloc[0] == pytest.approx(-0.5612)   # Unicode minus survived
+    assert a.equals(b)
