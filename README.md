@@ -31,6 +31,12 @@ New to it: [Getting started](https://fourms.github.io/micromotion/quickstart/), 
 [The two bands](https://fourms.github.io/micromotion/conventions/), which is the one convention
 you cannot skip.
 
+Reading files is its own subject, because the formats in this field lie about themselves:
+[Reading files](https://fourms.github.io/micromotion/formats/) covers what each reader handles,
+which axis is vertical in which system, and the traps that produce plausible numbers rather than
+errors — a Y/Z axis swap that reverses every sway direction while leaving magnitudes intact, a
+Unicode minus that turns negative values into NaN, an app whose clock stops when the phone sleeps.
+
 ## What is in it
 
 | Module | Contents |
@@ -45,6 +51,11 @@ you cannot skip.
 | `group` | whether these people moved at the same moments |
 | `align`, `circular` | offsets between clocks; directional statistics |
 | `io`, `record` | one reader per corpus layout, a content sniffer, a common record type |
+
+Readers: Qualisys and Qualisys-style TSV in all three header shapes, Sverm, Axivity AX3,
+Physics Toolbox phone logs (raw app export or cleaned), Equivital, Wii balance board, Artinis
+fNIRS. `read` dispatches on content rather than extension, because in this corpus the extension
+is frequently wrong.
 
 ## Why it exists
 
