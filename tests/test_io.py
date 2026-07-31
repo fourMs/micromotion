@@ -43,3 +43,22 @@ def test_no_edition_is_y_up_any_more():
     """
     from micromotion.io import Y_UP_COLLECTIONS
     assert Y_UP_COLLECTIONS == ()
+
+
+def test_version_matches_pyproject():
+    """__version__ and pyproject.toml must agree.
+
+    They did not at 0.9.0: the release bumped pyproject and left the hardcoded string in
+    __init__.py at 0.8.3, so an installed copy reported the previous version. A figure or a
+    report that records "produced with micromotion X" would then record the wrong X.
+    """
+    import pathlib
+    import tomllib
+    import micromotion as mm
+
+    root = pathlib.Path(mm.__file__).resolve().parents[2]
+    pyproject = root / "pyproject.toml"
+    if not pyproject.exists():          # installed without the source tree
+        return
+    declared = tomllib.loads(pyproject.read_text())["project"]["version"]
+    assert mm.__version__ == declared, f"{mm.__version__} != {declared}"
