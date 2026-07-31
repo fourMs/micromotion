@@ -62,3 +62,33 @@ def test_version_matches_pyproject():
         return
     declared = tomllib.loads(pyproject.read_text())["project"]["version"]
     assert mm.__version__ == declared, f"{mm.__version__} != {declared}"
+
+
+def test_equivital_labels_each_signal_type(tmp_path):
+    """ECG and inter-beat intervals must not be labelled as acceleration.
+
+    The reader defaulted anything it did not recognise to kind="acceleration", unit="counts", so
+    a file of heartbeat intervals in milliseconds described itself as motion. `qom` happened to
+    refuse on the unit, but that is the unit guard doing the kind label's job -- anything
+    inspecting `rec.kind` to decide what a record was would have been told wrong.
+    """
+    import micromotion as mm
+
+    cases = {
+        "accelerometer.csv": ("DateTime, Vert Accelerometer, Lat Accelerometer, Long Accelerometer",
+                              "2025-10-09 13:45:00.003+00:00, -881, -172, 27", "acceleration"),
+        "ecg.csv": ("DateTime, Lead 1, Lead 2",
+                    "2025-10-09 13:45:00.003+00:00, 0.681318, 0.54945", "ecg"),
+        "respiration.csv": ("DateTime, Breathing",
+                            "2025-10-09 13:45:00.003+00:00, 2048", "respiration"),
+        "rr.csv": ("DateTime, Interbeat Interval (MS)",
+                   "2025-10-09 13:45:00.058+00:00, 691", "interbeat_interval"),
+    }
+    for name, (header, row, expected_kind) in cases.items():
+        p = tmp_path / name
+        rest = row.split(",", 1)[1]
+        rows = [f"2025-10-09 13:45:0{i}.003+00:00,{rest}" for i in range(1, 4)]
+        p.write_text("\n".join([header, *rows]) + "\n")
+        rec = mm.read_equivital(str(p))
+        assert rec.kind == expected_kind, f"{name}: {rec.kind} != {expected_kind}"
+        assert rec.unit != "counts" or expected_kind == "acceleration"

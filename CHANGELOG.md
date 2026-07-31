@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.10.0 — 2026-07-31
+
+### Added
+
+- **`velocity_from_position` and `velocity_from_acceleration`** return the band-limited velocity
+  per axis, in mm/s. `speed_from_position` and `speed_from_acceleration` are now defined as their
+  Euclidean norms, so there is one integration path rather than two that can drift apart, and a
+  test asserts the identity.
+
+  These exist because descriptors that need the velocity *vector* -- jerk, anything directional --
+  previously had to re-implement the integration by hand. In this project that produced two
+  incompatible definitions of jerk and one analysis that differentiated an accelerometer series as
+  though it were position, shifting every descriptor two derivatives up while still returning
+  finite, reasonable-looking numbers.
+
+- **`effective_band(fs)`** reports the band that will actually be applied at a given sampling rate,
+  and `bandpass` now warns when it clamps the upper edge to Nyquist instead of clamping silently.
+  At 10 Hz the canonical 0.2-10 Hz band becomes 0.2-4.95 Hz, which is a different measurement.
+
+### Notes
+
+- **The 0.2 Hz lower edge is not modality-neutral.** Measured across seven collections, moving the
+  high-pass corner from 0.3 to 0.2 Hz changes the reported quantity of motion by 7-18 per cent on
+  optical markers and by 25-94 per cent on accelerometers. Optical speed comes from
+  *differentiating* position, which suppresses low frequencies; accelerometer speed comes from
+  *integrating* acceleration, which amplifies them. The effect is largest on chest-worn sensors,
+  where 0.2 Hz sits on the respiration fundamental. Rankings are robust (Spearman 0.94 and above
+  where only the band differs); absolute levels are not. State the band when quoting a level from
+  an accelerometer.
+
 ## 0.9.1 — 2026-07-31
 
 Fixes `__version__`, which the 0.9.0 release left at `0.8.3`: `pyproject.toml` was bumped and the

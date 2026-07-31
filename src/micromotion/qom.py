@@ -99,7 +99,7 @@ def _to_2d(a) -> np.ndarray:
     return a[:, None] if a.ndim == 1 else a
 
 
-def speed_from_acceleration(
+def velocity_from_acceleration(
     acc,
     fs: float,
     unit: str = "m/s^2",
@@ -108,9 +108,15 @@ def speed_from_acceleration(
     notch_hz: float | None = None,
     integrate: str = "rectangle",
 ) -> np.ndarray:
-    """Band-limited speed, in mm/s, from acceleration.
+    """Band-limited velocity, per axis, in mm/s, from acceleration.
 
-    ``acc`` is (n_samples, n_axes). ``unit`` is ``"m/s^2"`` or ``"g"``.
+    ``acc`` is (n_samples, n_axes). ``unit`` is ``"m/s^2"`` or ``"g"``. Returns an array of
+    the same shape; :func:`speed_from_acceleration` is its Euclidean norm.
+
+    Use this when a descriptor needs the velocity *vector* rather than its magnitude --
+    jerk, spectral measures per axis, anything directional. Computing it from the speed
+    alone is not equivalent, and integrating by hand invites a pipeline that differs from
+    the rest of the corpus in the filter order or the quadrature rule.
 
     ``integrate`` selects the quadrature rule, and the choice is not cosmetic. Both are in
     common use and they differ by about 0.26 per cent on real phone data -- small, but a
@@ -139,8 +145,25 @@ def speed_from_acceleration(
         v = np.cumsum(a, axis=0) / fs
     else:
         raise ValueError(f"unknown rule {integrate!r}; use 'trapezoid' or 'rectangle'")
-    v = filters.bandpass(v, fs, lo, hi)
-    return np.linalg.norm(v, axis=1) * MM_PER_M
+    return filters.bandpass(v, fs, lo, hi) * MM_PER_M
+
+
+def speed_from_acceleration(
+    acc,
+    fs: float,
+    unit: str = "m/s^2",
+    lo: float = filters.BAND[0],
+    hi: float = filters.BAND[1],
+    notch_hz: float | None = None,
+    integrate: str = "rectangle",
+) -> np.ndarray:
+    """Band-limited speed, in mm/s, from acceleration.
+
+    ``acc`` is (n_samples, n_axes). ``unit`` is ``"m/s^2"`` or ``"g"``. This is the norm of
+    :func:`velocity_from_acceleration`; see that function for the integration options.
+    """
+    v = velocity_from_acceleration(acc, fs, unit, lo, hi, notch_hz, integrate)
+    return np.linalg.norm(v, axis=1)
 
 
 def derivative(x, fs: float) -> np.ndarray:
@@ -167,6 +190,32 @@ def derivative(x, fs: float) -> np.ndarray:
     return v
 
 
+def velocity_from_position(
+    pos,
+    fs: float,
+    unit: str = "mm",
+    lo: float = filters.BAND[0],
+    hi: float = filters.BAND[1],
+) -> np.ndarray:
+    """Band-limited velocity, per axis, in mm/s, from position.
+
+    ``pos`` is (n_samples, n_axes), normally the three coordinates of one optical marker.
+    ``unit`` is ``"mm"`` or ``"m"``. Returns an array of the same shape;
+    :func:`speed_from_position` is its Euclidean norm.
+
+    Pair with :func:`velocity_from_acceleration` when a descriptor must be computed the same
+    way across optical and accelerometer collections: take the velocity from whichever
+    function matches the recorded quantity, and everything downstream is identical.
+    """
+    p = _to_2d(pos)
+    if unit == "m":
+        p = p * MM_PER_M
+    elif unit != "mm":
+        raise ValueError(f"unknown position unit {unit!r}; use 'mm' or 'm'")
+    p = filters.bandpass(p, fs, lo, hi)
+    return filters.bandpass(derivative(p, fs), fs, lo, hi)
+
+
 def speed_from_position(
     pos,
     fs: float,
@@ -177,17 +226,9 @@ def speed_from_position(
     """Band-limited speed, in mm/s, from position.
 
     ``pos`` is (n_samples, n_axes), normally the three coordinates of one optical marker.
-    ``unit`` is ``"mm"`` or ``"m"``.
+    ``unit`` is ``"mm"`` or ``"m"``. This is the norm of :func:`velocity_from_position`.
     """
-    p = _to_2d(pos)
-    if unit == "m":
-        p = p * MM_PER_M
-    elif unit != "mm":
-        raise ValueError(f"unknown position unit {unit!r}; use 'mm' or 'm'")
-    p = filters.bandpass(p, fs, lo, hi)
-    v = derivative(p, fs)
-    v = filters.bandpass(v, fs, lo, hi)
-    return np.linalg.norm(v, axis=1)
+    return np.linalg.norm(velocity_from_position(pos, fs, unit, lo, hi), axis=1)
 
 
 BANDS = {

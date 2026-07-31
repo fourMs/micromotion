@@ -352,6 +352,15 @@ def read_equivital(path: str) -> MotionRecord:
         unit = "g"
     elif "Breathing" in cols:
         kind, unit = "respiration", "adc"
+    elif any("Interbeat" in c or c.strip().upper() in ("RR", "IBI") for c in cols):
+        # Inter-beat intervals, one row per heartbeat, in milliseconds. Falling through to the
+        # default would label a beat series as acceleration in counts -- and while ``qom`` then
+        # refuses on the unit, anything inspecting ``kind`` to decide what a record is would be
+        # told it was motion. The sampling "rate" is also nominal here: rows are beats, not
+        # samples on a clock, so ``fs`` is the mean beat rate rather than a sampling frequency.
+        kind, unit = "interbeat_interval", "ms"
+    elif any(c.startswith("Lead") for c in cols):
+        kind, unit = "ecg", "mV"
         # 0 and 1023 are the rails of a 10-bit converter, not waveform.
         data[(data <= 0) | (data >= 1023)] = np.nan
 

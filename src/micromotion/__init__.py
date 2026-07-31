@@ -55,7 +55,7 @@ from .qom import (
     pose_qom,
 )
 from .align import apply_lag, find_transient, instantaneous_rate, search_lag, xcorr_lag
-from .filters import BAND, OPTICAL_LEGACY_BAND, bandpass, highpass, lowpass, notch
+from .filters import BAND, OPTICAL_LEGACY_BAND, bandpass, effective_band, highpass, lowpass, notch
 from .io import (
     read,
     read_ax3,
@@ -77,6 +77,8 @@ from .qom import (
     remove_tilt,
     speed_from_acceleration,
     speed_from_position,
+    velocity_from_acceleration,
+    velocity_from_position,
     tilt_fraction,
 )
 from .record import MotionRecord
@@ -111,7 +113,7 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "0.9.1"
+__version__ = "0.10.0"
 
 __all__ = [
     "sliding_null",
@@ -166,6 +168,7 @@ __all__ = [
     "G",
     "MotionRecord",
     "OPTICAL_LEGACY_BAND",
+    "effective_band",
     "QomResult",
     "align",
     "apply_lag",
@@ -209,6 +212,8 @@ __all__ = [
     "spectral_peak",
     "speed_from_acceleration",
     "speed_from_position",
+    "velocity_from_acceleration",
+    "velocity_from_position",
     "sway_geometry",
     "tilt_fraction",
     "to_rate",

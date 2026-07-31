@@ -88,7 +88,20 @@ def _edges(fs: float, lo: float, hi: float,
     ny = fs / 2.0
     if lo <= 0 or lo >= ny:
         raise ValueError(f"low edge {lo} Hz is not below Nyquist {ny} Hz")
+    requested_hi = hi
     hi = min(hi, ny * margin)
+    if hi < requested_hi:
+        # Silently returning a number computed in a narrower band than the caller asked for is
+        # how two results get compared that were never in the same band. A 10 Hz recording
+        # cannot carry a 10 Hz upper edge -- Nyquist is 5 -- so the band becomes 0.2-4.95 and
+        # the result is not comparable with one from a faster recording unless both are
+        # deliberately limited to the same edge.
+        warnings.warn(
+            f"upper edge {requested_hi} Hz exceeds Nyquist for {fs} Hz sampling and was "
+            f"clamped to {hi:.4g} Hz. The result is band-limited to {lo}-{hi:.4g} Hz, not "
+            f"{lo}-{requested_hi} Hz, and is not comparable with results computed at the "
+            f"requested band. Use effective_band() to check before comparing.",
+            RuntimeWarning, stacklevel=3)
     if hi > 0 and fs / hi > NARROW_BAND_RATIO:
         warnings.warn(
             f"band {lo}-{hi} Hz is very low against a {fs} Hz sampling rate "
@@ -162,3 +175,20 @@ def edge_transient_samples(fs: float, lo: float | None = BAND[0], order: int = O
     five-second binning does with its ``edge`` column.
     """
     return int(np.ceil(2 * order * fs / (lo if lo else BAND[1])))
+
+
+def effective_band(fs: float, lo: float | None = BAND[0], hi: float = BAND[1],
+                   margin: float = NYQUIST_MARGIN) -> tuple[float | None, float]:
+    """The band that will actually be applied at this sampling rate.
+
+    The requested upper edge is clamped to just below Nyquist, so a rate below twice ``hi``
+    silently narrows the band. Ask before comparing two results computed at different rates:
+    at 10 Hz the canonical 0.2-10 Hz band becomes 0.2-4.95, which is a different measurement.
+
+    >>> effective_band(100.0)
+    (0.2, 10.0)
+    >>> effective_band(10.0)
+    (0.2, 4.95)
+    """
+    ny = fs / 2.0
+    return lo, float(min(hi, ny * margin))

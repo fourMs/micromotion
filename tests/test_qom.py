@@ -275,3 +275,58 @@ def test_every_band_default_comes_from_filters_BAND():
             assert p["lo"].default == lo, f"{fn.__name__} lo={p['lo'].default} != {lo}"
         if "hi" in p and fn not in (mm.pose_qom, mm.normalized_qom):
             assert p["hi"].default == hi, f"{fn.__name__} hi={p['hi'].default} != {hi}"
+
+
+def test_low_rate_narrows_the_band_and_says_so():
+    """A rate below twice the upper edge silently changes the measurement unless it warns.
+
+    10 Hz data cannot carry a 10 Hz upper edge: Nyquist is 5, so the band becomes 0.2-4.95. The
+    result is still meaningful, but it is not the same measurement as one from a faster recording
+    and must not be compared with it. Analysis at 10 Hz is supported; quiet substitution is not.
+    """
+    import warnings
+    import numpy as np
+    import micromotion as mm
+
+    assert mm.effective_band(100.0) == (0.2, 10.0)
+    lo, hi = mm.effective_band(10.0)
+    assert lo == 0.2 and hi < 5.0
+
+    x = np.random.default_rng(0).normal(size=(600, 3))
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        v = mm.speed_from_position(x, 10.0, unit="mm")
+    assert np.isfinite(v).all()                      # it still works
+    assert any("clamped" in str(x.message) for x in w)
+
+    with warnings.catch_warnings(record=True) as w:   # and is silent when the rate is adequate
+        warnings.simplefilter("always")
+        mm.speed_from_position(np.random.default_rng(0).normal(size=(6000, 3)), 100.0, unit="mm")
+    assert not any("clamped" in str(x.message) for x in w)
+
+
+def test_velocity_functions_are_the_speed_functions_before_the_norm():
+    """The speed helpers must stay defined as the norm of the velocity helpers.
+
+    They were one function each until the velocity form was split out, and the split is only
+    safe while the two cannot drift: a descriptor that needs the velocity vector (jerk,
+    anything directional) has to agree with the scalar QoM that is reported alongside it.
+    """
+    rng = np.random.default_rng(11)
+    x = rng.normal(size=(3000, 3))
+    for speed, velocity, unit in (
+        (mm.speed_from_position, mm.velocity_from_position, "mm"),
+        (mm.speed_from_acceleration, mm.velocity_from_acceleration, "m/s^2"),
+    ):
+        v = velocity(x, 100.0, unit)
+        assert v.shape == x.shape
+        assert np.allclose(speed(x, 100.0, unit), np.linalg.norm(v, axis=1), atol=0, rtol=0)
+
+
+def test_acceleration_unit_is_applied_not_ignored():
+    """g and m/s^2 differ by 9.80665, and a silently ignored unit is a factor-10 error."""
+    rng = np.random.default_rng(12)
+    x = rng.normal(size=(3000, 3))
+    in_g = mm.velocity_from_acceleration(x, 100.0, "g")
+    in_si = mm.velocity_from_acceleration(x, 100.0, "m/s^2")
+    assert np.allclose(in_g, in_si * mm.G)
