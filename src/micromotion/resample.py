@@ -6,7 +6,7 @@ Measure the rate, do not read it. Nominal rates in this corpus are wrong by up t
 cent, and one record's documented rate was out by a factor of 37.
 
 Downsample, never upsample. Upsampling invents structure between samples, and every method
-that reads across scales treats the invention as real. On 2026-07-28 an analysis that
+that reads across scales treats the invention as real. An analysis that
 upsampled 20 Hz data to 25 Hz produced multifractal widths up to 6.6 where the plausible
 range is around 1. Nothing failed; the numbers were simply wrong.
 """
@@ -54,7 +54,7 @@ def measured_rate(t) -> float:
 
     Sample count over elapsed span, deliberately not the reciprocal of the median interval.
     Where timestamps are rounded to whole milliseconds the intervals become a mixture of
-    adjacent integers and their median is a quantisation artefact: on Stillness2025 that
+    adjacent integers and their median is a quantisation artefact: on one dataset that
     route returns exactly 250 Hz for a recording that runs at 256, and on the pre-study
     phones it returned 636 Hz for a stream arriving at 106.
     """

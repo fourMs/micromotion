@@ -47,7 +47,7 @@ G = 9.80665
 
 Present because accelerometers export in g and the band-limited result must be in SI
 before integration. Getting this wrong is not hypothetical: every phone quantity of motion
-in this project was 9.80665x too large until 2026-07-28.
+is then 9.80665x too large.
 """
 
 MM_PER_M = 1000.0
@@ -113,17 +113,14 @@ def speed_from_acceleration(
     ``acc`` is (n_samples, n_axes). ``unit`` is ``"m/s^2"`` or ``"g"``.
 
     ``integrate`` selects the quadrature rule, and the choice is not cosmetic. Both are in
-    use in this corpus: the StillStanding365 and fNIRS pipelines integrate with the trapezoid
-    rule, the Stillness2025, Taqasim and 2024 championship pipelines with a rectangle sum.
-    They differ by about 0.26 per cent on real phone data, which is small but is a systematic
-    bias rather than noise -- the rectangle rule lags the signal by half a sample.
+    common use and they differ by about 0.26 per cent on real phone data -- small, but a
+    systematic bias rather than noise, since the rectangle rule lags the signal by half a
+    sample.
 
-    Neither rule is universally right here, so the default is the one that keeps this
-    package's own published numbers self-consistent: ``"rectangle"`` is what the harmonised
-    cross-collection table and every figure derived from it were computed with, and it
-    reproduces the deposited Taqasim value (93.140 against 93.091 mm/s) where the trapezoid
-    rule gives 93.405. Pass ``integrate="trapezoid"`` to reproduce StillStanding365 and
-    fNIRS, whose deposited pipelines use it.
+    Neither is universally right, so the default is ``"rectangle"``, which is what this
+    package's own reference numbers were computed with. Pass ``integrate="trapezoid"`` to
+    reproduce a pipeline that used the trapezoid rule; on one deposited value the two give
+    93.140 and 93.405 mm/s against a published 93.091.
 
     Which rule the project should standardise on is an open question, deliberately not
     settled by this default.
@@ -340,20 +337,14 @@ def tilt_fraction(acc, gyro, fs: float, unit: str = "m/s^2") -> dict:
 
 
 # ---------------------------------------------------------------------------------------
-# Brought in from musicalgestures (MGT) on 2026-07-29 -- but they originated here: their
-# docstrings credit the stillstanding and Westney-comparisons studies, and MGT had copied
-# them. The direction of travel is *from* this project, not toward it, and MGT has never
-# released them (still 1.6.9 as of 2026-07-31).
+# An older family, kept because published results depend on it. Also present in
+# musicalgestures, which took it from the same source.
 #
-# They are NOT the same measure as `qom` above. `band_limited_qom` band-limits the *position*,
-# differentiates with a two-point difference, and does not band-limit again afterwards --
-# so the speed carries energy above `hi` that the stated band excludes. On one 200 Hz optical
-# recording it reads about 2.6 per cent above `qom` on a matched band, and the residual is
-# almost entirely that missing second pass (the differentiation rule accounts for 0.05).
-#
-# Their band defaults were 0.3-15 Hz until 2026-07-31 and are now `filters.BAND` like
-# everything else: nothing was published on 0.3-15 and nothing external depends on it, so the
-# second band existed only to be confused with the first.
+# These are NOT the same measure as `qom` above. `band_limited_qom` band-limits the *position*,
+# differentiates with a two-point difference, and does not band-limit again afterwards -- so the
+# speed carries energy above `hi` that the stated band excludes. On a 200 Hz optical recording it
+# reads about 2.6 per cent above `qom` on a matched band, and the residual is almost entirely that
+# missing second pass; the differentiation rule accounts for 0.05.
 #
 # Prefer `qom` or `speed_from_position` for new work.
 # ---------------------------------------------------------------------------------------
@@ -444,23 +435,15 @@ def band_limited_qom(pos, fs, lo=filters.BAND[0], hi=filters.BAND[1], order=4, a
 
     .. note::
 
-       **Defaults follow** ``filters.BAND`` **(0.2-10 Hz), like everything else
-       in the package.** They were 0.3-15 Hz until 2026-07-31, from before the
-       band was settled by a sweep across seven datasets. Nothing was ever
-       published on 0.3-15 and no other package depends on it, so carrying two
-       bands bought nothing but the chance of quoting a number from the wrong
-       one. One band, everywhere.
-
-       ``hi`` stays available because :func:`pose_qom` genuinely needs a lower
-       ceiling: image-space landmark jitter dominates above about 5 Hz.
-
-       This function was copied into ``musicalgestures`` -- the direction of
-       travel is *from* here -- which is why the two disagree on the same
-       recording. See the interop guide.
+       Defaults follow ``filters.BAND``, like everything else in the package,
+       so a number cannot be quoted from a second band by accident.
+       :func:`pose_qom` overrides the upper edge because image-space landmark
+       jitter dominates above about 5 Hz.
 
        **Use** :func:`speed_from_position` **for new work**, which band-limits
        again after differentiating; this one does not, and reads high as a
-       result.
+       result. See the interop guide for the comparison against
+       ``musicalgestures``, which carries the same function.
 
     .. warning::
 

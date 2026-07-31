@@ -55,11 +55,10 @@ magnitude still looks plausible.
 | OptiTrack (Motive) | **Y-up**, right-handed — but configurable, and configured differently between sessions | metres |
 | C3D generally | whatever the source wrote; read `POINT:UNITS` | declared in the file |
 
-**Do not infer the system from the frame.** In this project's championship corpus, two editions were
-recorded on OptiTrack: one session came out Y-up and the other Z-up, because Motive was configured
-differently at the two events. The only reliable checks are the file's own metadata (`POINT:UNITS`
-for C3D) and the data itself — a standing head marker sits at roughly 1.5–1.9 in whatever unit is in
-force, on whichever axis is vertical.
+**Do not infer the frame from the system.** The same OptiTrack rig, configured differently at two
+sessions, will give you Y-up files from one and Z-up from the other. The only reliable checks are
+the file's own metadata (`POINT:UNITS` for C3D) and the data itself — a standing head marker sits at
+roughly 1.5–1.9 in whatever unit is in force, on whichever axis is vertical.
 
 ```python
 import numpy as np
@@ -93,14 +92,13 @@ entirely reasonable.
 ### Fix the data, then hunt for the compensations
 
 If you rotate a dataset at source, **every script that special-cased its old frame becomes wrong**.
-In this corpus a single edition's Y-up frame had been compensated in ten separate analysis scripts
-via a `VERT={"2019": 1}` mapping; rotating the files without finding all ten would have turned ten
-correct analyses into ten wrong ones. Grep for the compensation before you change the data, and
-empty it in the same commit.
+A known wrinkle tends to be worked around in many places, and those workarounds are invisible until
+the wrinkle is gone — at which point each one silently inverts the correction it was making. Grep
+for the compensation before changing the data, and empty it in the same commit.
 
 ## Physics Toolbox Sensor Suite
 
-The phone app behind the StillStanding365 and phone-comparison recordings. `read_phone` accepts
+A widely used phone sensor-logging app. `read_phone` accepts
 both the app's own export and the cleaned tab-separated form, detecting which from the first two
 lines, so nothing needs converting by hand any more.
 
@@ -128,8 +126,8 @@ are **total g-force in g, including gravity** — magnitude 1.0 on a phone at re
 
 Use `a*`. Substituting `gF*` does not fail, it inflates band-limited motion roughly 4000-fold,
 because a slowly rotating gravity vector has ample 0.2–10 Hz content that no band-pass will remove.
-Reading `a*` as if it were g inflated every quantity of motion in this project by 9.80665 until
-2026-07-28.
+Reading `a*` as if it were g inflates every quantity of motion by 9.80665 — a clean constant
+factor, so rankings and correlations survive it and nothing looks wrong.
 
 Column availability varies by handset: the Galaxy A52s writes no `p` (pressure) column, so joining
 logs by column position rather than by name misaligns every channel after `wz`.

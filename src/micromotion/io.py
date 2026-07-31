@@ -37,20 +37,15 @@ QUALISYS_KEYS = (
 )
 
 Y_UP_COLLECTIONS: tuple[str, ...] = ()
-"""Editions whose vertical axis is Y. Empty since 2026-07-31.
+"""Datasets whose vertical axis is Y rather than Z. Empty by default.
 
-This held ``Standstill2019``: that championship was recorded on OptiTrack with Motive
-configured Y-up, and the conversion to Qualisys-style TSV changed the units and the layout
-but left the axes alone. The files were rotated at source on 2026-07-31
-(``X -> X, Y -> -Z_old, Z -> Y_old``, a rotation and not an axis swap), so every optical
-record in the corpus is now Z-up and no edition needs a special case.
+A system's frame is a property of how it was configured for a session, not of the system:
+the same OptiTrack rig can produce Y-up files for one study and Z-up for another. Where a
+dataset is known to be Y-up, name it here rather than compensating in downstream analysis.
 
-**Kept as an empty tuple rather than deleted**, because the mechanism is worth having: a
-system's default frame is a property of how it was configured on the day, not of the system.
-The same OptiTrack produced Y-up files in 2019 and Z-up files in 2022. If a Y-up export ever
-enters the corpus, name it here rather than compensating downstream — and if data is later
-rotated at source, empty this in the same change, or every reader that trusted it starts
-returning the wrong axis.
+Prefer rotating the data at source (``X -> X, Y -> -Z_old, Z -> Y_old`` — a rotation, not an
+axis swap). If you do, empty this in the same change: a reader that still claims Y for
+rotated files hands every caller a horizontal axis as the vertical one, silently.
 """
 
 
@@ -176,11 +171,11 @@ def read_sverm(path: str) -> MotionRecord:
 
 
 def read_ax3(path: str) -> MotionRecord:
-    """Axivity AX3 export with a ``ts,x,y,z`` header: Standstill2024 and Taqasim.
+    """Axivity AX3 export with a ``ts,x,y,z`` header.
 
     The rate is measured from the timestamps and differs meaningfully between files: it is
     a property of the physical logger, spanning 191.3-207.7 Hz across the 2024 units, and
-    it differs between the two Taqasim sites in the same direction as the effect that
+    it can differ between recording sites in the same direction as the effect a study
     record's headline claim reports.
     """
     df = pd.read_csv(path, sep="\t")
@@ -243,7 +238,7 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
 
     ``ax``/``ay``/``az`` are linear acceleration in m/s^2, gravity removed by sensor fusion.
     They are not in g, whatever an older version of the data dictionary said; reading them as
-    g inflated every quantity of motion in this project by 9.80665 until 2026-07-28. Only
+    g inflates every quantity of motion by 9.80665. Only
     ``gF*`` is in g, and it is total g-force *including* gravity — its magnitude sits at 1.0
     on a phone at rest, so substituting it for ``a*`` inflates band-limited motion by a factor
     of thousands rather than failing.
@@ -260,14 +255,14 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
     ``trim_end_s`` override it per end, so an opening clap can be removed without discarding
     good data at the close — pass ``trim_start_s=35, trim_end_s=0``.
 
-    **Trim before you plot or transform.** The StillStanding365 recordings open with a
-    synchronisation clap that is a timing marker, not movement, and it is enormous relative to
-    what follows: on day 221 it reaches 10.29 m/s² against a maximum of 0.155 in the standstill
-    body, 66 times larger. Left in, it sets the y-axis of any plot, dominates any spectrum, and
-    feeds a peak detector a transient that is not a breath — which is exactly how a respiration
-    estimate came out at 11 breaths/min instead of 15. The settling that follows the clap is
-    slower and also worth removing; 35 s is the measured figure for this corpus, and the
-    deposited pipeline used 12 s until 2026-07-30, which was not enough.
+    **Trim before you plot or transform.** A recording that opens with a synchronisation clap
+    carries a transient that is a timing marker, not movement, and it can be two orders of
+    magnitude above the standstill it precedes — in one recording 10.29 m/s² against a body
+    maximum of 0.155. Left in, it sets the y-axis of any plot, dominates any spectrum, and gives
+    a peak detector a transient that is not a breath.
+
+    The settling that follows is slower and also worth removing. Measure it rather than guessing:
+    both posture and heart rate can still be moving well beyond ten seconds.
     """
     with open(path, encoding="utf-8", errors="replace") as fh:
         head = [fh.readline() for _ in range(2)]
@@ -329,7 +324,7 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
 
 
 def read_equivital(path: str) -> MotionRecord:
-    """Equivital physiology CSV: Stillness2025 accelerometer, ECG, respiration or RR.
+    """Equivital physiology CSV: accelerometer, ECG, respiration or RR.
 
     Four of the five files per participant are delimited by comma-and-space and the fifth by
     a bare comma, so the separator is handled rather than assumed. The accelerometer is in
@@ -339,7 +334,7 @@ def read_equivital(path: str) -> MotionRecord:
     The rate is measured from the timestamps by span over count. Taking the median interval
     instead returns exactly 250 Hz for a recording that runs at 256, because the timestamps
     are rounded to whole milliseconds; that error was live in the deposited quantity of
-    motion until 2026-07-28.
+    motion.
     """
     df = pd.read_csv(path, skipinitialspace=True)
     tcol = df.columns[0]

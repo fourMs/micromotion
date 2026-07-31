@@ -20,7 +20,7 @@ from scipy import signal
 BAND = (0.2, 10.0)
 """The micromotion band, in Hz.
 
-The lower edge was 0.3 Hz until 2026-07-29, inherited rather than chosen. Swept across seven
+The lower edge was chosen by a sweep across seven
 optical datasets, 665 recordings, the between-dataset spread is 3.2 per cent at 0.15 Hz,
 2.1 at 0.20, 2.7 at 0.25, 6.2 at 0.30 and 10.1 at 0.40. 0.2 Hz is a clear optimum, and it is
 also where the 20 Hz origin dataset stops being an outlier in either direction.

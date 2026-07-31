@@ -29,7 +29,7 @@ order, and reading positionally mis-assigns every one of them.
 ## From an accelerometer
 
 ```python
-rec = mm.read("Taqasim/accelerometer_data/oslo/subject_01.tsv")
+rec = mm.read("accelerometer_data/subject_01.tsv")
 mm.qom(rec.data, rec.fs, kind="acceleration", unit="g").mean_mm_s
 ```
 

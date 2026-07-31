@@ -112,9 +112,9 @@ def search_lag(t_a, x_a, t_b, x_b, max_lag_s: float = 300.0, step_s: float = 1.0
     and in how much of the session they cover.
 
     ``confident`` is True only when the best correlation reaches ``min_r`` and the overlap
-    reaches ``min_overlap_s``. This recovered the audio time origin for 331 of 356
-    StillStanding365 days; the remaining 25 failed this test and were left blank rather than
-    given a number nobody could trust.
+    reaches ``min_overlap_s``. Recordings that fail the test are better left without an offset
+    than given one nobody can trust: a wrong alignment is harder to detect downstream than a
+    missing one.
     """
     ga = np.arange(np.min(t_a), np.max(t_a), step_s)
     gb = np.arange(np.min(t_b), np.max(t_b), step_s)
@@ -158,9 +158,9 @@ def find_transient(x, fs: float, threshold: float = 8.0, search_s: float | None 
     median of the signal envelope, using the median absolute deviation so that the events
     themselves do not inflate the scale they are measured against.
 
-    The StillStanding365 sessions open and close with a synchronisation clap, and the
-    deposited pipeline handles it by trimming a fixed twelve seconds from each end. Detecting
-    it instead gives the offset rather than discarding it, which is what turns a clap into an
+    Where sessions open and close with a synchronisation clap, the usual handling is to trim a
+    fixed window from each end. Detecting it instead gives the offset rather than discarding it,
+    which is what turns a clap into an
     alignment rather than a nuisance.
     """
     x = np.asarray(x, float)

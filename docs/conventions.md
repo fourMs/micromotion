@@ -33,7 +33,7 @@ mm.qom(acc, fs, kind="acceleration", band="optical_legacy")
 
 ## Why 0.2 Hz, and why a median
 
-The lower edge was 0.3 Hz until 2026-07-29 — inherited from earlier work rather than chosen.
+The lower edge is not arbitrary.
 Swept across seven optical datasets and 665 recordings, the between-dataset spread is:
 
 | lower edge | spread |

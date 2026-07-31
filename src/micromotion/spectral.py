@@ -167,7 +167,7 @@ def detect_breaths_adaptive(x, fs: float, band: tuple[float, float] = RESPIRATOR
     expectation that rejecting non-breath rises would beat plain peak detection, and measured
     against it that expectation did not hold. On twelve HpSp respiration-belt recordings the
     two agree: median error against the spectral estimate 1.82 breaths per minute for both.
-    On eight Stillness2025 chest accelerometers, which is the case the rejection step was
+    On eight chest accelerometers, which is the case the rejection step was
     supposed to help, it is markedly worse -- median error against the same participant's belt
     10.3 breaths per minute against 3.6 for :func:`detect_breaths`, over-counting throughout.
 

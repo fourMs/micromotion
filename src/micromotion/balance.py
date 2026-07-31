@@ -300,7 +300,7 @@ def dfa(x, *, n_scales=18, min_scale=10):
     implementation and additionally returns the scales and fluctuation curve. The float
     return is kept because published code calls it that way.
 
-    Absorbed from musicalgestures on 2026-07-29. The two implementations agreed to 1.2 per
+    Shared with musicalgestures. The two implementations agree to 1.2 per
     cent on Brownian motion before being merged; the surviving one sits closer to the
     analytic answer of 1.5.
     """
@@ -316,7 +316,7 @@ def sample_entropy(x, m=2, r=0.2):
     ``r`` is a tolerance in units of the signal's standard deviation.
 
     A thin wrapper over :func:`micromotion.dynamics.sampen`, the single implementation.
-    Absorbed from musicalgestures on 2026-07-29; the two agreed to 0.2 per cent before
+    Shared with musicalgestures; the two agree to 0.2 per cent before
     being merged.
     """
     import numpy as _np
