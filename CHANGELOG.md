@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.11.0 — 2026-07-31
+
+### Changed — the canonical band is now 0.2–5 Hz
+
+`BAND` was `(0.2, 10.0)` and is now `(0.2, 5.0)`. **This changes every quantity of motion this
+package produces**, by up to 2.3 per cent, and changes jerk by considerably more.
+
+The reason is deliverability. A band above Nyquist is not a convention but a defect that returns a
+plausible number, and the 10 Hz ceiling could not be delivered by the whole corpus:
+
+- the phone accelerometer behind a 365-day collection updates at **14.75–16.9 Hz**, so Nyquist is
+  7.4–8.5 Hz and the ceiling was unreachable on **354 of 355 days**. Those files sit on a 100 Hz
+  grid, which is a six-fold upsample, and nothing above 7.5 Hz in them was ever real;
+- a 20 Hz optical subset has Nyquist exactly at 10 Hz, where the band was silently clamped to 9.9;
+- collaborators' 10 Hz data could not carry the band at all.
+
+5 Hz clears every one of these. Band-limited speed barely notices — within 2.3 per cent on every
+collection, and 95 per cent of quiet-standing sway power is below 1 Hz. On a 199-recording optical
+collection the median moves 0.8 per cent with the ranking at Spearman 0.996.
+
+### Added
+
+- **`WIDEBAND` (0.2–10 Hz)** and a `"wideband"` entry in `BANDS`, for jerk and other
+  high-derivative measures that need the octave the canonical band gives up. Jerk at 5 Hz is 37–66
+  per cent of its 10 Hz value and the ranking shifts, so jerk belongs here — but **only on
+  collections sampled fast enough to deliver it**. Check with `effective_band`, and never infer the
+  rate from a file's grid.
+- A test asserting the ceiling stays at or below half the slowest sensor in the corpus, so a future
+  change cannot quietly make the band uncomputable on a collection again.
+
+### Documented
+
+- **The nominal band edge is not where the filter stops.** A zero-phase fourth-order Butterworth
+  rolls off well before its corner: at the canonical 5 Hz ceiling a pure tone survives at **0.249**
+  of its amplitude, and full fidelity extends only to about 2.5 Hz. Roll-off tables for both bands
+  are in `docs/conventions.md`. Two practical consequences: do not read a band edge as a content
+  boundary, and do not probe a filter at its own corner — that test fails when the filter is working.
+
 ## 0.10.0 — 2026-07-31
 
 ### Added

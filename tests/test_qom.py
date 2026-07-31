@@ -23,7 +23,7 @@ def expected_mean_speed(amp_mm, f):
     return amp_mm * 2 * np.pi * f * 2 / np.pi
 
 
-@pytest.mark.parametrize("f", [0.5, 1.0, 2.0, 5.0])
+@pytest.mark.parametrize("f", [0.5, 1.0, 2.0, 3.0])
 def test_position_route_recovers_analytic_speed(f):
     fs, amp = 200.0, 3.0
     _, x, _ = sine(amp, f, fs, 120)
@@ -33,7 +33,7 @@ def test_position_route_recovers_analytic_speed(f):
     assert got == pytest.approx(expected_mean_speed(amp, f), rel=0.02)
 
 
-@pytest.mark.parametrize("f", [0.5, 1.0, 2.0, 5.0])
+@pytest.mark.parametrize("f", [0.5, 1.0, 2.0, 3.0])
 def test_acceleration_route_recovers_analytic_speed(f):
     fs, amp = 200.0, 3.0
     _, _, a = sine(amp, f, fs, 120)
@@ -280,7 +280,7 @@ def test_every_band_default_comes_from_filters_BAND():
 def test_low_rate_narrows_the_band_and_says_so():
     """A rate below twice the upper edge silently changes the measurement unless it warns.
 
-    10 Hz data cannot carry a 10 Hz upper edge: Nyquist is 5, so the band becomes 0.2-4.95. The
+    8 Hz data cannot carry a 5 Hz upper edge: Nyquist is 4, so the band becomes 0.2-3.96. The
     result is still meaningful, but it is not the same measurement as one from a faster recording
     and must not be compared with it. Analysis at 10 Hz is supported; quiet substitution is not.
     """
@@ -288,8 +288,8 @@ def test_low_rate_narrows_the_band_and_says_so():
     import numpy as np
     import micromotion as mm
 
-    assert mm.effective_band(100.0) == (0.2, 10.0)
-    lo, hi = mm.effective_band(10.0)
+    assert mm.effective_band(100.0) == (0.2, 5.0)
+    lo, hi = mm.effective_band(8.0)
     assert lo == 0.2 and hi < 5.0
 
     x = np.random.default_rng(0).normal(size=(600, 3))
@@ -330,3 +330,44 @@ def test_acceleration_unit_is_applied_not_ignored():
     in_g = mm.velocity_from_acceleration(x, 100.0, "g")
     in_si = mm.velocity_from_acceleration(x, 100.0, "m/s^2")
     assert np.allclose(in_g, in_si * mm.G)
+
+
+
+@pytest.mark.parametrize("f", [1.0, 3.0, 5.0])
+def test_wideband_reaches_where_the_canonical_band_stops(f):
+    """WIDEBAND must be a real measurement above BAND's ceiling, not a relabelling.
+
+    Probes stay at or below 5 Hz because a zero-phase fourth-order Butterworth is already
+    rolling off well before its nominal corner -- see the rolloff table in
+    ``docs/conventions.md``. At 6 Hz the 10 Hz band reads 2 per cent low and at 7 Hz nearly
+    9 per cent, which is the filter behaving, not a defect.
+    """
+    fs, amp = 200.0, 3.0
+    _, x, _ = sine(amp, f, fs, 120)
+    wide = mm.qom(x, fs, kind="position", unit="mm", band="wideband")
+    trim = wide.edge_samples
+    assert np.mean(wide.speed[trim:-trim]) == pytest.approx(expected_mean_speed(amp, f), rel=0.02)
+
+
+def test_the_canonical_band_actually_rejects_above_its_ceiling():
+    """A 5 Hz tone must survive the wide band and be cut by the canonical one.
+
+    This is what makes the two bands different measurements rather than two names.
+    """
+    fs, amp, f = 200.0, 3.0, 5.0
+    _, x, _ = sine(amp, f, fs, 120)
+    wide = mm.qom(x, fs, kind="position", unit="mm", band="wideband")
+    narrow = mm.qom(x, fs, kind="position", unit="mm")
+    t = wide.edge_samples
+    assert np.mean(narrow.speed[t:-t]) < 0.4 * np.mean(wide.speed[t:-t])
+
+
+def test_the_canonical_ceiling_is_deliverable_by_every_corpus_rate():
+    """The reason the ceiling is 5 Hz: every instrument in the corpus must reach it.
+
+    The slowest is the phone accelerometer at about 15 Hz. If a future change raises the
+    ceiling above half that, the band stops being computable on a whole collection.
+    """
+    slowest_sensor_hz = 14.75
+    assert mm.BAND[1] <= slowest_sensor_hz / 2
+    assert mm.effective_band(slowest_sensor_hz) == mm.BAND

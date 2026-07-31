@@ -1,10 +1,10 @@
-# The two bands
+# The three bands
 
-There are two quantity-of-motion conventions in circulation and they are **not
+There are three quantity-of-motion conventions here and they are **not
 interchangeable**. Reporting a number without saying which one produced it is the single
 most common way results in this field stop being comparable.
 
-## `micromotion` — 0.2 to 10 Hz
+## `micromotion` — 0.2 to 5 Hz
 
 A band-pass. The only convention that can be applied to every sensor, so the one any
 cross-collection comparison must use.
@@ -31,10 +31,10 @@ mm.qom(acc, fs, kind="acceleration", band="optical_legacy")
 ```
 
 
-## Why 0.2 Hz, and why a median
+## Why 0.2 Hz at the bottom
 
-The lower edge is not arbitrary.
-Swept across seven optical datasets and 665 recordings, the between-dataset spread is:
+The lower edge is not arbitrary. Swept across seven optical datasets and 665 recordings, the
+between-dataset spread is:
 
 | lower edge | spread |
 |---|---|
@@ -51,13 +51,93 @@ The edge interacts with the statistic, which is easy to miss. At 0.2 Hz the *med
 converges to 2.1 per cent and the mean only to 4.6; at 0.3 Hz it was the other way round.
 Report the median at this band. A mean here would be looser than what it replaced.
 
-Two things were checked before adopting it. A lower edge closer to DC risks integration drift
-on accelerometer data, which is the failure the edge exists to prevent: the mean-to-median
-speed ratio, which climbs when drift leaks in, is 2.07 at 0.2 Hz against 2.00 at 0.3, so it is
-flat and integration is safe. And the filter transient lengthens to 40 seconds at each end
-rather than 27, so a recording shorter than about two minutes has no clean interior at all.
-That rules the band out for short trials; it does not affect standstill protocols, which run
-six minutes or more.
+An edge this close to DC has to be checked against integration drift, since that is the failure
+it exists to prevent. It survives: on accelerometer data the mean-to-median speed ratio, which
+climbs when drift leaks in, is 2.07 at 0.2 Hz against 2.00 at 0.3 — flat. The filter transient
+does lengthen to 40 seconds at each end rather than 27, so a recording shorter than about two
+minutes has no clean interior at all. That rules the band out for short trials; it does not
+affect standstill protocols, which run six minutes or more.
+
+## Why 5 Hz at the top
+
+**Because that is what the instruments can deliver.** A band above Nyquist is not a convention,
+it is a defect that returns a plausible number, and the ceiling has to be one every collection
+can support:
+
+| instrument | sampling | Nyquist | 5 Hz? |
+|---|---|---|---|
+| phone IMU, daily standstill | 14.75–16.9 Hz | 7.4–8.5 | yes |
+| optical, 20 Hz subset | 20 Hz | 10 | yes |
+| collaborators' audience data | 10 Hz | 5 | at Nyquist |
+| optical and inertial, rest | 100–256 Hz | 50–128 | yes |
+
+A 10 Hz ceiling fails the first row on 354 of 355 days and sits exactly on Nyquist for the
+second, where it is silently clamped to 9.9. The phone case is the instructive one: those files
+are stored on a 100 Hz grid, but the accelerometer behind them updates at about 15 Hz, so the
+grid is a six-fold upsample and nothing above 7.5 Hz in them is real.
+
+**What the ceiling costs.** Band-limited speed barely notices — 5 Hz against 10 is within
+2.3 per cent on every collection, and 95 per cent of quiet-standing sway power lies below 1 Hz
+anyway. On a 199-recording optical collection the change moves the median 0.8 per cent and
+leaves the ranking at Spearman 0.996.
+
+**What it costs that matters.** Jerk is two derivatives higher and lives in the octave being
+given up: at 5 Hz it is 37 to 66 per cent of its 10 Hz value, and the ranking shifts as well.
+Jerk therefore belongs at `WIDEBAND`, on collections fast enough to deliver it — and nowhere
+else. On the phone collection the wider jerk was never real, and computing it there inflated the
+figure by 18 to 27 per cent with interpolation.
+
+## `WIDEBAND` — 0.2 to 10 Hz
+
+For jerk and other high-derivative measures that need the octave the canonical band gives up.
+
+Use it only where `effective_band(fs)` confirms the rate supports it, and **never infer the rate
+from a file's grid** — a uniform grid may be an upsample of a much slower sensor, and this
+corpus contains 355 days where it is. A quantity computed here is not comparable with one
+computed at `BAND`, and is not computable at all on the slower collections.
+
+## The nominal edge is not where the filter stops
+
+A band written as 0.2–5 Hz does not pass everything below 5 Hz and reject everything above. It is
+a zero-phase fourth-order Butterworth, applied forward and backward, and it is rolling off well
+before its nominal corner. Measured on pure tones of known amplitude, recovering the analytic mean
+speed:
+
+| tone | canonical `BAND` 0.2–5 Hz | `WIDEBAND` 0.2–10 Hz |
+|---|---|---|
+| 0.30 Hz | 0.951 | — |
+| 0.50 Hz | 1.000 | — |
+| 1.00 Hz | 1.000 | 1.000 |
+| 2.00 Hz | 0.999 | 1.000 |
+| 2.50 Hz | 0.997 | — |
+| 3.00 Hz | 0.982 | 1.000 |
+| 3.50 Hz | 0.924 | — |
+| 4.00 Hz | 0.773 | 1.000 |
+| 4.50 Hz | 0.513 | — |
+| 5.00 Hz | **0.249** | 0.993 |
+| 6.00 Hz | — | 0.976 |
+| 7.00 Hz | — | 0.912 |
+| 8.00 Hz | — | 0.758 |
+
+**Read the 5.00 Hz row.** A pure tone exactly at the canonical ceiling survives at a quarter of its
+true amplitude. Full fidelity — better than 99 per cent — extends only to about **2.5 Hz**, and the
+usable passband is roughly half the nominal upper edge. The same holds at the bottom: 0.3 Hz already
+reads 5 per cent low, so content near the 0.2 Hz corner is heavily attenuated rather than passed.
+
+Three consequences worth keeping in mind.
+
+**Do not read a band edge as a content boundary.** Moving the ceiling from 10 Hz to 5 does not
+discard the 5–10 Hz octave; it discards, in effect, everything above roughly 3.5 Hz. That is why the
+jerk change is as large as it is.
+
+**Do not probe a filter at its own corner.** A validation test that puts its test tone at the stated
+edge will fail against the analytic answer, and the failure is the filter working correctly. Probe
+inside the passband and characterise the roll-off separately, as here.
+
+**The steepness is a consequence of zero-phase filtering.** `filtfilt` applies the response twice,
+which is what buys zero phase distortion — essential when the output is going to be differentiated
+or integrated — and costs a sharper effective roll-off than the nominal order suggests. It is a
+deliberate trade, not an accident, but it means the effective bandwidth is narrower than the label.
 
 ## The edge is not modality-neutral
 

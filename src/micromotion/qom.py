@@ -9,7 +9,7 @@ code. Any figure or paper should be able to say which variant produced its numbe
 
 Definition
 ----------
-Band-limit each axis to 0.2-10 Hz, bring it to velocity, band-limit again, take the
+Band-limit each axis to 0.2-5 Hz, bring it to velocity, band-limit again, take the
 Euclidean norm across axes, and report the mean in mm/s.
 
 Acceleration is brought to velocity by integration, position by differentiation. The second
@@ -233,14 +233,21 @@ def speed_from_position(
 
 BANDS = {
     "micromotion": filters.BAND,
+    "wideband": filters.WIDEBAND,
     "optical_legacy": filters.OPTICAL_LEGACY_BAND,
 }
-"""The two conventions in use, by name.
+"""The three conventions in use, by name.
 
-``micromotion`` is 0.2-10 Hz and is the only one that can be applied to every sensor, so it
-is the one a cross-collection comparison must use. ``optical_legacy`` is the 10 Hz low-pass
-behind the published championship figures; it retains sub-0.2 Hz postural drift and reads
-about 15 per cent higher.
+``micromotion`` is 0.2-5 Hz and is the only one every instrument in the corpus can deliver, so
+it is the one a cross-collection comparison must use.
+
+``wideband`` is 0.2-10 Hz, for jerk and other high-derivative measures that need the octave the
+canonical band gives up. Only on collections sampled fast enough to reach it; check with
+:func:`effective_band`, and do not infer the rate from a file's grid, which may be an upsample.
+
+``optical_legacy`` is the 10 Hz low-pass behind the published championship figures. It retains
+sub-0.2 Hz postural drift and reads about 15 per cent higher. It is kept because those numbers
+are in print, not because it is interchangeable with the others.
 """
 
 

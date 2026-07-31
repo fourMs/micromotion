@@ -302,7 +302,7 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
     longest = max((tm[b - 1] - tm[a] for a, b in segments), default=0.0)
 
     # A span-averaged rate is meaningless once there are dropouts: one 108 s hole in a file
-    # sampled at 120 Hz returns 3.8 Hz, which would then be handed to a 0.2-10 Hz filter as
+    # sampled at 120 Hz returns 3.8 Hz, which would then be handed to a 0.2-5 Hz filter as
     # though it were the truth. Report the rate of the longest continuous run instead, and keep
     # the span average in meta for anyone who wants it.
     fs_span = measured_rate(t)

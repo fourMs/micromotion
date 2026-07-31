@@ -44,7 +44,7 @@ HARMONISED_RATE = 100.0
 
 Native for several collections, an exact halving from 200 Hz, and a 6-to-5 polyphase step from
 120 Hz. Measured against native 200 Hz values it costs +0.02 per cent at the median and stays
-within +/-0.85 per cent, against -2.09 and up to -10.57 at 20 Hz. It also leaves the 0.2-10 Hz
+within +/-0.85 per cent, against -2.09 and up to -10.57 at 20 Hz. It also leaves the 0.2-5 Hz
 band comfortably inside Nyquist rather than sitting on it.
 """
 

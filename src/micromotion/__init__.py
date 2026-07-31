@@ -1,7 +1,7 @@
 """micromotion: analysis of human micromotion in motion time series.
 
 The measure this package exists for is quantity of motion: the average speed of a body part,
-band-limited to 0.2-10 Hz, in millimetres per second. It applies equally to optical markers,
+band-limited to 0.2-5 Hz, in millimetres per second. It applies equally to optical markers,
 body-worn accelerometers, and force-plate centre of pressure, because the shared abstraction
 is the band and not the sensor.
 
@@ -55,7 +55,8 @@ from .qom import (
     pose_qom,
 )
 from .align import apply_lag, find_transient, instantaneous_rate, search_lag, xcorr_lag
-from .filters import BAND, OPTICAL_LEGACY_BAND, bandpass, effective_band, highpass, lowpass, notch
+from .filters import (BAND, OPTICAL_LEGACY_BAND, WIDEBAND, bandpass, effective_band, highpass,
+                      lowpass, notch)
 from .io import (
     read,
     read_ax3,
@@ -113,7 +114,7 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 
 __all__ = [
     "sliding_null",
@@ -168,6 +169,7 @@ __all__ = [
     "G",
     "MotionRecord",
     "OPTICAL_LEGACY_BAND",
+    "WIDEBAND",
     "effective_band",
     "QomResult",
     "align",

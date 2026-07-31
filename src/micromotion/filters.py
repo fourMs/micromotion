@@ -4,10 +4,10 @@ One definition, used everywhere. Across the Still Standing repository 46 scripts
 their own filter and they did not all agree; the differences were invisible in the output
 and moved quantity of motion by up to 10 per cent.
 
-The canonical band is 0.2-10 Hz, a zero-phase Butterworth of order 4 applied as
+The canonical band is 0.2-5 Hz, a zero-phase Butterworth of order 4 applied as
 second-order sections. The lower edge sits below the respiratory rate and above the
-postural drift that integration turns into a ramp; the upper edge is where accelerometer
-noise begins to dominate the signal of a person standing still.
+postural drift that integration turns into a ramp; the upper edge is set by what the
+slowest instrument in the corpus can actually deliver.
 """
 
 from __future__ import annotations
@@ -17,21 +17,59 @@ import warnings
 import numpy as np
 from scipy import signal
 
-BAND = (0.2, 10.0)
+BAND = (0.2, 5.0)
 """The micromotion band, in Hz.
 
-The lower edge was chosen by a sweep across seven
-optical datasets, 665 recordings, the between-dataset spread is 3.2 per cent at 0.15 Hz,
-2.1 at 0.20, 2.7 at 0.25, 6.2 at 0.30 and 10.1 at 0.40. 0.2 Hz is a clear optimum, and it is
-also where the 20 Hz origin dataset stops being an outlier in either direction.
+**The lower edge** was chosen by a sweep across seven optical datasets and 665 recordings: the
+between-dataset spread is 3.2 per cent at 0.15 Hz, 2.1 at 0.20, 2.7 at 0.25, 6.2 at 0.30 and
+10.1 at 0.40. 0.2 Hz is a clear optimum, and it is also where the 20 Hz origin dataset stops
+being an outlier in either direction.
 
-A lower edge this close to DC has to be checked against integration drift, since that is what
-the edge is there to control. It survives: on accelerometer data the ratio of mean to median
-speed, which rises if drift is leaking in, is 2.07 at 0.2 Hz against 2.00 at 0.3 -- flat. What
-does change is the absolute value, by about 73 per cent, because more of the low-frequency
-content is retained.
+An edge this close to DC has to be checked against integration drift, since that is what it is
+there to control. It survives: on accelerometer data the ratio of mean to median speed, which
+rises if drift is leaking in, is 2.07 at 0.2 Hz against 2.00 at 0.3 -- flat.
 
-See ``deposit/_analysis/osdb_qom/REPORT.md``.
+**The upper edge is set by deliverability, not by taste.** A band above Nyquist is not a
+convention but a defect that returns a plausible number, and the ceiling must therefore be one
+that every instrument in the corpus can support:
+
+============================  ==================  ==========  ==========
+collection                    sampling            Nyquist     5 Hz?
+============================  ==================  ==========  ==========
+phone IMU, daily standstill   14.75-16.9 Hz       7.4-8.5     yes
+optical, 20 Hz subset         20 Hz               10          yes
+collaborators' audience data  10 Hz               5           at Nyquist
+optical and inertial, rest    100-256 Hz          50-128      yes
+============================  ==================  ==========  ==========
+
+A 10 Hz ceiling fails the first row on 354 of 355 days and sits exactly on Nyquist for the
+second. 5 Hz clears every one of them.
+
+**What it costs.** Band-limited *speed* barely notices: 5 Hz against 10 is within 2.3 per cent
+on every collection, and 95 per cent of quiet-standing sway power lies below 1 Hz anyway. On one
+199-recording optical collection the change moves the median 0.8 per cent and leaves the ranking
+at Spearman 0.996.
+
+**What it costs that matters.** *Jerk* is two derivatives higher and lives in the discarded
+region: at 5 Hz it is 37 to 66 per cent of its 10 Hz value, and the ranking shifts too. So jerk
+must not be computed at this band on data that could support a wider one -- use
+:data:`WIDEBAND` and say so. On the phone collection the wider jerk was never real: the 15 Hz
+sensor cannot produce it, and computing it there inflated jerk 18 to 27 per cent with
+interpolation.
+
+See ``deposit/_analysis/reports/band_edge_sensitivity/`` and ``ss365_sample_rate/``.
+"""
+
+WIDEBAND = (0.2, 10.0)
+"""0.2-10 Hz: the band for measures that need the octave :data:`BAND` gives up.
+
+Jerk and other high-derivative quantities live between 5 and 10 Hz, where band-limited speed
+does not. This band is for them, **on collections sampled fast enough to deliver it** -- check
+with :func:`effective_band` first, and never assume it from a file's grid, which may be an
+upsample of a much slower sensor.
+
+It is deliberately not the default. A quantity computed here is not comparable with one
+computed at :data:`BAND`, and it is not computable at all on the slower collections.
 """
 
 OPTICAL_LEGACY_BAND = (None, 10.0)
@@ -183,7 +221,7 @@ def effective_band(fs: float, lo: float | None = BAND[0], hi: float = BAND[1],
 
     The requested upper edge is clamped to just below Nyquist, so a rate below twice ``hi``
     silently narrows the band. Ask before comparing two results computed at different rates:
-    at 10 Hz the canonical 0.2-10 Hz band becomes 0.2-4.95, which is a different measurement.
+    at 8 Hz the canonical 0.2-5 Hz band becomes 0.2-3.96, which is a different measurement.
 
     >>> effective_band(100.0)
     (0.2, 10.0)

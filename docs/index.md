@@ -4,7 +4,7 @@ Analysis of human micromotion in motion time series: optical marker data, body-w
 accelerometers, respiration belts and force-plate centre of pressure.
 
 The measure the package is built around is **quantity of motion** — the average speed of a body
-part, band-limited to 0.2–10 Hz, in millimetres per second. It applies equally to all of those
+part, band-limited to 0.2–5 Hz, in millimetres per second. It applies equally to all of those
 sensor families because the shared abstraction is the frequency band, not the instrument.
 
 ```bash

@@ -125,7 +125,7 @@ decides whether it survives, so a file can look nine-tenths intact and be system
 are **total g-force in g, including gravity** — magnitude 1.0 on a phone at rest.
 
 Use `a*`. Substituting `gF*` does not fail, it inflates band-limited motion roughly 4000-fold,
-because a slowly rotating gravity vector has ample 0.2–10 Hz content that no band-pass will remove.
+because a slowly rotating gravity vector has ample 0.2–5 Hz content that no band-pass will remove.
 Reading `a*` as if it were g inflates every quantity of motion by 9.80665 — a clean constant
 factor, so rankings and correlations survive it and nothing looks wrong.
 
@@ -166,7 +166,7 @@ no accelerometer transient at all.
 
 **`fs` is measured over the longest continuous run, not the whole span.** Averaging across a hole
 gives a number that is not a sampling rate at all: the 111 s file above yields 3.8 Hz by span
-average against a true 120 Hz, and handing that to a 0.2–10 Hz filter produces confident nonsense
+average against a true 120 Hz, and handing that to a 0.2–5 Hz filter produces confident nonsense
 rather than an error.
 
 Check `longest_continuous_s` before trusting a file's duration. A recording is only as long as its

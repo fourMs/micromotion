@@ -62,7 +62,7 @@ other and the body tracks neither, the null is about the body rather than about 
     | `micromotion.qom`, matched 0.3–10 Hz | 5.455 mm/s |
 
     (Rows 2 and 3 were run at a matched 0.3–10 Hz to isolate the algorithmic difference from
-    the band difference. Every `micromotion` function defaults to **0.2–10 Hz**, so the first row
+    the band difference. Every `micromotion` function defaults to **0.2–5 Hz**, so the first row
     is the only one comparing defaults.)
 
     4.0 per cent apart at their respective defaults; 2.6 per cent apart on the same band. The
