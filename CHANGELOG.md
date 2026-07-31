@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.9.0 — 2026-07-31
+
+### Added
+
+- **`read_phone` accepts asymmetric trimming**: `trim_start_s` and `trim_end_s` override
+  `trim_clap_s` per end. The symmetric-only version forced a choice between keeping an opening
+  synchronisation clap and throwing away good data at the close. On StillStanding365 day 221 the
+  clap reaches 10.29 m/s² against a body maximum of 0.155 — **66× the signal** — so it cannot be
+  left in, and removing it symmetrically cost 35 s of standstill at the end. Raises if the trim
+  leaves nothing.
+- **`read_phone` reads the raw Physics Toolbox export**, not only the cleaned TSV, detecting the
+  variant from the first two lines. The app's own CSV has a blank first line, a semicolon
+  delimiter, a decimal comma, **Unicode minus U+2212** (so negatives silently become NaN, which
+  fails asymmetrically — the sign of a value decides whether it survives), `∞` in `Gain`, a
+  phantom trailing column, and identifying GPS columns.
+- **`read_phone` reports dropouts**: `gaps`, `segments`, `longest_continuous_s`. Physics Toolbox
+  stops logging when backgrounded and resumes with no marker, and its timestamps are the app's own
+  accumulated awake-time, so a suspended app loses time from the timeline rather than leaving a
+  gap. `fs` is now measured over the longest continuous run — the span average returned 3.8 Hz for
+  a 120 Hz file with one 108 s hole, which a band-pass filter would have accepted without complaint.
+- Documentation of **coordinate frames** in `formats.md`: which systems are Y-up, how to rotate to
+  Z-up, why a Y/Z *swap* is a reflection that reverses every sway direction while leaving all
+  magnitudes intact, and the QoM-invariance test that distinguishes the two.
+- Documentation of the **Physics Toolbox** format and its traps in `formats.md`.
+- Cross-links between `micromotion` and `ambiscape` docs, in both directions.
+
+### Changed
+
+- **`Y_UP_COLLECTIONS` is now empty.** It held `Standstill2019`, whose OptiTrack files were
+  rotated to Z-up at source on 2026-07-31. Every optical record in the corpus is now Z-up. The
+  constant is kept, empty, because the mechanism is still right: a system's frame is a property of
+  how it was configured on the day, not of the system — the same OptiTrack produced Y-up files in
+  2019 and Z-up files in 2022.
+
+### Note
+
+If you rotate data at source, empty the compensation in the same change. Ten analysis scripts in
+this project carried `VERT={"2019": 1}`; each was correct before the rotation and wrong after it.
+
 ## 0.8.3
 
 Added `validate.implausible_position`, for the gap that is not a zero.

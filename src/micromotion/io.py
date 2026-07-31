@@ -36,12 +36,21 @@ QUALISYS_KEYS = (
     "MARKER_NAMES",
 )
 
-Y_UP_COLLECTIONS = ("Standstill2019",)
-"""Editions whose vertical axis is Y.
+Y_UP_COLLECTIONS: tuple[str, ...] = ()
+"""Editions whose vertical axis is Y. Empty since 2026-07-31.
 
-The 2019 championship was recorded on OptiTrack and converted, and the conversion left the
-vertical on Y where every other optical file in the corpus is Z-up. Nothing in the file says
-so; only the data dictionary does.
+This held ``Standstill2019``: that championship was recorded on OptiTrack with Motive
+configured Y-up, and the conversion to Qualisys-style TSV changed the units and the layout
+but left the axes alone. The files were rotated at source on 2026-07-31
+(``X -> X, Y -> -Z_old, Z -> Y_old``, a rotation and not an axis swap), so every optical
+record in the corpus is now Z-up and no edition needs a special case.
+
+**Kept as an empty tuple rather than deleted**, because the mechanism is worth having: a
+system's default frame is a property of how it was configured on the day, not of the system.
+The same OptiTrack produced Y-up files in 2019 and Z-up files in 2022. If a Y-up export ever
+enters the corpus, name it here rather than compensating downstream — and if data is later
+rotated at source, empty this in the same change, or every reader that trusted it starts
+returning the wrong axis.
 """
 
 
@@ -190,22 +199,89 @@ def read_ax3(path: str) -> MotionRecord:
     )
 
 
-def read_phone(path: str, trim_clap_s: float = 0.0) -> MotionRecord:
-    """Physics Toolbox phone log, cleaned tab-separated form.
+def _read_physics_toolbox_raw(path: str) -> pd.DataFrame:
+    """A Physics Toolbox Sensor Suite export exactly as the app writes it.
 
-    ``ax``/``ay``/``az`` are linear acceleration in m/s^2. They are not in g, whatever an
-    older version of the data dictionary said; reading them as g inflated every quantity of
-    motion in this project by 9.80665 until 2026-07-28. Only ``gF*`` is in g.
+    The app's own CSV is not a plain CSV, and every one of these has cost time:
 
-    ``trim_clap_s`` drops that many seconds from each end. The StillStanding365 recordings
-    open and close with a synchronisation clap which is a timing marker, not movement, and
-    the deposited pipeline trims 12 s.
+    - **A blank first line.** The header is line 2.
+    - **Semicolon delimiter with a decimal comma.** Read with the default comma delimiter and
+      the whole file becomes one string column per row.
+    - **Unicode minus U+2212 (``−``), not ASCII hyphen.** Negative numbers silently become
+      NaN under ``pd.to_numeric``, so a phone that was tilted one way reads as missing data
+      and one tilted the other way reads fine.
+    - **Infinity as ``∞``** in the ``Gain`` column.
+    - **A trailing empty field** after the last named column, giving a phantom ``Unnamed`` column.
+    - **GPS columns** (``Latitude``, ``Longitude``, ``Speed``, sometimes ``Altitude``) are present
+      and are identifying. Drop them before depositing anything.
+
+    Column availability varies by handset: the Galaxy A52s writes no ``p`` (pressure) column, so
+    concatenating logs by position rather than by name misaligns every channel after ``wz``.
     """
-    df = pd.read_csv(path, sep="\t")
+    df = pd.read_csv(path, sep=";", skiprows=1, dtype=str, encoding="utf-8")
+    df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
+    df.columns = [c.strip() for c in df.columns]
+    out = {}
+    for c in df.columns:
+        s = (df[c].astype(str)
+             .str.replace("−", "-", regex=False)      # Unicode minus
+             .str.replace("∞", "inf", regex=False)    # infinity, in Gain
+             .str.replace(",", ".", regex=False))          # decimal comma
+        out[c] = pd.to_numeric(s, errors="coerce")
+    return pd.DataFrame(out)
+
+
+def read_phone(path: str, trim_clap_s: float = 0.0, *,
+               trim_start_s: float | None = None,
+               trim_end_s: float | None = None) -> MotionRecord:
+    """Physics Toolbox phone log, raw app export or cleaned tab-separated form.
+
+    The variant is detected from the first two lines, so both the app's own semicolon/
+    decimal-comma CSV and the cleaned TSV used by the deposited pipeline read correctly.
+    See ``_read_physics_toolbox_raw`` for what the raw format does that plain CSV readers
+    get wrong.
+
+    ``ax``/``ay``/``az`` are linear acceleration in m/s^2, gravity removed by sensor fusion.
+    They are not in g, whatever an older version of the data dictionary said; reading them as
+    g inflated every quantity of motion in this project by 9.80665 until 2026-07-28. Only
+    ``gF*`` is in g, and it is total g-force *including* gravity — its magnitude sits at 1.0
+    on a phone at rest, so substituting it for ``a*`` inflates band-limited motion by a factor
+    of thousands rather than failing.
+
+    **The rate is neither constant nor the nominal one.** Physics Toolbox delivers whatever the
+    Android sensor stack gives it, so a log requested at 100 Hz arrives between roughly 100 and
+    170 Hz with millisecond-scale jitter, and differs between handsets recording the same event.
+    ``fs`` here is the measured mean rate over the span. **Long dropouts are common** — logging
+    stops when the app is backgrounded or the screen sleeps, and resumes silently, leaving gaps
+    of tens of seconds inside a file that otherwise looks continuous. Check ``meta["gaps"]``
+    before treating a file as one recording; resample onto a uniform grid before filtering.
+
+    ``trim_clap_s`` drops that many seconds from **each** end. ``trim_start_s`` and
+    ``trim_end_s`` override it per end, so an opening clap can be removed without discarding
+    good data at the close — pass ``trim_start_s=35, trim_end_s=0``.
+
+    **Trim before you plot or transform.** The StillStanding365 recordings open with a
+    synchronisation clap that is a timing marker, not movement, and it is enormous relative to
+    what follows: on day 221 it reaches 10.29 m/s² against a maximum of 0.155 in the standstill
+    body, 66 times larger. Left in, it sets the y-axis of any plot, dominates any spectrum, and
+    feeds a peak detector a transient that is not a breath — which is exactly how a respiration
+    estimate came out at 11 breaths/min instead of 15. The settling that follows the clap is
+    slower and also worth removing; 35 s is the measured figure for this corpus, and the
+    deposited pipeline used 12 s until 2026-07-30, which was not enough.
+    """
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        head = [fh.readline() for _ in range(2)]
+    raw = ";" in head[1] and "\t" not in head[1]
+    df = _read_physics_toolbox_raw(path) if raw else pd.read_csv(path, sep="\t")
     t = df["time"].to_numpy(float)
+    head_s = trim_clap_s if trim_start_s is None else trim_start_s
+    tail_s = trim_clap_s if trim_end_s is None else trim_end_s
     m = np.ones(len(t), bool)
-    if trim_clap_s:
-        m = (t >= trim_clap_s) & (t <= t[-1] - trim_clap_s)
+    if head_s or tail_s:
+        m = (t >= t[0] + head_s) & (t <= t[-1] - tail_s)
+        if not m.any():
+            raise ValueError(f"trimming {head_s} s from the start and {tail_s} s from the end "
+                             f"leaves nothing of a {t[-1] - t[0]:.1f} s recording")
     cols = [c for c in ("ax", "ay", "az") if c in df.columns]
     data = df[cols].to_numpy(float)[m]
 
@@ -213,15 +289,40 @@ def read_phone(path: str, trim_clap_s: float = 0.0) -> MotionRecord:
     zero_rows = np.all(data == 0.0, axis=1)
     data[zero_rows] = np.nan
 
+    # Dropouts are silent and common: report them rather than letting a caller average across
+    # a 40 s hole as though it were one continuous recording.
+    tm = t[m]
+    dt = np.diff(tm)
+    gap_idx = np.where(dt > 1.0)[0]
+    gaps = [(float(tm[i]), float(tm[i + 1])) for i in gap_idx]
+    bounds = [0, *(gap_idx + 1), len(tm)]
+    segments = [(int(a), int(b)) for a, b in zip(bounds[:-1], bounds[1:]) if b - a >= 2]
+    longest = max((tm[b - 1] - tm[a] for a, b in segments), default=0.0)
+
+    # A span-averaged rate is meaningless once there are dropouts: one 108 s hole in a file
+    # sampled at 120 Hz returns 3.8 Hz, which would then be handed to a 0.2-10 Hz filter as
+    # though it were the truth. Report the rate of the longest continuous run instead, and keep
+    # the span average in meta for anyone who wants it.
+    fs_span = measured_rate(t)
+    if segments:
+        a, b = max(segments, key=lambda ab: tm[ab[1] - 1] - tm[ab[0]])
+        fs = measured_rate(tm[a:b])
+    else:
+        fs = fs_span
+
     return MotionRecord(
         data=data,
-        fs=measured_rate(t),
+        fs=fs,
         channels=cols,
         kind="acceleration",
         unit="m/s^2",
-        t=t[m],
+        t=tm,
         source=path,
-        meta={"trimmed_s": trim_clap_s, "n_zero_rows": int(zero_rows.sum()),
+        meta={"trimmed_s": trim_clap_s, "trimmed_start_s": head_s, "trimmed_end_s": tail_s, "n_zero_rows": int(zero_rows.sum()),
+              "raw_export": raw, "fs_span_average": float(fs_span),
+              "gaps": gaps,
+              "segments": segments,
+              "longest_continuous_s": float(longest),
               "extra": {c: df[c].to_numpy(float)[m] for c in df.columns
                         if c in ("wx", "wy", "wz", "gFx", "gFy", "gFz")}},
     )

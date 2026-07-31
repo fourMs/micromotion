@@ -19,6 +19,28 @@ this package — is the one that makes sense.
 There is an existing precedent for how to cross the boundary. MGT's `_soundscape.py` consumes
 ambiscape's output and adapts it at the seam, and ambiscape never imports MGT.
 
+## What to reach for ambiscape for
+
+ambiscape owns the sound side of a cross-modal study, and its outputs are per-second tables that
+join straight onto a micromotion series on a shared clock. In this corpus it supplied the whole
+soundscape layer: the feature pass, the `mechanical` / `anthropophony` / `geophony` / `tonality`
+domain indices, `enf` for mains hum, `speechgate` for a privacy check, and `taxonomy` for Schafer
+and Schaeffer figures. Docs: <https://fourms.github.io/ambiscape/>, and its
+[interop page](https://fourms.github.io/ambiscape/interop/) is the mirror of this one.
+
+**Two hazards live at that join, both learned the hard way here.**
+
+*Clocks are not shared just because recordings are simultaneous.* Devices started separately drift,
+and a phone app that suspends loses time from its timeline rather than leaving a gap — see
+[formats](formats.md) on Physics Toolbox. Align on a physical event present in both signals, such
+as a tap that registers in the accelerometer and the microphone at once. An acoustic clap will not
+do it: it leaves nothing in an accelerometer.
+
+*A cross-modal null is worth little without a positive control.* Before concluding that a body does
+not track its surroundings, check that the same statistic detects something it should — correlating
+two environmental channels against each other is the cheap version. If sound and light track each
+other and the body tracks neither, the null is about the body rather than about the pipeline.
+
 !!! warning "Unresolved overlap with MGT"
     MGT's **unreleased** `main` branch already contains `band_limited_qom`, `accel_to_speed`,
     `read_qtm_tsv`, `cop_sway_metrics` and `respiration_rate`, credited in their docstrings to
