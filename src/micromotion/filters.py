@@ -91,8 +91,14 @@ side must therefore use :data:`BAND` throughout, and say so.
 ORDER = 4
 
 
-NARROW_BAND_RATIO = 40.0
-"""Warn when the sampling rate exceeds the upper band edge by more than this.
+NARROW_BAND_RATIO = 1000.0
+"""Warn when the sampling rate exceeds the **lower** band edge by more than this.
+
+The lower edge is what drives the conditioning, which is why the ratio is taken against it.
+The worked example below fails at 0.15 Hz, near the bottom of its band, not near the top; a
+test keyed on the upper edge measures the wrong thing and moves whenever the ceiling moves.
+It did: halving the canonical ceiling from 10 Hz to 5 doubled an upper-edge ratio while the
+conditioning was unchanged, and the warning began firing on every high-rate call.
 
 A band-pass whose edges sit very close to zero in normalised frequency is numerically
 fragile, and how fragile depends on how it is realised. Second-order sections, which this
@@ -140,10 +146,10 @@ def _edges(fs: float, lo: float, hi: float,
             f"{lo}-{requested_hi} Hz, and is not comparable with results computed at the "
             f"requested band. Use effective_band() to check before comparing.",
             RuntimeWarning, stacklevel=3)
-    if hi > 0 and fs / hi > NARROW_BAND_RATIO:
+    if lo and lo > 0 and fs / lo > NARROW_BAND_RATIO:
         warnings.warn(
-            f"band {lo}-{hi} Hz is very low against a {fs} Hz sampling rate "
-            f"(ratio {fs / hi:.0f}:1). Second-order sections hold up here, but a "
+            f"lower edge {lo} Hz is very low against a {fs} Hz sampling rate "
+            f"(ratio {fs / lo:.0f}:1). Second-order sections hold up here, but a "
             "transfer-function filter of the same design would not, and accuracy degrades "
             "as the ratio grows. Consider decimating first.",
             RuntimeWarning, stacklevel=3)

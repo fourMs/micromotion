@@ -55,6 +55,7 @@ from .qom import (
     pose_qom,
 )
 from .align import apply_lag, find_transient, instantaneous_rate, search_lag, xcorr_lag
+from .descriptors import effective_dimensionality, intraclass_correlation
 from .filters import (BAND, OPTICAL_LEGACY_BAND, WIDEBAND, bandpass, effective_band, highpass,
                       lowpass, notch)
 from .io import (
@@ -114,7 +115,7 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "0.11.0"
+__version__ = "0.12.0"
 
 __all__ = [
     "sliding_null",
@@ -156,6 +157,8 @@ __all__ = [
     "sway_texture",
     "BAND",
     "BANDS",
+    "effective_dimensionality",
+    "intraclass_correlation",
     "COMMON_RATE",
     "HARMONISED_RATE",
     "Finding",

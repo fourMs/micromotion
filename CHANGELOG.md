@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.12.0 — 2026-07-31
+
+### Added — the two reductions the corpus kept re-implementing
+
+New module `descriptors`, exporting `effective_dimensionality` and `intraclass_correlation`.
+
+- **`effective_dimensionality(x, rank=True, by=...)`** — how many independent axes a descriptor set
+  spans: variance shares, components for 80 and 90 per cent, and the participation ratio of the
+  eigenvalue spectrum. Rank-transforms by default (these descriptors are heavy-tailed, and on raw
+  values one long tail dominates the first component) and standardises within `by` (otherwise a
+  between-edition difference in level reads as shared variance). Degenerate columns are dropped and
+  counted rather than silently deflating the ratio.
+- **`intraclass_correlation(values, groups)`** — the share of a measure's variance that is the group
+  rather than the occasion, as a random-intercept mixed model. Returns `boundary`, which flags a
+  variance component estimated at exactly zero: that is the optimiser at the edge of the parameter
+  space, not a measured zero, and printing `0.000` from such a fit implies a precision that is not
+  there. Log-transforms strictly positive input by default and reports that it did.
+
+Both were previously reimplemented per report with the arithmetic drifting between copies. Migrating
+two reports to them reproduced their numbers exactly.
+
+**Name collision worth knowing about:** `group.participation_ratio` is a different quantity — the
+fraction of a group whose movement decreased after an event. The participation ratio *of an
+eigenvalue spectrum* is deliberately called `effective_dimensionality` instead.
+
+### Fixed
+
+- **The narrow-band warning keyed on the wrong edge.** It compared the sampling rate against the
+  *upper* band edge, but conditioning is driven by the lower one — the worked example in its own
+  docstring fails at 0.15 Hz, near the bottom of its band. Halving the canonical ceiling in 0.11.0
+  therefore doubled the ratio while the conditioning was unchanged, and the warning began firing on
+  every high-rate call. Now keyed on the lower edge, threshold retuned.
+
 ## 0.11.0 — 2026-07-31
 
 ### Changed — the canonical band is now 0.2–5 Hz

@@ -371,3 +371,37 @@ def test_the_canonical_ceiling_is_deliverable_by_every_corpus_rate():
     slowest_sensor_hz = 14.75
     assert mm.BAND[1] <= slowest_sensor_hz / 2
     assert mm.effective_band(slowest_sensor_hz) == mm.BAND
+
+
+def test_effective_dimensionality_counts_independent_axes():
+    """Three latent axes replicated into nine columns must read as about three, not nine."""
+    rng = np.random.default_rng(3)
+    latent = rng.normal(size=(600, 3))
+    x = np.hstack([latent + 0.01 * rng.normal(size=(600, 3)) for _ in range(3)])
+    r = mm.effective_dimensionality(x)
+    assert 2.5 < r["participation_ratio"] < 3.5
+    assert r["n_for_80"] <= 3
+
+    independent = rng.normal(size=(600, 9))
+    assert mm.effective_dimensionality(independent)["participation_ratio"] > 7.0
+
+
+def test_intraclass_correlation_separates_trait_from_state():
+    """A measure driven by the person must give a high ICC; one driven by noise, a low one."""
+    rng = np.random.default_rng(4)
+    people = np.repeat(np.arange(12), 20)
+    offsets = rng.normal(0, 3.0, size=12)[people]
+    trait = mm.intraclass_correlation(offsets + rng.normal(0, 0.5, size=len(people)), people)
+    state = mm.intraclass_correlation(rng.normal(0, 1.0, size=len(people)), people)
+    assert trait["icc"] > 0.8 and not trait["boundary"]
+    assert state["icc"] < 0.2
+    assert trait["n_groups"] == 12
+
+
+def test_intraclass_correlation_flags_a_boundary_estimate():
+    """Zero between-group variance is the optimiser at an edge, not a measured zero."""
+    rng = np.random.default_rng(5)
+    people = np.repeat(np.arange(4), 25)
+    r = mm.intraclass_correlation(rng.normal(0, 1.0, size=len(people)), people)
+    if r["var_between"] <= 1e-9:
+        assert r["boundary"]

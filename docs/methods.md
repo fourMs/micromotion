@@ -302,6 +302,64 @@ the more sensitive discriminators of nonlinearity. Use it with surrogates, below
 
 ---
 
+## How many things is a descriptor set measuring?
+
+`effective_dimensionality(x, rank=True, by=...)`
+
+A corpus accumulates descriptors one paper at a time — amount, extent, sway area, elongation, two
+frequency measures, a frozen fraction, burstiness, jerk — and nobody asks how many of them are the
+same dimension under different names. If eleven collapse onto three, most of the multiple-comparison
+arithmetic across those papers is wrong in the conservative direction, and a table reporting all
+eleven is showing a reader one number several times.
+
+The answer is the eigenvalue spectrum of the descriptor correlation matrix, summarised three ways:
+components needed for 80 and 90 per cent of variance, and the **participation ratio**
+$(\sum\lambda)^2 / \sum\lambda^2$, which needs no cutoff and is not an integer.
+
+Three choices matter more than the method:
+
+- **Rank, not value.** These descriptors are heavy-tailed — burstiness is a 99th percentile over a
+  median. On raw values one long-tailed descriptor dominates the first component and the result
+  becomes a statement about its outliers.
+- **Standardise within group** (`by=` the session, edition or collection). Otherwise a between-group
+  difference in level reads as shared variance. Descriptors do not become more correlated because
+  two editions were recorded at different rates, but they look it.
+- **Drop degenerate columns**, and say how many. A constant column contributes an eigenvalue of zero
+  and silently deflates the participation ratio.
+
+On 732 championship recordings and eleven descriptors the answer is a participation ratio of about
+3.6: four components for 80 per cent, five for 90. Eleven descriptors, three or four real dimensions.
+
+**Not to be confused with `group.participation_ratio`**, which is a different quantity with a
+similar name — the fraction of a group whose movement decreased after an event.
+
+## Is a measure a trait or a state?
+
+`intraclass_correlation(values, groups)`
+
+Dimensionality asks about a set of measures. This asks about one: how much of its variance is the
+*person* and how much is the *occasion*. That is the intraclass correlation, fitted as a
+random-intercept mixed model — `value ~ 1` with a random intercept per person — where `groups` is
+the person and the residual is the session.
+
+A high ICC means a trait: the measure identifies the body. A low one means a state, however
+reliably it is measured within a session. On this corpus quantity of motion comes out near 0.7 and
+jerk near zero — how much you move is characteristic of you, how abruptly you move is characteristic
+of the day. The same conclusion arrives independently from a classifier asked to name the performer.
+
+Two cautions the function makes explicit:
+
+- **Check `boundary`.** A random-effect variance can be estimated at exactly zero, which is the
+  optimiser hitting the edge of the parameter space rather than a measurement of no person effect.
+  Printing `0.000` from such a fit implies a precision that is not there. This is common when the
+  number of groups is small, and the standard design here — three performers — is small.
+- **The log transform is on by default** for strictly positive input, because these are scale
+  quantities whose residuals are otherwise skewed. It is reported in the result rather than assumed.
+
+An ICC needs several observations per group and several groups. Three people across sixty-nine
+sessions is enough to show that 0.7 and 0.0 differ; it is not enough to put a confidence interval
+on either.
+
 ## Is that structure real?
 
 A scaling exponent or an entropy value means nothing on its own — the question is always whether
