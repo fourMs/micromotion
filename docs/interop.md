@@ -41,8 +41,14 @@ not track its surroundings, check that the same statistic detects something it s
 two environmental channels against each other is the cheap version. If sound and light track each
 other and the body tracks neither, the null is about the body rather than about the pipeline.
 
-!!! warning "Unresolved overlap with MGT"
-    MGT's **unreleased** `main` branch already contains `band_limited_qom`, `accel_to_speed`,
+!!! warning "Unresolved overlap with MGT — still unresolved, re-checked 2026-07-31"
+    **The functions originated here.** Their docstrings credit the stillstanding and
+    Westney-comparisons studies, and they were copied into MGT rather than the other way
+    round — so this is not a case of matching someone else's prior art. Re-checked
+    2026-07-31: MGT's repository version is still 1.6.9, the same as PyPI, so they remain
+    unreleased and invisible to anyone reading only PyPI.
+
+    MGT's **unreleased** `main` branch contains `band_limited_qom`, `accel_to_speed`,
     `read_qtm_tsv`, `cop_sway_metrics` and `respiration_rate`, credited in their docstrings to
     the same source study as this package. They are not in the released 1.6.9, so they are
     invisible if you look only at PyPI.
@@ -53,7 +59,10 @@ other and the body tracks neither, the null is about the body rather than about 
     |---|---|
     | MGT `band_limited_qom`, its 0.3–15 Hz default | 5.675 mm/s |
     | MGT `band_limited_qom`, forced to 0.3–10 Hz | 5.594 mm/s |
-    | `micromotion.qom`, 0.3–10 Hz | 5.455 mm/s |
+    | `micromotion.qom`, matched 0.3–10 Hz | 5.455 mm/s |
+
+    (The comparison was run at 0.3–10 Hz to match MGT. `micromotion`'s own canonical band is
+    **0.2–10 Hz**; these rows are a like-for-like test, not a statement of its default.)
 
     4.0 per cent apart at their respective defaults; 2.6 per cent apart on the same band. The
     residual comes from the differentiation and whether the result is band-limited a second

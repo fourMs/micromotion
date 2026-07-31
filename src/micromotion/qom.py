@@ -9,7 +9,7 @@ code. Any figure or paper should be able to say which variant produced its numbe
 
 Definition
 ----------
-Band-limit each axis to 0.3-10 Hz, bring it to velocity, band-limit again, take the
+Band-limit each axis to 0.2-10 Hz, bring it to velocity, band-limit again, take the
 Euclidean norm across axes, and report the mean in mm/s.
 
 Acceleration is brought to velocity by integration, position by differentiation. The second
@@ -199,9 +199,9 @@ BANDS = {
 }
 """The two conventions in use, by name.
 
-``micromotion`` is 0.3-10 Hz and is the only one that can be applied to every sensor, so it
+``micromotion`` is 0.2-10 Hz and is the only one that can be applied to every sensor, so it
 is the one a cross-collection comparison must use. ``optical_legacy`` is the 10 Hz low-pass
-behind the published championship figures; it retains sub-0.3 Hz postural drift and reads
+behind the published championship figures; it retains sub-0.2 Hz postural drift and reads
 about 15 per cent higher.
 """
 
@@ -434,6 +434,22 @@ def band_limited_qom(pos, fs, lo=0.3, hi=15.0, order=4, auto_decimate=True):
     Source: stillstanding study and Westney-comparisons study (Jensenius) --
     this unifies the band-limited QoM cores used on mocap markers (mm),
     MediaPipe landmarks (px) and slow postural sway across both studies.
+
+    .. note::
+
+       **Its defaults are 0.3-15 Hz, not the canonical 0.2-10.** That is
+       deliberate and it is not a compatibility shim for another package: this
+       function is the *older* one, written for the studies named above before
+       the band was settled at 0.2-10 Hz by a sweep across seven datasets.
+       :func:`qom` and :func:`speed_from_position` use ``filters.BAND``; this
+       one keeps the defaults its published results were computed with, so
+       those results stay reproducible.
+
+       It was later copied into ``musicalgestures`` -- the direction of travel
+       is *from* here, not toward here -- which is why the two packages
+       disagree on the same recording. See the interop guide.
+
+       **Use** :func:`speed_from_position` **for new work.**
 
     .. warning::
 

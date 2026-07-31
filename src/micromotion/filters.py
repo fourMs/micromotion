@@ -4,7 +4,7 @@ One definition, used everywhere. Across the Still Standing repository 46 scripts
 their own filter and they did not all agree; the differences were invisible in the output
 and moved quantity of motion by up to 10 per cent.
 
-The canonical band is 0.3-10 Hz, a zero-phase Butterworth of order 4 applied as
+The canonical band is 0.2-10 Hz, a zero-phase Butterworth of order 4 applied as
 second-order sections. The lower edge sits below the respiratory rate and above the
 postural drift that integration turns into a ramp; the upper edge is where accelerometer
 noise begins to dominate the signal of a person standing still.

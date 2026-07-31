@@ -4,7 +4,7 @@ There are two quantity-of-motion conventions in circulation and they are **not
 interchangeable**. Reporting a number without saying which one produced it is the single
 most common way results in this field stop being comparable.
 
-## `micromotion` — 0.3 to 10 Hz
+## `micromotion` — 0.2 to 10 Hz
 
 A band-pass. The only convention that can be applied to every sensor, so the one any
 cross-collection comparison must use.
