@@ -53,14 +53,24 @@ def test_version_matches_pyproject():
     report that records "produced with micromotion X" would then record the wrong X.
     """
     import pathlib
-    import tomllib
+    import re
     import micromotion as mm
 
     root = pathlib.Path(mm.__file__).resolve().parents[2]
     pyproject = root / "pyproject.toml"
     if not pyproject.exists():          # installed without the source tree
         return
-    declared = tomllib.loads(pyproject.read_text())["project"]["version"]
+    text = pyproject.read_text()
+    try:
+        import tomllib                  # stdlib from 3.11; this package supports 3.10
+        declared = tomllib.loads(text)["project"]["version"]
+    except ModuleNotFoundError:
+        # A regex rather than a skip. The point of this test is to catch the two files drifting
+        # apart, and skipping it on the oldest supported Python is exactly where a release would
+        # slip through unchecked.
+        m = re.search(r'(?m)^version\s*=\s*"([^"]+)"', text)
+        assert m, "no version field in pyproject.toml"
+        declared = m.group(1)
     assert mm.__version__ == declared, f"{mm.__version__} != {declared}"
 
 
