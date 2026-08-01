@@ -81,3 +81,14 @@ Python 3.10+, numpy, scipy, pandas.
 ## Licence
 
 GPL-3.0-or-later. If you use it, please cite it — see [CITATION.cff](CITATION.cff).
+
+## Related toolboxes
+
+These four toolboxes come out of the [fourMs lab](https://github.com/fourMs) at the University of
+Oslo. They are separate packages with separate release cycles, but they are built to be used
+together and share several implementations, so a measure computed in one agrees with the same
+measure computed in another.
+
+- [Musical Gestures Toolbox](https://github.com/fourMs/MGT-python) (`musicalgestures`) — video and audio: motiongrams, videograms, and motion analysis from ordinary video files
+- [ambiscape](https://github.com/fourMs/ambiscape) — soundscapes: the sonic ambience of a place, across level, spectral, spatial, temporal, ecological and source descriptors
+- [musiscape](https://github.com/fourMs/musiscape) — music collections: comparing many tracks and albums held as audio files in folders

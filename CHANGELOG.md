@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.12.4 — 2026-08-01
+
+Documentation and test hygiene. No change to any measure, so results computed with 0.12.3 stand.
+
+### Fixed
+
+`CITATION.cff` declared 0.7.0 while the package had reached 0.12.3 — five minor versions of drift,
+unnoticed because `test_version_matches_pyproject` checked `__version__` against `pyproject.toml`
+and nothing checked the third file. That is the file GitHub's "Cite this repository" and Zenodo
+read, so anyone citing this package was citing a version that had not existed since July. The test
+now covers all three.
+
+The two `intraclass_correlation` tests failed rather than skipped when `statsmodels` was absent.
+It is an optional extra, so a plain `pip install micromotion` produced two failures on an
+installation that was in fact correct. They now skip, with the reason.
+
+### Added
+
+A "Related toolboxes" section in the README pointing to MGT, ambiscape and musiscape, which share
+implementations with this package so a measure computed in one agrees with the same measure
+computed in another.
+
 ## 0.12.3 — 2026-08-01
 
 Contents identical to 0.12.2 plus the `tomllib` fix below. 0.12.2 was tagged before that fix, so

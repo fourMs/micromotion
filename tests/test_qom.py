@@ -388,6 +388,10 @@ def test_effective_dimensionality_counts_independent_axes():
 
 def test_intraclass_correlation_separates_trait_from_state():
     """A measure driven by the person must give a high ICC; one driven by noise, a low one."""
+    # statsmodels is an optional extra, so a plain `pip install micromotion` cannot run this.
+    # Without the guard the suite FAILS rather than skips on the default install, which reads as
+    # a broken package to anyone checking their own environment.
+    pytest.importorskip("statsmodels", reason="intraclass_correlation needs the [mixed] extra")
     rng = np.random.default_rng(4)
     people = np.repeat(np.arange(12), 20)
     offsets = rng.normal(0, 3.0, size=12)[people]
@@ -400,6 +404,7 @@ def test_intraclass_correlation_separates_trait_from_state():
 
 def test_intraclass_correlation_flags_a_boundary_estimate():
     """Zero between-group variance is the optimiser at an edge, not a measured zero."""
+    pytest.importorskip("statsmodels", reason="intraclass_correlation needs the [mixed] extra")
     rng = np.random.default_rng(5)
     people = np.repeat(np.arange(4), 25)
     r = mm.intraclass_correlation(rng.normal(0, 1.0, size=len(people)), people)
