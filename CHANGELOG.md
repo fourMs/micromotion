@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.12.1 — 2026-08-01
+
+### Fixed — the package could not consume its own constant
+
+**`band_limited_qom` now accepts `lo=None`.** `OPTICAL_LEGACY_BAND` is `(None, 10.0)` and
+`filters.bandpass` has always documented and honoured a `None` lower edge as a pure low-pass, but
+`band_limited_qom` validated its band with `0 < lo < hi` and raised a `TypeError` on `None`. So
+`band_limited_qom(x, fs, *OPTICAL_LEGACY_BAND)` failed on a constant this package exports.
+
+This is not hypothetical. A survey of the source corpus on 2026-08-01 found five analyses working
+at a low-pass with no lower edge, because that is what the pre-2020 optical standstill studies
+used and reproducing them requires it. Each had reimplemented the filter privately, which is
+exactly the duplication this package exists to remove.
+
+A low-pass-only value retains the slow postural drift the corpus band removes and is **not
+comparable** with a value at `BAND`; the docstring now says so at the point of use.
+
+### Documented
+
+- `band_limited_qom`: an over-high `hi` is clipped to 0.9 × Nyquist rather than rejected. That was
+  already the behaviour and is now stated, since it makes the upper-edge validation look absent.
+
 ## 0.12.0 — 2026-07-31
 
 ### Added — the two reductions the corpus kept re-implementing

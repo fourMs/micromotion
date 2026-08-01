@@ -539,9 +539,15 @@ def band_limited_qom(pos, fs, lo=filters.BAND[0], hi=filters.BAND[1], order=4, a
             decimated rate) when decimation leaves fewer than ~30 samples --
             too few for a stable SOS band-pass.
 
+    ``lo=None`` gives a pure low-pass with no lower edge, which is the
+    :data:`~micromotion.OPTICAL_LEGACY_BAND` convention and what the pre-2020 optical
+    standstill studies used. It retains the slow postural drift the corpus band removes, so a
+    value computed that way is not comparable with one computed at ``BAND``.
+
     Raises:
         ValueError: If the band is invalid, i.e. does not satisfy
             `0 < lo < hi <= 0.45*fs` (after `hi` is clipped to 0.9 x Nyquist).
+            With `lo=None` only the upper edge is checked.
     """
     from scipy import signal
     pos = np.asarray(pos, float)
@@ -550,7 +556,16 @@ def band_limited_qom(pos, fs, lo=filters.BAND[0], hi=filters.BAND[1], order=4, a
     pos = np.column_stack([_interp_nans(pos[:, i]) for i in range(pos.shape[1])])
 
     hi_eff = min(hi, 0.9 * fs / 2)
-    if not (0 < lo < hi_eff <= 0.45 * fs + 1e-9):
+    # `lo=None` is a pure low-pass with no lower edge. That is the package's own
+    # OPTICAL_LEGACY_BAND convention, which `filters.bandpass` has always honoured and this
+    # function used to reject with a TypeError -- so `band_limited_qom(x, fs, *OPTICAL_LEGACY_BAND)`
+    # failed on a constant the package itself exports. Several analyses in the source corpus
+    # deliberately work at that band, because it is what the older optical studies used, and they
+    # each had to reimplement the filter to do it.
+    if lo is None:
+        if not (0 < hi_eff <= 0.45 * fs + 1e-9):
+            raise ValueError("band must satisfy 0 < hi <= 0.45*fs")
+    elif not (0 < lo < hi_eff <= 0.45 * fs + 1e-9):
         raise ValueError("band must satisfy 0 < lo < hi <= 0.45*fs")
 
     if len(pos) < int(fs) + 5 or not np.isfinite(pos).all():
@@ -562,12 +577,18 @@ def band_limited_qom(pos, fs, lo=filters.BAND[0], hi=filters.BAND[1], order=4, a
         fs_out = fs / q
         if len(pos) < 30:
             return np.array([]), fs_out
-        sos = signal.butter(2, [lo / (fs_out / 2), hi_eff / (fs_out / 2)],
-                            btype="band", output="sos")
+        if lo is None:
+            sos = signal.butter(2, hi_eff / (fs_out / 2), btype="low", output="sos")
+        else:
+            sos = signal.butter(2, [lo / (fs_out / 2), hi_eff / (fs_out / 2)],
+                                btype="band", output="sos")
         filtered = signal.sosfiltfilt(sos, pos, axis=0)
     else:
         fs_out = fs
-        b, a = signal.butter(order, [lo / (fs / 2), hi_eff / (fs / 2)], btype="band")
+        if lo is None:
+            b, a = signal.butter(order, hi_eff / (fs / 2), btype="low")
+        else:
+            b, a = signal.butter(order, [lo / (fs / 2), hi_eff / (fs / 2)], btype="band")
         filtered = signal.filtfilt(b, a, pos, axis=0)
     speed = np.linalg.norm(np.diff(filtered, axis=0), axis=1) * fs_out
     return speed, fs_out

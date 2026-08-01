@@ -405,3 +405,39 @@ def test_intraclass_correlation_flags_a_boundary_estimate():
     r = mm.intraclass_correlation(rng.normal(0, 1.0, size=len(people)), people)
     if r["var_between"] <= 1e-9:
         assert r["boundary"]
+
+
+def test_band_limited_qom_accepts_optical_legacy_band():
+    """`lo=None` is a pure low-pass, and the package's own constant must be usable.
+
+    `OPTICAL_LEGACY_BAND` is `(None, 10.0)` and `filters.bandpass` has always honoured a `None`
+    lower edge, but `band_limited_qom` compared `0 < lo` and raised a TypeError on it -- so
+    `band_limited_qom(x, fs, *OPTICAL_LEGACY_BAND)` failed on a constant the package exports.
+    Several analyses in the source corpus work at that band deliberately, because it is what the
+    older optical standstill studies used.
+    """
+    import numpy as np
+    import micromotion as mm
+
+    rng = np.random.default_rng(0)
+    x = np.cumsum(rng.normal(size=(4000, 3)), axis=0)
+
+    lp, fs_lp = mm.band_limited_qom(x, 100.0, *mm.OPTICAL_LEGACY_BAND)
+    assert lp.size and np.isfinite(lp).all()
+    assert fs_lp == 100.0
+
+    # and it must differ from the band-pass, since it keeps the slow drift the band removes
+    bp, _ = mm.band_limited_qom(x, 100.0, lo=0.2, hi=10.0)
+    assert np.median(lp) > np.median(bp)
+
+    # The upper edge is still validated when there is no lower edge -- but note that an
+    # over-high `hi` is *clipped* to 0.9 x Nyquist rather than rejected, which is pre-existing
+    # behaviour and the reason this asserts on a non-positive edge instead.
+    import pytest
+    with pytest.raises(ValueError):
+        mm.band_limited_qom(x, 100.0, lo=None, hi=0.0)
+
+    # clipping, stated so the asymmetry above is not mistaken for an oversight
+    clipped, _ = mm.band_limited_qom(x, 100.0, lo=None, hi=90.0)
+    at_nyquist, _ = mm.band_limited_qom(x, 100.0, lo=None, hi=45.0)
+    assert np.allclose(clipped, at_nyquist)
