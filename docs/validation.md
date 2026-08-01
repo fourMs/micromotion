@@ -165,8 +165,8 @@ behind under a name no manifest mentions.
 
 ## What no check here will catch
 
-Three failures from one afternoon of real use, none of which this module can see, all of which
-produced a believable answer.
+Six failures from real use, none of which this module can see, all of which produced a believable
+answer.
 
 **A unit that is recorded and then ignored.** A derived table carried `unit` per row and a consumer
 hardcoded `unit="g"`, inflating one collection by 9.80665. Nothing was missing or malformed; the
@@ -184,8 +184,34 @@ differently. Each carried on and produced a smaller, plausible result. Assert th
 expect after every glob and join — `len(files) == n_expected`, `merged.shape[0] == left.shape[0]` —
 and fail rather than continue.
 
-The pattern across all three is the same, and it is the one this module exists for: **the dangerous
-failure is not the one that raises, it is the one that returns something reasonable.**
+**A reliability statistic that certified an artefact.** A jerk value was computed on a channel whose
+sensor could not carry the band it was computed at — a 100 Hz grid over a 15 Hz sensor. Split-half
+reliability, first half of a recording against the second, came out at 0.983: the *second highest*
+of any collection, and it was read as evidence that the measure was not amplified noise. It was
+reliability of the upsampling. Interpolation is deterministic, so its artefacts repeat perfectly
+between the halves of a recording; the honest value from a channel that could carry the band was
+0.909, i.e. **lower**. Reliability tells you a measure is stable, not that it is measuring the
+thing you named it after, and a deterministic artefact is the most stable thing in any pipeline.
+
+An odd-against-even-windows statistic *within* a recording does not share this failure mode, since
+interpolation kinks contribute equally to both halves. Report both when the question is whether a
+derivative is real.
+
+**A conclusion written as a constant.** One script printed `(flat -> NO habituation)` and titled its
+figure `FLAT ... (no habituation)` as literal strings, whatever the statistics came out as. They
+came out r = −0.114, p = 0.038 — and the same number was cited elsewhere in the same project as
+evidence *for* the effect. Both files were right about the arithmetic and the disagreement was
+invisible, because re-running the script could never change the sentence. Derive verdict text from
+the value, always.
+
+**A deliverability check enforced in only one place.** A scan computed a wideband jerk for every
+recording whether or not its rate could carry the band, leaving the gate to the consumer. The
+obvious consumer filter — "the value is not null" — silently readmitted every recording the gate
+was meant to exclude. Enforce deliverability where the value is produced *and* where it is
+consumed; a null is not the only way to say "not measurable", and it is the easiest to lose.
+
+The pattern across all of these is the same, and it is the one this module exists for: **the
+dangerous failure is not the one that raises, it is the one that returns something reasonable.**
 
 ## Is it standstill throughout?
 

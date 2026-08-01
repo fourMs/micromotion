@@ -19,6 +19,15 @@ result = mm.qom(head, rec.fs, kind="position")
 print(result.mean_mm_s, result.median_mm_s)
 ```
 
+!!! warning "Do not name a local variable `mm`"
+
+    The conventional alias collides with two very natural variable names: a **m**ean, and a value
+    in **m**illimetres. Binding either at module level silently replaces the package for the rest
+    of the file, and nothing fails until something later reaches for `mm.` and gets a float. This
+    has happened twice in the source corpus — `mm, ss, nn = msd(...)` in one script and a NaN mask
+    called `mm` in another — and in both cases the error surfaced far from its cause.
+
+
 `read` identifies the layout from the file's contents, not its extension — in this corpus the
 extension lies, since the balance-board files are named `.tsv` and are space-delimited and
 headerless.

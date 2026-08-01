@@ -14,6 +14,17 @@ cross-collection comparison must use.
 Retains sub-0.2 Hz postural drift. For optical position that drift is real movement, and this
 is the convention behind most published standstill figures.
 
+Every band-limiting entry point accepts `lo=None` for this, including `band_limited_qom` since
+0.12.1 — before that the constant could not be passed to one of the package's own functions.
+
+**A value computed here is not comparable with one at `BAND`, and the gap is large.** On one
+corpus, moving the lower edge from 0.3 Hz to 0.2 Hz alone raised per-marker levels about ten per
+cent; removing the lower edge entirely raises them much further, because on an accelerometer
+roughly half the velocity power sits below 0.3 Hz. Reporting a legacy-band figure beside a
+canonical-band one without saying which is which is the most common way this corpus has produced
+an apples-to-oranges comparison — including in one report that quoted a three per cent agreement
+between two numbers computed at different bands and called it striking.
+
 ## Why the lower edge is optional for position and mandatory for acceleration
 
 An optical system measures position directly, so slow drift is a genuine displacement and
@@ -99,8 +110,18 @@ For jerk and other high-derivative measures that need the octave the canonical b
 
 Use it only where `effective_band(fs)` confirms the rate supports it, and **never infer the rate
 from a file's grid** — a uniform grid may be an upsample of a much slower sensor, and this
-corpus contains 355 days where it is. A quantity computed here is not comparable with one
+corpus contains 364 days where it is. A quantity computed here is not comparable with one
 computed at `BAND`, and is not computable at all on the slower collections.
+
+**Check deliverability where the value is produced and again where it is consumed.** A scan that
+computes a wideband jerk for every recording regardless of rate, leaving the gate downstream, will
+be defeated by the obvious downstream filter: "the value is not null" readmits every recording the
+gate was meant to exclude. Carry the measured sensor rate alongside the value and test against it.
+
+**And deliverability is a property of a channel, not of a collection.** A collection whose
+deposited channel cannot carry `WIDEBAND` may have a faster channel on the same instrument that
+can — see the fusion discussion in `rates.md`. "This collection has no jerk" and "this channel has
+no jerk" are different statements, and only the second is usually true.
 
 ## The nominal edge is not where the filter stops
 

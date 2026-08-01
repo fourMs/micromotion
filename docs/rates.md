@@ -20,9 +20,44 @@ quantisation artefact:
 Nominal rates in headers and documentation were wrong by up to 4.4 per cent in one corpus,
 and by a factor of 37 in one record.
 
-Beware also of the difference between a **row rate** and a **sensor rate**. One phone logger
-writes a row whenever any sensor updates and repeats the previous accelerometer value in
-between: the rows arrive at 100 Hz while the accelerometer updates at 16.7 Hz.
+## A file's grid is not its sampling rate, and a channel's rate is not its instrument's
+
+Three distinct numbers get called "the sampling rate", and confusing them is the most expensive
+mistake in this document.
+
+**The row rate is not the sensor rate.** One phone logger writes a row whenever *any* sensor
+updates and repeats the previous accelerometer value in between: rows arrive at about 170 Hz while
+the accelerometer updates at 50 and the fused channel at 15. About 89 per cent of rows repeat the
+previous sample. Reading such a file as though each row were a measurement gives a staircase, and a
+staircase is a sequence of step edges — broadband high-frequency energy that differentiation
+amplifies once per derivative.
+
+**The stored grid is not the sensor rate either.** Resample that logger's output to a uniform
+100 Hz file and nothing downstream can tell it is a 6.7-fold upsample of a 15 Hz signal. `to_rate`
+refuses to upsample precisely to prevent this, but it never sees the raw file. Carry the measured
+sensor rate as its own column and check deliverability against *that*.
+
+**And a channel's rate is not its instrument's.** This one is the subtlest. That phone's deposited
+motion channel is *linear acceleration*, which the logger derives by fusing accelerometer,
+gyroscope and magnetometer. Measured per sensor across a year:
+
+| sensor | rate |
+|---|---|
+| accelerometer | ~50 Hz |
+| gyroscope | ~15 Hz |
+| magnetometer | 17–50 Hz |
+| fused linear acceleration | ~15 Hz |
+
+**A fusion runs at the speed of its slowest input.** The fused channel is pinned to the gyroscope,
+so the ceiling is a property of the channel that was recorded, not of the hardware. The same
+instrument has a raw channel three times faster sitting underneath it.
+
+Which does not make the raw channel simply better. It reports total g-force including gravity, so a
+lean rotates the gravity vector into the band and reads as movement — on that corpus it inflates
+band-limited speed about fourfold. But it inflates *jerk* only about 1.5×, because tilt is a
+low-frequency contaminant and jerk is a high-frequency measure. So the right channel depends on the
+measure, and a row can legitimately take its speed from one channel and its jerk from another,
+provided the table records which.
 
 ```python
 mm.rate_quality(timestamps)
