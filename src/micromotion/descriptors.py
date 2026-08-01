@@ -97,7 +97,14 @@ def intraclass_correlation(values, groups, log: bool | None = None) -> dict:
     from such a fit implies a precision that is not there.
     """
     import pandas as pd
-    import statsmodels.formula.api as smf
+    try:
+        import statsmodels.formula.api as smf
+    except ModuleNotFoundError as exc:  # pragma: no cover - exercised by the extras, not the suite
+        raise ModuleNotFoundError(
+            "intraclass_correlation needs statsmodels, which is an optional dependency because "
+            "it is the only function in this package that uses it. Install it with "
+            "`pip install micromotion[mixed]` or `pip install statsmodels`."
+        ) from exc
 
     d = pd.DataFrame({"y": pd.to_numeric(pd.Series(list(values)), errors="coerce"),
                       "g": pd.Series(list(groups)).astype(str)}).dropna()

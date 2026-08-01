@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "micromotion"
-version = "0.12.1"
+version = "0.12.2"
 description = "Micromotion analysis of motion time series: mocap, IMU and force plate"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,7 +27,12 @@ classifiers = [
 dependencies = ["numpy>=1.24", "scipy>=1.10", "pandas>=2.0"]
 
 [project.optional-dependencies]
-test = ["pytest>=7"]
+# statsmodels is needed by intraclass_correlation alone -- the mixed model behind it -- so it is
+# an extra rather than a hard dependency. It is in `test` as well because CI must exercise that
+# function: it was missing from both, so the suite passed locally where statsmodels happened to
+# be installed and failed on every CI runner.
+mixed = ["statsmodels>=0.14"]
+test = ["pytest>=7", "statsmodels>=0.14"]
 
 [project.urls]
 Homepage = "https://github.com/fourMs/micromotion"

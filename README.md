@@ -1,5 +1,11 @@
 # micromotion
 
+[![tests](https://github.com/fourMs/micromotion/actions/workflows/tests.yml/badge.svg)](https://github.com/fourMs/micromotion/actions/workflows/tests.yml)
+[![docs](https://github.com/fourMs/micromotion/actions/workflows/docs.yml/badge.svg)](https://fourms.github.io/micromotion/)
+[![PyPI](https://img.shields.io/pypi/v/micromotion.svg)](https://pypi.org/project/micromotion/)
+[![Python](https://img.shields.io/pypi/pyversions/micromotion.svg)](https://pypi.org/project/micromotion/)
+[![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
+
 Analysis of human micromotion in motion time series: optical marker data, body-worn
 accelerometers, respiration belts and force plates.
 

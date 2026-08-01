@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.12.2 — 2026-08-01
+
+### Fixed — statsmodels was undeclared, so `intraclass_correlation` failed on a clean install
+
+`descriptors.intraclass_correlation` imports `statsmodels`, which appeared in no dependency list.
+It worked wherever statsmodels happened to be installed and raised `ModuleNotFoundError` everywhere
+else — including on every CI runner since 0.12.0, which went unnoticed because that release was
+never pushed. It is now an optional extra, `micromotion[mixed]`, since it is the only function in
+the package that needs it, and the import raises with that instruction rather than a bare
+`ModuleNotFoundError`. The `test` extra installs it so CI exercises the function.
+
+### Added
+
+CI, documentation, PyPI, Python-version and licence badges in the README.
+
 ## 0.12.1 — 2026-08-01
 
 ### Fixed — the package could not consume its own constant
