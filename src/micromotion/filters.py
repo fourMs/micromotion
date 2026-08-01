@@ -36,7 +36,7 @@ that every instrument in the corpus can support:
 ============================  ==================  ==========  ==========
 collection                    sampling            Nyquist     5 Hz?
 ============================  ==================  ==========  ==========
-phone IMU, daily standstill   14.75-16.9 Hz       7.4-8.5     yes
+phone, fused linear accel     ~15 Hz              7.5         yes
 optical, 20 Hz subset         20 Hz               10          yes
 collaborators' audience data  10 Hz               5           at Nyquist
 optical and inertial, rest    100-256 Hz          50-128      yes
@@ -44,6 +44,13 @@ optical and inertial, rest    100-256 Hz          50-128      yes
 
 A 10 Hz ceiling fails the first row on 354 of 355 days and sits exactly on Nyquist for the
 second. 5 Hz clears every one of them.
+
+The first row is worth stating precisely, because the obvious reading is wrong. The phone's
+*accelerometer* runs at about 50 Hz. What runs at 15 Hz is the **linear acceleration**, which the
+logging app derives by fusing the accelerometer with the gyroscope and magnetometer to remove
+gravity -- and a fusion cannot output faster than its slowest input, which is the 15 Hz gyroscope.
+The deposited files carry that fused channel, so their usable Nyquist really is 7.5 Hz. The limit
+is the channel chosen, not the hardware.
 
 **What it costs.** Band-limited *speed* barely notices: 5 Hz against 10 is within 2.3 per cent
 on every collection, and 95 per cent of quiet-standing sway power lies below 1 Hz anyway. On one

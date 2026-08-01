@@ -43,9 +43,13 @@ package produces**, by up to 2.3 per cent, and changes jerk by considerably more
 The reason is deliverability. A band above Nyquist is not a convention but a defect that returns a
 plausible number, and the 10 Hz ceiling could not be delivered by the whole corpus:
 
-- the phone accelerometer behind a 365-day collection updates at **14.75–16.9 Hz**, so Nyquist is
-  7.4–8.5 Hz and the ceiling was unreachable on **354 of 355 days**. Those files sit on a 100 Hz
-  grid, which is a six-fold upsample, and nothing above 7.5 Hz in them was ever real;
+- the 365-day phone collection carries **fused linear acceleration at about 15 Hz**, so Nyquist is
+  7.5 Hz and the ceiling was unreachable on **354 of 355 days**. Those files sit on a 100 Hz grid,
+  which is a six-fold upsample, and nothing above 7.5 Hz in them was ever real. (Corrected
+  2026-08-01: the *accelerometer* runs at about 50 Hz. The 15 Hz figure is the fusion of
+  accelerometer, gyroscope and magnetometer that the app performs to remove gravity, gated by the
+  15 Hz gyroscope. The conclusion is unchanged — the deposited channel is the fused one — but the
+  limit is the channel, not the sensor.);
 - a 20 Hz optical subset has Nyquist exactly at 10 Hz, where the band was silently clamped to 9.9;
 - collaborators' 10 Hz data could not carry the band at all.
 

@@ -66,15 +66,21 @@ can support:
 
 | instrument | sampling | Nyquist | 5 Hz? |
 |---|---|---|---|
-| phone IMU, daily standstill | 14.75–16.9 Hz | 7.4–8.5 | yes |
+| phone, fused linear acceleration | ~15 Hz | 7.5 | yes |
 | optical, 20 Hz subset | 20 Hz | 10 | yes |
 | collaborators' audience data | 10 Hz | 5 | at Nyquist |
 | optical and inertial, rest | 100–256 Hz | 50–128 | yes |
 
 A 10 Hz ceiling fails the first row on 354 of 355 days and sits exactly on Nyquist for the
-second, where it is silently clamped to 9.9. The phone case is the instructive one: those files
-are stored on a 100 Hz grid, but the accelerometer behind them updates at about 15 Hz, so the
-grid is a six-fold upsample and nothing above 7.5 Hz in them is real.
+second, where it is silently clamped to 9.9.
+
+The phone case is the instructive one, and it has two layers. Those files are stored on a 100 Hz
+grid, which is a six-fold upsample — nothing above 7.5 Hz in them is real. But the reason is not
+that the accelerometer is slow: measured across the year it runs at about **50 Hz**. The deposited
+channel is *linear acceleration*, which the logging app derives by fusing accelerometer, gyroscope
+and magnetometer to remove gravity, and a fusion runs no faster than its slowest input — here the
+**15 Hz gyroscope**. So the constraint is the channel, not the sensor, and a pipeline built on the
+raw accelerometer channel would have roughly three times the bandwidth.
 
 **What the ceiling costs.** Band-limited speed barely notices — 5 Hz against 10 is within
 2.3 per cent on every collection, and 95 per cent of quiet-standing sway power lies below 1 Hz
