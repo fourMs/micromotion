@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.3 — 2026-08-01
+
+Contents identical to 0.12.2 plus the `tomllib` fix below. 0.12.2 was tagged before that fix, so
+its release gate failed on Python 3.10 and never reached PyPI; 0.12.3 is the version that ships.
+
+### Fixed
+
+`test_version_matches_pyproject` used `tomllib`, which is stdlib only from 3.11 while this package
+supports 3.10. It falls back to a regex rather than skipping — the test exists to catch
+`__version__` and `pyproject.toml` drifting apart, and the oldest supported Python is exactly where
+a release would otherwise slip through unchecked.
+
 ## 0.12.2 — 2026-08-01
 
 ### Fixed — statsmodels was undeclared, so `intraclass_correlation` failed on a clean install
