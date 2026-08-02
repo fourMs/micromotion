@@ -121,9 +121,22 @@ mm.respiration_rate(x, fs)
 mm.detect_breaths(x, fs)
 ```
 
-Spectra are estimated by Welch's method. The cardiac and respiratory peak finders are the same
-machinery with priors on where to look and a signal-to-noise criterion, so that a peak is only
-returned when it stands above the local background.
+Spectra are estimated by Welch's method, with priors on where to look and a signal-to-noise
+criterion, so that a peak is only returned when it stands above the local background.
+
+`cardiac_peak` works this way. `respiratory_peak` no longer does, and the reason is worth knowing
+before you reach for a spectrum on any slow rhythm. A periodogram of belt or body motion is red:
+power falls with frequency, so a breathing bump sits on a much larger downward slope and never
+becomes the global maximum inside the band. Measured against sixteen thoracic belts, the spectral
+version returned a median 7.5 breaths per minute where the belts' own breath timing gives 16.8, and
+it ranked participants at Spearman −0.32 against that timing — no usable information about who was
+breathing faster. Four repairs were tried and rejected: raising the band floor, band-passing first
+(which cannot help, since the maximum inside a band is unaffected by filtering inside that same
+band), taking the most prominent local maximum, and dividing out a fitted power law.
+
+So since 0.13.0 `respiratory_peak` is measured in the time domain, from `detect_breaths`, and
+returns that rate in Hz. `cardiac_peak` keeps the periodogram because its band sits above the slope
+and the ballistocardiac impulse is a genuinely prominent peak.
 
 A standing body carries both signals mechanically. The heartbeat appears in whole-body motion as
 a ballistocardiographic component — the recoil of blood ejection — and breathing appears as a

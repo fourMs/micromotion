@@ -59,3 +59,11 @@ Every public function, grouped by what you are asking of a signal.
 ## Alignment
 
 ::: micromotion.align
+
+## Feature vector
+
+::: micromotion.features
+
+## Equivalence testing
+
+::: micromotion.equivalence

@@ -27,6 +27,8 @@ nav:
   - Sampling rates: rates.md
   - Reading files: formats.md
   - Validating data: validation.md
+  - One feature vector: features.md
+  - Stating a null: nulls.md
   - Working with other packages: interop.md
   - API reference: api.md
 
