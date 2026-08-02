@@ -22,7 +22,7 @@ def test_returns_every_named_descriptor():
 
 
 def test_a_recording_shorter_than_two_minutes_is_refused():
-    assert feature_vector(sway(dur=60.0), 100.0) is None
+    assert feature_vector(sway(dur=60.0), 100.0, kind="position", unit="mm") is None
 
 
 def test_geometry_is_nan_for_acceleration_because_it_needs_position():
@@ -35,17 +35,17 @@ def test_geometry_is_nan_for_acceleration_because_it_needs_position():
 
 def test_an_unknown_kind_raises_rather_than_guessing():
     with pytest.raises(ValueError):
-        feature_vector(sway(), 100.0, kind="velocity")
+        feature_vector(sway(), 100.0, kind="velocity", unit="mm")
 
 
 def test_a_wrong_shape_raises():
     with pytest.raises(ValueError):
-        feature_vector(np.zeros((5000, 2)), 100.0)
+        feature_vector(np.zeros((5000, 2)), 100.0, kind="position", unit="mm")
 
 
 def test_more_movement_gives_more_qom_and_a_larger_sway_area():
-    small = feature_vector(sway(amp=2.0), 100.0)
-    large = feature_vector(sway(amp=8.0), 100.0)
+    small = feature_vector(sway(amp=2.0), 100.0, kind="position", unit="mm")
+    large = feature_vector(sway(amp=8.0), 100.0, kind="position", unit="mm")
     assert large["qom"] > small["qom"]
     assert large["area"] > small["area"]
     assert large["extent"] > small["extent"]
@@ -58,14 +58,14 @@ def test_anisotropy_is_large_for_a_line_and_near_one_for_a_circle():
                             rng.normal(0, 0.05, t.size)])
     circle = np.column_stack([5 * np.sin(2 * np.pi * 0.4 * t), 5 * np.cos(2 * np.pi * 0.4 * t),
                               rng.normal(0, 0.05, t.size)])
-    assert feature_vector(line, fs)["anis"] > 5 * feature_vector(circle, fs)["anis"]
+    assert feature_vector(line, fs, kind="position", unit="mm")["anis"] > 5 * feature_vector(circle, fs, kind="position", unit="mm")["anis"]
 
 
 def test_jerk_is_nan_when_the_sensor_cannot_carry_wideband():
     """The rate that matters is the instrument's, not the grid the file is stored on."""
     x = sway(fs=100.0)
-    on_grid = feature_vector(x, 100.0)                      # grid says 100 Hz
-    truth = feature_vector(x, 100.0, sensor_fs=15.0)        # sensor actually ran at 15
+    on_grid = feature_vector(x, 100.0, kind="position", unit="mm")                      # grid says 100 Hz
+    truth = feature_vector(x, 100.0, kind="position", unit="mm", sensor_fs=15.0)        # sensor actually ran at 15
     assert np.isfinite(on_grid["jerk"])
     assert np.isnan(truth["jerk"])
 
@@ -74,5 +74,13 @@ def test_the_caller_s_array_is_not_modified():
     x = sway()
     x[10, 0] = np.nan                      # a gap, which the function fills internally
     before = x.copy()
-    feature_vector(x, 100.0)
+    feature_vector(x, 100.0, kind="position", unit="mm")
     assert np.array_equal(x, before, equal_nan=True)
+
+
+def test_kind_and_unit_are_required():
+    """Omitting them used to default to position/mm and silently mis-scale accelerometer data."""
+    with pytest.raises(TypeError, match="requires both kind and unit"):
+        feature_vector(sway(), 100.0)
+    with pytest.raises(TypeError, match="requires both kind and unit"):
+        feature_vector(sway(), 100.0, kind="position")

@@ -43,8 +43,8 @@ read correctly.
 
 ## Coordinate frames: which axis is up, and how to rotate
 
-`MotionRecord.vertical` exists because **the vertical axis is not always Z**. Getting this wrong
-does not raise anything — it silently swaps a vertical measurement for a horizontal one, and every
+We carry `MotionRecord.vertical` because the vertical axis is not always Z. Getting this wrong
+does not raise anything. It silently swaps a vertical measurement for a horizontal one, and every
 magnitude still looks plausible.
 
 ### What the systems do
@@ -57,8 +57,8 @@ magnitude still looks plausible.
 
 **Do not infer the frame from the system.** The same OptiTrack rig, configured differently at two
 sessions, will give you Y-up files from one and Z-up from the other. The only reliable checks are
-the file's own metadata (`POINT:UNITS` for C3D) and the data itself — a standing head marker sits at
-roughly 1.5–1.9 in whatever unit is in force, on whichever axis is vertical.
+the file's own metadata (`POINT:UNITS` for C3D) and the data itself, since a standing head marker
+sits at roughly 1.5–1.9 in whatever unit is in force, on whichever axis is vertical.
 
 ```python
 import numpy as np
@@ -73,15 +73,16 @@ vertical = int(np.argmax(med))                        # the axis holding head he
     Z_zup =  Y_yup
 
 **Use this rather than swapping Y and Z.** A swap is a *reflection*: it mirrors the horizontal plane,
-so every sway direction reverses sign and every rotational statistic inverts, while all magnitudes —
-speed, range, quantity of motion — stay exactly as they were and give no hint that anything moved.
+so every sway direction reverses sign and every rotational statistic inverts, while all magnitudes,
+speed and range and quantity of motion, stay exactly as they were and give no hint that anything
+moved.
 The mapping above is a rotation, which preserves handedness: X × (−Z) = −(X × Z) = Y, the new Z.
 
 Gaps survive it. Missing samples are the zero triplet and negating zero leaves zero.
 
 ### The check that a rotation was correct
 
-Quantity of motion is the magnitude of a 3-D speed, so it is **invariant under rotation** and must
+Quantity of motion is the magnitude of a 3-D speed, so it is invariant under rotation and must
 come out unchanged to floating-point precision. If it moves at all, the transform is wrong. The
 vertical median should land on the new axis at the value it had on the old one.
 
@@ -91,9 +92,9 @@ entirely reasonable.
 
 ### Fix the data, then hunt for the compensations
 
-If you rotate a dataset at source, **every script that special-cased its old frame becomes wrong**.
+If you rotate a dataset at source, every script that special-cased its old frame becomes wrong.
 A known wrinkle tends to be worked around in many places, and those workarounds are invisible until
-the wrinkle is gone — at which point each one silently inverts the correction it was making. Grep
+the wrinkle is gone, and at that point each one silently inverts the correction it was making. Grep
 for the compensation before changing the data, and empty it in the same commit.
 
 ## Physics Toolbox Sensor Suite
@@ -121,13 +122,13 @@ decides whether it survives, so a file can look nine-tenths intact and be system
 
 ### Columns, and which acceleration to use
 
-`ax`/`ay`/`az` are **linear acceleration in m/s²**, gravity removed by sensor fusion. `gFx`/`gFy`/`gFz`
-are **total g-force in g, including gravity** — magnitude 1.0 on a phone at rest.
+`ax`/`ay`/`az` are linear acceleration in m/s², gravity removed by sensor fusion. `gFx`/`gFy`/`gFz`
+are total g-force in g, including gravity, with magnitude 1.0 on a phone at rest.
 
 Use `a*`. Substituting `gF*` does not fail, it inflates band-limited motion roughly 4000-fold,
 because a slowly rotating gravity vector has ample 0.2–5 Hz content that no band-pass will remove.
-Reading `a*` as if it were g inflates every quantity of motion by 9.80665 — a clean constant
-factor, so rankings and correlations survive it and nothing looks wrong.
+Reading `a*` as if it were g inflates every quantity of motion by 9.80665, which is a clean
+constant factor, so rankings and correlations survive it and nothing looks wrong.
 
 Column availability varies by handset: the Galaxy A52s writes no `p` (pressure) column, so joining
 logs by column position rather than by name misaligns every channel after `wz`.
@@ -135,25 +136,25 @@ logs by column position rather than by name misaligns every channel after `wz`.
 ### The sampling rate is not what you asked for
 
 Physics Toolbox passes on whatever the Android sensor stack delivers. A log requested at 100 Hz
-arrives somewhere between about 100 and 170 Hz, with millisecond-scale jitter, and **two handsets
-recording the same event will differ** — in one three-phone session the measured rates were 105,
+arrives somewhere between about 100 and 170 Hz, with millisecond-scale jitter, and two handsets
+recording the same event will differ. In one three-phone session the measured rates were 105,
 123 and 169 Hz. Always resample onto a uniform grid before filtering.
 
 ### Dropouts are silent, and they are the real hazard
 
 Logging stops when the app is backgrounded or the screen sleeps, then resumes without any marker.
 A file that looks like one continuous recording can contain a hole of tens of seconds. In the same
-three-phone session every one of the six files had at least one gap, the worst being **108 s inside
-a 111 s file** — leaving 2.6 s of actual data.
+three-phone session every one of the six files had at least one gap, the worst being 108 s inside
+a 111 s file, which left 2.6 s of actual data.
 
 **The timestamps are the app's own awake-time, not wall-clock.** When Android suspends the app the
-clock stops with it. A ten-minute recording whose screen slept produced a file spanning 160 s — the
+clock stops with it. A ten-minute recording whose screen slept produced a file spanning 160 s. The
 missing 440 s is not present as a gap, it is absent from the timeline. Two phones dozed at different
-moments therefore have time bases that drift apart non-linearly, so **no cross-correlation can
-recover a fixed offset between two such files, because there is no fixed offset to find.** Align
-multi-device recordings on a physical event that appears in the signal itself — a sharp tap on a
-rigid stack holding all the phones — not on their clocks, and not on an acoustic clap, which leaves
-no accelerometer transient at all.
+moments therefore have time bases that drift apart non-linearly, so no cross-correlation can
+recover a fixed offset between two such files, since there is no fixed offset to find. Align
+multi-device recordings on a physical event that appears in the signal itself, such as a sharp tap
+on a rigid stack holding all the phones, rather than on their clocks, and not on an acoustic clap,
+which leaves no accelerometer transient at all.
 
 `read_phone` therefore reports:
 
@@ -201,7 +202,7 @@ mm.gap_report(rec.data, rec.fs)
 clean = mm.interpolate_gaps(rec.data, max_gap=200)
 ```
 
-`interpolate_gaps` bridges short runs and leaves long ones as `NaN`. Bridging a dropped frame
-is reconstruction; bridging a 469-second hole is invention. A single missing fraction hides
-the distinction that matters — one per cent scattered evenly is a usable recording, one per
-cent in a single block is two recordings.
+`interpolate_gaps` bridges short runs and leaves long ones as `NaN`. We draw the line there because
+bridging a dropped frame is reconstruction, while bridging a 469-second hole is invention. A single
+missing fraction hides the distinction that matters. One per cent scattered evenly is a usable
+recording, and one per cent in a single block is two recordings.

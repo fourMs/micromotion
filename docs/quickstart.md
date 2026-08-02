@@ -6,7 +6,7 @@
 pip install git+https://github.com/fourMs/micromotion
 ```
 
-Requires numpy, scipy and pandas. Nothing else — no computer-vision or audio stack.
+Requires numpy, scipy and pandas. There is no computer-vision or audio stack to install.
 
 ## Quantity of motion from a motion-capture file
 
@@ -21,16 +21,16 @@ print(result.mean_mm_s, result.median_mm_s)
 
 !!! warning "Do not name a local variable `mm`"
 
-    The conventional alias collides with two very natural variable names: a **m**ean, and a value
-    in **m**illimetres. Binding either at module level silently replaces the package for the rest
+    The conventional alias collides with two very natural variable names: a mean, and a value
+    in millimetres. Binding either at module level silently replaces the package for the rest
     of the file, and nothing fails until something later reaches for `mm.` and gets a float. This
-    has happened twice in the source corpus — `mm, ss, nn = msd(...)` in one script and a NaN mask
-    called `mm` in another — and in both cases the error surfaced far from its cause.
+    has happened twice in the source corpus. One script opened with `mm, ss, nn = msd(...)`, and
+    another named a NaN mask `mm`. In both cases the error surfaced far from its cause.
 
 
-`read` identifies the layout from the file's contents, not its extension — in this corpus the
-extension lies, since the balance-board files are named `.tsv` and are space-delimited and
-headerless.
+`read` identifies the layout from the file's contents rather than its extension. We do it that way
+because in this corpus the extension lies: the balance-board files are named `.tsv` and are in fact
+space-delimited and headerless.
 
 Always select a marker by name. Six files in one collection break the documented marker
 order, and reading positionally mis-assigns every one of them.
@@ -62,9 +62,9 @@ bins = result.binned(5.0)
 usable = bins[bins.edge == "ok"]
 ```
 
-The final bin is usually partial, and the first and last carry filter transients. Both are
-flagged rather than dropped. Including the partial bin once inflated a published series three-
-to fourteenfold.
+The final bin is usually partial, and the first and last carry filter transients. We flag both cases
+rather than dropping them, so that you can decide. Including the partial bin once inflated a
+published series three- to fourteenfold.
 
 ## Putting two recordings on one clock
 
@@ -76,5 +76,5 @@ mm.search_lag(t1, hr1, t2, hr2, max_lag_s=300)
 ```
 
 Two instruments that share no clock can still be aligned if both carry the same
-physiological rhythm. Always check `confident` — see [the API notes on `xcorr_lag`](api.md)
-for why a sharp-looking correlation peak is not evidence.
+physiological rhythm. Always check `confident`. See [the API notes on `xcorr_lag`](api.md) for why
+a sharp-looking correlation peak is not evidence.

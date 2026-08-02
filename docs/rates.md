@@ -8,8 +8,8 @@ Two rules, both learned by getting them wrong.
 mm.measured_rate(timestamps)      # samples over elapsed span
 ```
 
-Deliberately not the reciprocal of the median interval. Where timestamps are rounded to whole
-milliseconds the intervals become a mixture of adjacent integers whose median is a
+We deliberately do not use the reciprocal of the median interval. Where timestamps are rounded to
+whole milliseconds the intervals become a mixture of adjacent integers whose median is a
 quantisation artefact:
 
 | Truth | Median-interval estimate |
@@ -29,12 +29,12 @@ mistake in this document.
 updates and repeats the previous accelerometer value in between: rows arrive at about 170 Hz while
 the accelerometer updates at 50 and the fused channel at 15. About 89 per cent of rows repeat the
 previous sample. Reading such a file as though each row were a measurement gives a staircase, and a
-staircase is a sequence of step edges — broadband high-frequency energy that differentiation
-amplifies once per derivative.
+staircase is a sequence of step edges, which is broadband high-frequency energy that
+differentiation amplifies once per derivative.
 
 **The stored grid is not the sensor rate either.** Resample that logger's output to a uniform
-100 Hz file and nothing downstream can tell it is a 6.7-fold upsample of a 15 Hz signal. `to_rate`
-refuses to upsample precisely to prevent this, but it never sees the raw file. Carry the measured
+100 Hz file and nothing downstream can tell it is a 6.7-fold upsample of a 15 Hz signal. We made
+`to_rate` refuse to upsample precisely to prevent this, but it never sees the raw file. Carry the measured
 sensor rate as its own column and check deliverability against *that*.
 
 **And a channel's rate is not its instrument's.** This one is the subtlest. That phone's deposited
@@ -53,7 +53,7 @@ so the ceiling is a property of the channel that was recorded, not of the hardwa
 instrument has a raw channel three times faster sitting underneath it.
 
 Which does not make the raw channel simply better. It reports total g-force including gravity, so a
-lean rotates the gravity vector into the band and reads as movement — on that corpus it inflates
+lean rotates the gravity vector into the band and reads as movement, and on that corpus it inflates
 band-limited speed about fourfold. But it inflates *jerk* only about 1.5×, because tilt is a
 low-frequency contaminant and jerk is a high-frequency measure. So the right channel depends on the
 measure, and a row can legitimately take its speed from one channel and its jerk from another,
@@ -70,9 +70,9 @@ mm.rate_quality(timestamps)
 mm.to_rate(x, fs_in, 20.0)     # raises if this would upsample
 ```
 
-Upsampling invents structure between samples, and every method that reads across scales —
-multifractal analysis, recurrence quantification, anything with an embedding — treats the
-invention as real. One analysis that upsampled 20 Hz data to 25 Hz produced multifractal
+Upsampling invents structure between samples, and every method that reads across scales treats the
+invention as real. That includes multifractal analysis, recurrence quantification, and anything
+with an embedding. One analysis that upsampled 20 Hz data to 25 Hz produced multifractal
 widths up to 6.6 where the plausible range is about 1. Nothing failed; the numbers were simply
 wrong.
 
@@ -88,9 +88,9 @@ mm.HARMONISED_RATE     # 100.0 — use this where every series can reach it
 mm.COMMON_RATE         #  20.0 — use this only when a 20 Hz collection must be included
 ```
 
-`COMMON_RATE` is 20 Hz because that is the greatest common divisor of the optical rates in the
-source corpus — 20, 100, 120 and 200 Hz — so every recording reaches it by an integer decimation
-and none needs upsampling. That is its one virtue, and it is a real one: it is the only rate at
+We set `COMMON_RATE` to 20 Hz because that is the greatest common divisor of the optical rates in
+the source corpus, which are 20, 100, 120 and 200 Hz, so every recording reaches it by an integer
+decimation and none needs upsampling. That is its one virtue, and it is a real one: it is the only rate at
 which a natively-20 Hz collection can be placed beside the rest at all.
 
 It is not free, and the argument that it is does not survive measurement. A 10 Hz upper edge
@@ -108,8 +108,8 @@ The last column is the important one. A per-recording error running from a third
 to more than ten is a distortion rather than a bias, so nothing downstream can correct it.
 Prefer 100 Hz; where you must use 20, say so and call it the lossy view.
 
-Non-integer ratios are fine — 120 → 100 Hz is a 6-to-5 polyphase step and costs about a tenth of
-a per cent.
+Non-integer ratios are fine, since 120 → 100 Hz is a 6-to-5 polyphase step and costs about a tenth
+of a per cent.
 
 ## Irregular sampling
 
@@ -117,6 +117,6 @@ a per cent.
 grid, y = mm.regularize(t, x, fs_out=20.0, max_gap_s=2.0)
 ```
 
-Sorts, drops duplicate and backward timestamps, interpolates, and returns NaN inside gaps
-longer than `max_gap_s` rather than bridging them — so that a 132-second hole cannot be
-mistaken for 132 seconds of stillness.
+Sorts, drops duplicate and backward timestamps, interpolates, and returns NaN inside gaps longer
+than `max_gap_s`. We leave those gaps open rather than bridging them, so that a 132-second hole
+cannot be mistaken for 132 seconds of stillness.

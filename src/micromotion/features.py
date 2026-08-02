@@ -35,7 +35,7 @@ FEATURE_NAMES = ("qom", "jerk", "centroid", "f50", "frozen", "burst",
                  "path", "extent", "area", "anis", "vert")
 
 
-def feature_vector(x, fs: float, kind: str = "position", unit: str = "mm",
+def feature_vector(x, fs: float, kind: str | None = None, unit: str | None = None,
                    sensor_fs: float | None = None) -> dict | None:
     """The eleven descriptors for one recording, or ``None`` if it is too short to describe.
 
@@ -52,6 +52,17 @@ def feature_vector(x, fs: float, kind: str = "position", unit: str = "mm",
     Everything derives from a band-limited velocity, so the filter order and the units are
     identical whichever way the recording arrived.
     """
+    # Checked before anything else, because omitting these is a programming error rather than a
+    # property of the data. Until 0.13.0 they defaulted to position and mm, which contradicted the
+    # paragraph above and reinstated exactly the silent failure it describes: an accelerometer
+    # series passed without `kind` was differentiated as though it were position and came back
+    # finite and plausible. The docstring was right and the signature was wrong.
+    if kind is None or unit is None:
+        raise TypeError(
+            "feature_vector requires both kind and unit; they are not guessed. Use "
+            "kind='position', unit='mm' for optical data, or kind='acceleration' with "
+            "unit='g' or 'm/s^2' for accelerometer data.")
+
     # copy, because the gap fill below writes into it and the caller's array is not ours to edit
     x = np.array(x, dtype=float, copy=True)
     if x.ndim != 2 or x.shape[1] != 3:

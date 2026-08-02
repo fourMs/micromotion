@@ -118,7 +118,7 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "0.13.0"
+__version__ = "0.14.0"
 
 __all__ = [
     "sliding_null",

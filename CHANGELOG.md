@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.14.0 — 2026-08-02
+
+One breaking change, and it is a correctness fix: `feature_vector` now requires `kind` and `unit`
+instead of defaulting to position and millimetres.
+
+### Changed, and it will break callers that relied on the defaults
+
+`feature_vector(x, fs)` now raises `TypeError`. Pass `kind` and `unit` explicitly.
+
+The docstring has said since 0.13.0 that the two "must be passed and are not guessed", and gave the
+reason: the collections do not record the same quantity, so differentiating an acceleration series
+as though it were position shifts every descriptor two derivatives up and still returns finite,
+plausible-looking numbers. The signature did not enforce it. It defaulted to `kind="position"`,
+`unit="mm"`, which reinstated exactly the silent failure the paragraph describes — an accelerometer
+recording passed without `kind` was quietly treated as optical position data and came back with a
+full set of eleven descriptors, none of them right.
+
+Found by testing the documentation against the code rather than reading either on its own. The
+docstring was right and the signature was wrong, so the signature moved.
+
+The migration is mechanical: `kind="position", unit="mm"` for optical data, `kind="acceleration"`
+with `unit="g"` or `"m/s^2"` for accelerometer data. The one caller in the Oslo Standstill analysis
+layer already passed both, so nothing there changes.
+
 ## 0.13.0 — 2026-08-02
 
 Two functions returned wrong answers and are fixed; two new modules. The fixes change numbers, so
