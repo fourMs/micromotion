@@ -448,12 +448,20 @@ def axial_rayleigh(angles_deg):
 
     Source: still standing study (Jensenius), sway-direction analysis.
 
+    This takes DEGREES. :func:`micromotion.circular.rayleigh_axial` computes the same quantity
+    from RADIANS, and the two agree exactly on ``R`` and on the mean axis -- a report that they
+    disagree is a units error at the call site, not a difference of method. Feeding radians to this
+    function converts already-small numbers a second time, collapsing every angle towards zero and
+    inflating ``R`` towards 1, which is the usual way that mistake shows itself.
+
     Args:
         angles_deg (np.ndarray): Axial angles in degrees.
 
     Returns:
         dict: ``{"R", "p", "mean_axis_deg", "n"}``.
     """
+    from .circular import rayleigh
+
     a = 2 * np.radians(np.asarray(angles_deg, dtype=float))
     a = a[np.isfinite(a)]
     n = len(a)
@@ -462,8 +470,13 @@ def axial_rayleigh(angles_deg):
     C = np.mean(np.cos(a))
     S = np.mean(np.sin(a))
     R = float(np.hypot(C, S))
-    Z = n * R * R
-    p = float(np.exp(-Z) * (1 + (2 * Z - Z * Z) / (4 * n)))
+    # The p-value comes from `circular.rayleigh` so the package has one Rayleigh approximation
+    # rather than two. This used to compute exp(-Z)*(1 + (2Z - Z^2)/(4n)) directly, which is the
+    # small-Z series correction and goes NEGATIVE once Z^2 - 2Z exceeds 4n -- exactly the
+    # strongly-concentrated case this test exists to detect. It had reached deposited output:
+    # `_analysis/reports/circular/stats_sway_direction.txt` printed a negative probability for
+    # every one of the six championship editions.
+    p = float(rayleigh(a)["p"])
     mean_axis = float(np.degrees(0.5 * np.arctan2(S, C)) % 180.0)
     return dict(R=R, p=p, mean_axis_deg=mean_axis, n=n)
 

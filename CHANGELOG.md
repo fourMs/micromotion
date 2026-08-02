@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.13.0 — 2026-08-02
+
+Two functions returned wrong answers and are fixed; two new modules. The fixes change numbers, so
+anything computed with `axial_rayleigh`'s p-value or with `respiratory_peak` before this release
+should be recomputed. Nothing else moves.
+
+### Fixed
+
+`axial_rayleigh` could return a NEGATIVE p-value. It computed Zar's small-Z series,
+`exp(-Z)(1 + (2Z - Z^2)/(4n))`, which goes negative once `Z^2 - 2Z` exceeds `4n` — that is, whenever
+the axis is strongly preferred, which is precisely what the test exists to detect. It had reached
+published output: a corpus report printed a negative probability for every one of six championship
+editions. The p-value now comes from `circular.rayleigh`, so the package has one Rayleigh
+approximation rather than two. `R` and the mean axis are unchanged.
+
+While there: `balance.axial_rayleigh` and `circular.rayleigh_axial` were reported as disagreeing.
+They do not. One takes degrees and the other radians, and given their own units both reproduce the
+textbook resultant length of the doubled angles to 2e-16. Feeding radians to the degrees function
+drives `R` towards 1, which is what that report was seeing. Both docstrings now say which unit they
+take.
+
+`respiratory_peak` did not measure breathing. On the one dataset with a ground truth — sixteen
+thoracic belts at 25.6 Hz — it returned a median 7.5 breaths per minute where the belts' own breath
+timing gives 16.8, and it ranked participants at Spearman −0.32 against that timing, so it carried
+no usable information about who was breathing faster. A periodogram of belt or body motion is red,
+so the breathing bump sits on a much larger downward slope and never becomes the global maximum.
+
+Four repairs were measured and rejected before the approach was abandoned: raising the band floor to
+0.20 Hz (3.4 breaths per minute short), band-passing before the periodogram (no effect, and it
+cannot have one — the maximum inside a band is unaffected by filtering inside that same band), the
+most prominent local maximum (Spearman +0.22), and dividing out a fitted power law (+0.26, biased
+high). It is now measured in the time domain from `detect_breaths` and returns that rate in Hz. The
+signature is unchanged and `window_s` is accepted and ignored. `cardiac_peak` keeps the periodogram,
+because on its band the periodogram is right.
+
+`sniff` could not identify Sverm files recorded without a head marker, so `read` could not dispatch
+on them. It required `_head_` in the header; it now tests the actual signature, a `Time` column
+followed by whole `_x/_y/_z` triples. All 75 Sverm files in the corpus now dispatch, and all 88
+Qualisys championship files are unaffected.
+
+### Added
+
+`micromotion.equivalence` — `tost_paired`, `tost_independent`, `equivalence_correlation` and
+`interpret`. Two one-sided tests, for stating that an effect is absent rather than failing to show
+it is present. Bounds are taken in the data's own units rather than as standardised effect sizes,
+because a reader can argue about millimetres per second and cannot argue about Cohen's d. Each
+returns one of four verdicts rather than two: `effect`, `equivalent`, `trivial` (detectable and
+smaller than the bound) and `inconclusive`. That last is the case a non-significant p-value is
+usually reported as "no effect".
+
+`micromotion.feature_vector` and `FEATURE_NAMES` — the canonical eleven descriptors for one
+recording: amount and smoothness, frequency and texture, and five sway-geometry measures that need
+true position and are `nan` for accelerometer collections. Every cross-recording comparison needs a
+fixed set of numbers first, and two analyses that reduce a recording differently are incomparable
+for reasons that have nothing to do with the question either is asking. Moved in from a corpus
+report, verified bit-identical to it across 732 recordings.
+
 ## 0.12.4 — 2026-08-01
 
 Documentation and test hygiene. No change to any measure, so results computed with 0.12.3 stand.

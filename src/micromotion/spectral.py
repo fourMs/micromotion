@@ -39,12 +39,36 @@ def cardiac_peak(x, fs: float, window_s: float = 60.0) -> float:
 
 
 def respiratory_peak(x, fs: float, window_s: float = 120.0) -> float:
-    """Dominant frequency in the respiratory band, in Hz.
+    """Dominant respiratory frequency, in Hz. Multiply by 60 for breaths per minute.
 
-    Needs a long window: at 0.2 Hz, a 60-second segment holds twelve cycles, which is few
-    enough that the estimate wanders.
+    This is measured in the time domain, from :func:`detect_breaths`, and NOT as a peak in a
+    periodogram. It used to be the latter and the change corrects a wrong number rather than
+    trading one convention for another.
+
+    Why, in short: a periodogram of belt or body motion is red, so the breathing bump sits on a
+    much larger downward slope and never becomes the global maximum inside the band. Measured on
+    the one dataset in this corpus with a ground truth -- Stillness2025's sixteen thoracic belts at
+    25.6 Hz -- the old version returned a median 7.5 breaths per minute where the belts' own breath
+    timing gives 16.8 and where a resting adult breathes 12-20. It was not a calibration offset: it
+    ranked those sixteen participants at Spearman -0.32 against their own breath timing, so it
+    carried no usable information about who was breathing faster.
+
+    Four repairs were measured and all four rejected, which is why the spectral approach was
+    abandoned rather than patched. Raising the band floor to 0.20 Hz leaves a 3.4 breaths-per-minute
+    gap. Band-passing before the periodogram changes nothing whatever, and cannot, because the
+    maximum inside a band is unaffected by filtering inside that same band. The most prominent local
+    maximum instead of the global one reaches Spearman +0.22. Dividing out a fitted power law before
+    taking the maximum reaches +0.26 and biases the median high, to 21.5.
+
+    :func:`cardiac_peak` still uses the periodogram and is right to: its band sits above the slope
+    and the ballistocardiac impulse is a genuinely prominent peak, giving a median 75 bpm with an
+    interquartile range of 70-82 on a year of chest-phone data.
+
+    ``window_s`` is accepted for backward compatibility and is unused; breath detection does not
+    need a spectral window.
     """
-    return _peak(x, fs, RESPIRATORY_BAND, window_s)
+    rate = detect_breaths(x, fs)["rate_per_min"]
+    return float(rate / 60.0) if np.isfinite(rate) else float("nan")
 
 
 def band_power(x, fs: float, band: tuple[float, float], window_s: float = 60.0) -> float:

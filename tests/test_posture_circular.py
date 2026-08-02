@@ -89,6 +89,37 @@ def test_axial_rayleigh_recovers_the_axis():
     assert min(abs(got - 40), abs(got - 220)) == pytest.approx(0, abs=4)
 
 
+def test_balance_axial_rayleigh_never_returns_a_negative_probability():
+    """It did, on exactly the data this test is built to detect.
+
+    The old p-value was the small-Z series correction exp(-Z)*(1 + (2Z - Z^2)/(4n)), which turns
+    negative once Z^2 - 2Z exceeds 4n -- i.e. whenever the axis is strongly preferred. That reached
+    deposited output: every championship edition printed a negative probability.
+    """
+    from micromotion import balance as ba
+
+    rng = np.random.default_rng(1)
+    for n, spread in ((30, 5.0), (60, 8.0), (120, 12.0), (200, 20.0)):
+        got = ba.axial_rayleigh(rng.normal(40.0, spread, n) % 180.0)
+        assert 0.0 <= got["p"] <= 1.0, (n, got["p"])
+        assert got["p"] < 1e-10, (n, got["p"])          # still detects the axis
+
+
+def test_the_two_axial_rayleighs_agree_when_each_is_given_its_own_units():
+    """balance takes degrees, circular takes radians; any reported disagreement is a units error."""
+    from micromotion import balance as ba
+
+    rng = np.random.default_rng(0)
+    deg = np.concatenate([rng.normal(30, 12, 60), rng.normal(210, 12, 60)]) % 180.0
+    b = ba.axial_rayleigh(deg)
+    c = ci.rayleigh_axial(np.radians(deg))
+    assert b["R"] == pytest.approx(c["R"], abs=1e-12)
+    assert b["p"] == pytest.approx(c["p"], rel=1e-12)
+    assert b["mean_axis_deg"] == pytest.approx(np.degrees(c["mean_axis"]) % 180.0, abs=1e-9)
+    # and the classic mistake inflates R towards 1 rather than failing loudly
+    assert ba.axial_rayleigh(np.radians(deg))["R"] > b["R"]
+
+
 def test_axial_dispersion_is_small_for_a_tight_axis():
     rng = np.random.default_rng(0)
     tight = np.concatenate([rng.normal(0, 0.1, 500), rng.normal(np.pi, 0.1, 500)])

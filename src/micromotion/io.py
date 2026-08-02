@@ -477,8 +477,16 @@ def sniff(path: str) -> str:
     first = head.split("\n")[0]
     if first.startswith("NO_OF_FRAMES"):
         return "qualisys"
-    if first.startswith("Time\t") and "_head_" in first:
-        return "sverm"
+    if first.startswith("Time\t"):
+        # Any Time column followed by whole <name>_x/_y/_z triples. This used to require "_head_"
+        # in the header, which missed every Sverm file that has no head marker -- the 2011 sessions
+        # deposit c7, rfoot and static and nothing else, so `sniff` raised on them and `read` could
+        # not dispatch. Those are exactly the plain-header files a private `load_qtm` returns None
+        # for before silently falling back to reading by column position.
+        cols = first.rstrip("\n").split("\t")[1:]
+        if cols and len(cols) % 3 == 0 and all(
+                c.endswith(s) for c, s in zip(cols, ("_x", "_y", "_z") * (len(cols) // 3))):
+            return "sverm"
     if first.startswith("ts\tx\ty\tz"):
         return "ax3"
     if first.startswith("time\t") and "\tax\t" in first:

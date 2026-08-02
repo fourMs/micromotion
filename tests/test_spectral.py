@@ -21,6 +21,30 @@ def test_spectral_peak_finds_a_tone_and_reports_high_snr():
     assert r["snr"] > 10
 
 
+def test_respiratory_peak_recovers_a_breath_riding_on_much_larger_slow_drift():
+    """The case the periodogram version failed.
+
+    It took the global maximum of the in-band spectrum, which on a red background lands near the
+    band floor. Measured on Stillness2025's sixteen belts it returned a median 7.5 breaths per
+    minute against the belts' own 16.8, and ranked participants at Spearman -0.32 against their own
+    breath timing. It is now measured in the time domain, from detect_breaths.
+    """
+    fs, dur, breath_hz = 25.6, 300.0, 0.25          # 15 breaths per minute
+    t = np.arange(0, dur, 1 / fs)
+    rng = np.random.default_rng(0)
+    drift = 10.0 * np.cumsum(rng.normal(0, 1, t.size)) / np.sqrt(t.size)
+    got = sp.respiratory_peak(np.sin(2 * np.pi * breath_hz * t) + drift, fs)
+    assert got * 60 == pytest.approx(breath_hz * 60, abs=1.5)
+
+
+def test_respiratory_peak_agrees_with_detect_breaths():
+    fs = 25.6
+    t = np.arange(0, 240, 1 / fs)
+    x = np.sin(2 * np.pi * 0.3 * t) + 0.05 * np.sin(2 * np.pi * 1.1 * t)
+    assert sp.respiratory_peak(x, fs) * 60 == pytest.approx(
+        sp.detect_breaths(x, fs)["rate_per_min"], rel=1e-9)
+
+
 def test_spectral_peak_reports_low_snr_when_there_is_no_rhythm():
     x = np.random.default_rng(0).normal(size=30000)
     assert sp.spectral_peak(x, 100.0, (0.7, 2.2))["snr"] < 5

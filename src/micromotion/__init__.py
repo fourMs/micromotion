@@ -56,6 +56,9 @@ from .qom import (
 )
 from .align import apply_lag, find_transient, instantaneous_rate, search_lag, xcorr_lag
 from .descriptors import effective_dimensionality, intraclass_correlation
+from .equivalence import (equivalence_correlation, interpret, tost_independent,
+                          tost_paired)
+from .features import FEATURE_NAMES, feature_vector
 from .filters import (BAND, OPTICAL_LEGACY_BAND, WIDEBAND, bandpass, effective_band, highpass,
                       lowpass, notch)
 from .io import (
@@ -115,7 +118,7 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "0.12.4"
+__version__ = "0.13.0"
 
 __all__ = [
     "sliding_null",
@@ -159,6 +162,11 @@ __all__ = [
     "BANDS",
     "effective_dimensionality",
     "intraclass_correlation",
+    "equivalence_correlation",
+    "feature_vector",
+    "FEATURE_NAMES",
+    "tost_paired",
+    "tost_independent",
     "COMMON_RATE",
     "HARMONISED_RATE",
     "Finding",
