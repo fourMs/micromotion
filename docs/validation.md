@@ -28,7 +28,7 @@ once.
 
 ## The checks
 
-### `zero_triplets` — gaps read as positions
+### `zero_triplets`—gaps read as positions
 
 Several optical systems, including Qualisys, write a dropped frame as `0.000 0.000 0.000`. In
 laboratory coordinates that is a point on the floor, often more than a metre from where the marker
@@ -41,7 +41,7 @@ is a factor of eleven from 0.08 % of the samples.
 Exact zeros on all axes at once do not occur in real optical data, so we set the default tolerance
 to zero.
 
-### `implausible_position` — the gap that is not a zero
+### `implausible_position`—the gap that is not a zero
 
 `zero_triplets` catches a dropped frame written as three exact zeros. It cannot catch the near
 miss: a reconstruction that lands *close* to the laboratory origin without being exactly on it.
@@ -67,7 +67,7 @@ floor for 63 samples, and the other put one at 491 mm where its median was 1716.
     not of a dataset, so a defect that a median ignores can still be the whole of what a range,
     an area or a path length reports.
 
-### `marker_average` — a gap that survives averaging
+### `marker_average`—a gap that survives averaging
 
 The check above is not enough on its own, because of *where* the repair usually happens. Pipelines
 tend to repair gaps at the end, on the series they are about to measure. That is correct until you
@@ -112,7 +112,7 @@ for x in (hf, hl, hr):
 head = np.nanmean(np.stack(stack), axis=0)
 ```
 
-### `finite_fraction` and `longest_finite_span` — a series emptied by its own filter
+### `finite_fraction` and `longest_finite_span`—a series emptied by its own filter
 
 A gap running off the start or end of a series cannot be interpolated: there is nothing on the far
 side to interpolate from. A band-pass then spreads the surviving `NaN` across the whole recording,
@@ -126,14 +126,14 @@ Measuring over the longest clean span, and recording how long it was, is usually
 either dropping the recording or silently closing the gap, since closing it makes the series claim
 a duration it does not have.
 
-### `timestamps` — a clock that is not a clock
+### `timestamps`—a clock that is not a clock
 
 Sorting a timestamp column into order is the tempting repair and the wrong one. It destroys the
 evidence that the clock misbehaved while leaving samples in an order the sensor never produced.
 One balance-board dataset carries 123 111 duplicate timestamps and 83 that step backwards; those
 are a device fault to be recorded, not a sort key.
 
-### `rate_agreement` — the documented rate against the measured one
+### `rate_agreement`—the documented rate against the measured one
 
 Measure the rate, do not read it. Across one multi-device corpus, documented rates were wrong by
 up to 4.4 per cent, one was out by a factor of 37, and one set of wearable accelerometers ran at
@@ -144,21 +144,21 @@ Every frequency-domain measure scales with this, and nothing further downstream 
 which is why we raise it as an error rather than a warning. See [sampling rates](rates.md) for why
 `measured_rate` counts samples over the elapsed span instead of inverting the median interval.
 
-### `frame_count` — the 16-bit ceiling
+### `frame_count`—the 16-bit ceiling
 
 C3D stores its frame count in a 16-bit field, so a conversion through C3D stops at 65 535 frames
 and says nothing. At 200 Hz that is 327.7 s of a 360 s recording: complete-looking, with the last
 thirty-two seconds gone. Treat a frame count of exactly 65 535 or 65 536 as a bug rather than a
 coincidence.
 
-### `held_samples` — a stored rate above the sampled rate
+### `held_samples`—a stored rate above the sampled rate
 
 A sensor sampled below the rate it is written out at appears with each value repeated. The file
 then claims a rate the data does not carry, and any spectrum computed at the stored rate is wrong
 above the true Nyquist frequency. Some phone loggers write a row whenever *any* sensor updates,
 which produces exactly this.
 
-### `duplicate_files` — the same recording twice
+### `duplicate_files`—the same recording twice
 
 Found by content rather than by name, because the usual cause is a rename that left the original
 behind under a name no manifest mentions.

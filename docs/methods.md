@@ -39,7 +39,7 @@ line of that work.
 
 - Jensenius, Zelechowska & Gonzalez-Sanchez (2017). The musical influence on people's micromotion
   when standing still in groups. *Sound and Music Computing*.
-- Burger & Toiviainen (2013). MoCap Toolbox — a Matlab toolbox for computational analysis of
+- Burger & Toiviainen (2013). MoCap Toolbox—a Matlab toolbox for computational analysis of
   movement data. *Sound and Music Computing*.
 
 ### Spatial extent
@@ -273,7 +273,7 @@ entropy is provided for comparison with older results.
 
 - Pincus (1991). Approximate entropy as a measure of system complexity. *PNAS*.
 - Richman & Moorman (2000). Physiological time-series analysis using approximate entropy and
-  sample entropy. *American Journal of Physiology — Heart and Circulatory Physiology*.
+  sample entropy. *American Journal of Physiology—Heart and Circulatory Physiology*.
 
 ### Recurrence quantification
 

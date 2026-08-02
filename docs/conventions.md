@@ -4,12 +4,12 @@ There are three quantity-of-motion conventions here and they are not interchange
 number without saying which one produced it is the single most common way results in this field
 stop being comparable.
 
-## `micromotion` — 0.2 to 5 Hz
+## `micromotion`—0.2 to 5 Hz
 
 A band-pass. The only convention that can be applied to every sensor, so the one any
 cross-collection comparison must use.
 
-## `optical_legacy` — 10 Hz low-pass, no lower edge
+## `optical_legacy`—10 Hz low-pass, no lower edge
 
 Retains sub-0.2 Hz postural drift. For optical position that drift is real movement, and this
 is the convention behind most published standstill figures.
@@ -103,7 +103,7 @@ We therefore compute jerk at `WIDEBAND`, on collections fast enough to deliver i
 else. On the phone collection the wider jerk was never real, and computing it there inflated the
 figure by 18 to 27 per cent with interpolation.
 
-## `WIDEBAND` — 0.2 to 10 Hz
+## `WIDEBAND`—0.2 to 10 Hz
 
 For jerk and other high-derivative measures that need the octave the canonical band gives up.
 
