@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.1 — 2026-08-03
+
+Documentation only; no behaviour change.
+
+`docs/interop.md` said MGT's overlapping functions were unreleased and invisible to anyone reading
+PyPI. MGT-python 1.7.0 was published on 2026-08-03, so that is no longer true and the overlap is now
+between two published packages.
+
+The version is declared in `pyproject.toml`, `src/micromotion/__init__.py` and `CITATION.cff`, and
+the test suite checks all three agree. It caught this release halfway through, when two of the three
+had been updated.
+
 ## 0.14.0 — 2026-08-02
 
 One breaking change, and it is a correctness fix: `feature_vector` now requires `kind` and `unit`

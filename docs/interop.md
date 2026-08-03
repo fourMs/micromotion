@@ -49,10 +49,14 @@ other and the body tracks neither, the null is about the body rather than about 
     MGT's repository version matches its PyPI release, so they remain unreleased and invisible
     to anyone reading only PyPI.
 
-    MGT's unreleased `main` branch contains `band_limited_qom`, `accel_to_speed`,
-    `read_qtm_tsv`, `cop_sway_metrics` and `respiration_rate`, credited in their docstrings to
-    the same source study as this package. They are not in the released 1.6.9, so they are
-    invisible if you look only at PyPI.
+    MGT contains `band_limited_qom`, `accel_to_speed`, `read_qtm_tsv`, `cop_sway_metrics` and
+    `respiration_rate`, credited in their docstrings to the same source study as this package.
+
+    Updated 2026-08-03: these ARE now released. MGT-python 1.7.0 went to PyPI on that date, so the
+    note that used to stand here -- that they existed only on an unreleased branch and were
+    invisible to anyone reading PyPI -- no longer holds. The overlap is now a published overlap
+    between two published packages, which makes the disagreement below more important rather than
+    less.
 
     The two implementations do not agree. On the same 200 Hz optical recording:
 
