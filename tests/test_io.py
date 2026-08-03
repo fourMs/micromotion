@@ -22,17 +22,19 @@ def test_read_phone_asymmetric_trim(tmp_path):
     p = tmp_path / "clap.tsv"
     df.to_csv(p, sep="\t", index=False)
 
-    full = mm.read_phone(str(p))
+    # channel="fused": this fixture carries only ax/ay/az, and since 0.15.0 the default is the
+    # accelerometer. The test is about asymmetric trimming, not about which channel is read.
+    full = mm.read_phone(str(p), channel="fused")
     assert np.nanmax(full.data) > 9                      # clap present
 
-    sym = mm.read_phone(str(p), trim_clap_s=35)
-    asym = mm.read_phone(str(p), trim_start_s=35, trim_end_s=0)
+    sym = mm.read_phone(str(p), channel="fused", trim_clap_s=35)
+    asym = mm.read_phone(str(p), channel="fused", trim_start_s=35, trim_end_s=0)
     assert np.nanmax(sym.data) < 1 and np.nanmax(asym.data) < 1     # clap gone from both
     assert len(asym.data) > len(sym.data)                            # but the tail is kept
     assert asym.meta["trimmed_start_s"] == 35 and asym.meta["trimmed_end_s"] == 0
 
     with pytest.raises(ValueError, match="leaves nothing"):
-        mm.read_phone(str(p), trim_start_s=60, trim_end_s=60)
+        mm.read_phone(str(p), channel="fused", trim_start_s=60, trim_end_s=60)
 
 
 def test_no_edition_is_y_up_any_more():
@@ -137,3 +139,67 @@ def test_physics_toolbox_header_on_line_1_or_line_2(tmp_path):
         assert len(d) == 2
         assert d["gFy"].iloc[0] == pytest.approx(-0.5612)   # Unicode minus survived
     assert a.equals(b)
+
+
+def _phone_tsv(tmp_path):
+    """A file whose two accelerations differ, and whose channels advance at different rates."""
+    import numpy as np
+    import pandas as pd
+    n = 600
+    t = np.arange(n) / 100.0
+    # gF* updates every 2nd row (50 Hz), ax/ay/az every 5th (20 Hz): a zero-order hold, which is
+    # what Physics Toolbox writes when several sensors share one file.
+    g = np.repeat(1.0 + 0.01 * np.sin(2 * np.pi * 1.0 * t[::2]), 2)[:n]
+    a = np.repeat(0.05 * np.sin(2 * np.pi * 1.0 * t[::5]), 5)[:n]
+    df = pd.DataFrame({"time": t,
+                       "gFx": g, "gFy": np.zeros(n), "gFz": np.zeros(n),
+                       "ax": a, "ay": np.zeros(n), "az": np.zeros(n),
+                       "wx": np.zeros(n), "wy": np.zeros(n), "wz": np.zeros(n)})
+    p = tmp_path / "phone.tsv"
+    df.to_csv(p, sep="\t", index=False)
+    return str(p)
+
+
+def test_read_phone_defaults_to_the_accelerometer(tmp_path):
+    """The default changed in 0.15.0 and the whole point is that it is gF*, in m/s^2."""
+    import numpy as np
+    p = _phone_tsv(tmp_path)
+    rec = mm.read_phone(p)
+    assert rec.meta["channel"] == "accel"
+    assert rec.channels == ["gFx", "gFy", "gFz"]
+    assert rec.unit == "m/s^2"
+    # gF* is in g in the file and must come back converted, so its magnitude sits near 9.8.
+    assert 9.0 < float(np.nanmean(np.abs(rec.data[:, 0]))) < 10.5
+
+
+def test_read_phone_fused_is_opt_in_and_unconverted(tmp_path):
+    import numpy as np
+    p = _phone_tsv(tmp_path)
+    rec = mm.read_phone(p, channel="fused")
+    assert rec.channels == ["ax", "ay", "az"]
+    # ax is already m/s^2 and must NOT be multiplied by g a second time.
+    assert float(np.nanmax(np.abs(rec.data[:, 0]))) < 0.2
+
+
+def test_read_phone_reports_each_channels_own_rate(tmp_path):
+    """The row rate is 100 Hz and belongs to no sensor in the file."""
+    p = _phone_tsv(tmp_path)
+    rates = mm.read_phone(p).meta["channel_rates"]
+    assert 45 < rates["accel"] < 55, rates
+    assert 15 < rates["fused"] < 25, rates
+
+
+def test_read_phone_rejects_an_unknown_channel(tmp_path):
+    import pytest
+    with pytest.raises(ValueError, match="accel"):
+        mm.read_phone(_phone_tsv(tmp_path), channel="raw")
+
+
+def test_channel_rate_survives_bursts_and_repeats():
+    """A burst-written channel: the median interval lies, the change count does not."""
+    import numpy as np
+    # 10 updates a second, each written as two rows 1 ms apart
+    t = np.sort(np.concatenate([np.arange(0, 10, 0.1), np.arange(0, 10, 0.1) + 0.001]))
+    x = np.repeat(np.arange(100, dtype=float), 2)
+    assert 9.0 < mm.channel_rate(t, x) < 11.0
+    assert 1.0 / np.median(np.diff(t)) > 100        # the estimator this replaces

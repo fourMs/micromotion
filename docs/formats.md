@@ -122,13 +122,29 @@ decides whether it survives, so a file can look nine-tenths intact and be system
 
 ### Columns, and which acceleration to use
 
-`ax`/`ay`/`az` are linear acceleration in m/s², gravity removed by sensor fusion. `gFx`/`gFy`/`gFz`
-are total g-force in g, including gravity, with magnitude 1.0 on a phone at rest.
+`gFx`/`gFy`/`gFz` are the accelerometer: total specific force in g, gravity included, magnitude
+1.0 on a phone at rest. `ax`/`ay`/`az` are linear acceleration in m/s², gravity removed by fusing
+the accelerometer with the gyroscope and magnetometer.
 
-Use `a*`. Substituting `gF*` does not fail, it inflates band-limited motion roughly 4000-fold,
-because a slowly rotating gravity vector has ample 0.2–5 Hz content that no band-pass will remove.
-Reading `a*` as if it were g inflates every quantity of motion by 9.80665, which is a clean
-constant factor, so rankings and correlations survive it and nothing looks wrong.
+Use `gF*`, converted to m/s² — this is what `read_phone` returns by default from 0.15.0, and the
+default changed because the old one was wrong for this package's own measure. A fusion cannot
+output faster than its slowest input, so `a*` advances at the gyroscope's rate, about 15 Hz, and in
+a 0.2–5 Hz band most of what it carries is its own noise floor rather than the body. At standstill
+amplitudes the body is below that floor, and the floor differs between handsets — so two phones
+recording the same stillness disagree by a factor that looks like a device calibration difference
+and is not. Measured: an S21 and an S23 differed by 2.29× on the fused channel and by 0.855× on the
+accelerometer, pointing the other way.
+
+Two traps remain either side of that choice. Reading `a*` as if it were g inflates every quantity
+of motion by 9.80665, a clean constant, so rankings and correlations survive it and nothing looks
+wrong. Reading `gF*` **without** removing gravity inflates band-limited motion roughly 4000-fold,
+because a slowly rotating gravity vector has ample 0.2–5 Hz content that no band-pass removes;
+high-pass or detrend each axis first, which `qom` and `accel_to_speed` do.
+
+The fusion's tilt correction is the one real argument for `a*`, and it is worth measuring rather
+than assuming. Reconstructed from a gyroscope on one chest recording, tilt accounted for 6 % of the
+accelerometer's band-limited content, and removing it did not move that channel toward the fused
+one.
 
 Column availability varies by handset: the Galaxy A52s writes no `p` (pressure) column, so joining
 logs by column position rather than by name misaligns every channel after `wz`.

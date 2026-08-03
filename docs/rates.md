@@ -2,6 +2,31 @@
 
 Two rules, both learned by getting them wrong.
 
+## The file's rate is not the sensor's rate
+
+```python
+mm.channel_rate(t, x)             # how often one channel actually advances
+mm.read_phone(p).meta["channel_rates"]
+```
+
+A multi-sensor log is usually an interleaved union of streams that update at different rates, so the
+spacing of its rows belongs to no instrument. On one Physics Toolbox file the rows arrive at about
+426 Hz while the accelerometer updates at 51 Hz and the fused channel at 15 Hz. `measured_rate` on
+the time column answers a question about the file; `channel_rate` answers the one about the sensor.
+
+Getting this wrong is quiet. A 100 Hz resampling grid and a 12.5 Hz decimation were both quoted as
+sampling rates in the project this package was written for, and the second cost about 10 % of a
+0.2–5 Hz quantity of motion across 365 recordings, because a 5 Hz ceiling sits at 0.8 of Nyquist at
+12.5 Hz and the anti-alias filter's roll-off reaches into the band.
+
+`channel_rate` counts value changes over the elapsed span. The tempting alternative — the reciprocal
+of the median interval between changes — fails where updates arrive in bursts, returning the
+within-burst spacing: 680 Hz on a channel that advances 51 times a second.
+
+Rates are not stable across a long study either. Over one year of daily recordings from the same
+phone, the accelerometer's own rate has a median of 50.7 Hz but sits near 15 Hz on 36 days and near
+455 Hz on one, because the app was not always configured the same way. Measure per recording.
+
 ## Measure the rate, do not read it
 
 ```python

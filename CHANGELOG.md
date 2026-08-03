@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.15.0 — 2026-08-03
+
+One breaking change, and it is a correctness fix: `read_phone` now returns the accelerometer by
+default instead of the fused channel.
+
+### Changed, and it will change every number a caller gets from a phone file
+
+`read_phone(path)` reads `gFx/gFy/gFz` — the accelerometer, converted from g to m/s^2 — where it
+previously read `ax/ay/az`. Pass `channel="fused"` for the old behaviour. The unit is m/s^2 either
+way, so a caller that does not look will get plausible numbers from the wrong sensor, which is
+exactly what happened in the project this package was written for.
+
+Why the default is worth breaking. `ax/ay/az` is not the accelerometer: it is a fusion of
+accelerometer, gyroscope and magnetometer, and a fusion cannot output faster than its slowest input,
+so it advances at the gyroscope's rate — about 15 Hz on the handsets tested. In a 0.2-5 Hz band most
+of what it carries is therefore its own noise floor rather than the body, and at standstill
+amplitudes the body sits below that floor. The floor differs between handsets. Three consequences,
+all found in deposited data and all now corrected:
+
+* Two Samsung phones recording the same stillness differed by a factor of 2.29, which looked like a
+  device calibration difference and was not. On the accelerometer the difference is 0.855, pointing
+  the other way, and confounded with the period each phone covered.
+* A chest sensor read 1.65 mm/s against an accelerometer value of 6.74, making a head sensor look
+  4.6 times more active than the chest when the true ratio is 1.12.
+* A device comparison in a pilot dataset gave an S21:S23 ratio of 1.52; on the accelerometer, from
+  the same recordings and the same band, it is 1.11.
+
+A file carrying only one of the two channels now raises rather than silently reading whichever it
+has, and the error names the other channel and how to ask for it.
+
+### Added
+
+`channel_rate(t, x)` — how often a channel actually advances, as opposed to how often the file has
+a row for it. A multi-sensor log is an interleaved union of streams: on one Physics Toolbox file the
+rows arrive at about 426 Hz while the accelerometer updates at 51 Hz and the fused channel at 15 Hz.
+Taking the row rate for the sensor rate is how a 100 Hz resampling grid and a 12.5 Hz decimation both
+came to be quoted as sampling rates. Counted as value changes over the elapsed span, which is robust
+to repeated values and to dropouts; the obvious alternative, the reciprocal of the median interval
+between changes, returns 680 Hz on that same file because its updates arrive in bursts.
+
+`read_phone` now reports `meta["channel"]` and `meta["channel_rates"]`, the latter giving each
+sensor's own rate, and `meta["extra"]` carries whichever acceleration channel was not selected.
+
 ## 0.14.1 — 2026-08-03
 
 Documentation only; no behaviour change.

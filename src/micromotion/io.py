@@ -18,6 +18,7 @@ import re
 import numpy as np
 import pandas as pd
 
+from .qom import G
 from .record import MotionRecord
 from .resample import measured_rate
 
@@ -233,7 +234,34 @@ def _read_physics_toolbox_raw(path: str) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
+def channel_rate(t: np.ndarray, x: np.ndarray) -> float:
+    """How often a channel actually advances, not how often the file has a row for it.
+
+    A multi-sensor log is usually an interleaved union of streams that update at different
+    rates, so the spacing of its rows belongs to no instrument. On one Physics Toolbox file the
+    rows arrive at about 426 Hz while the accelerometer updates at 51 Hz and the fused channel
+    at 15 Hz. Taking the row rate as the sensor rate is how a 100 Hz resampling grid and a
+    12.5 Hz decimation both came to be quoted as sampling rates in this project.
+
+    Counted as value changes over the elapsed span, which is robust to a channel repeating a
+    value and to occasional dropouts. The tempting alternative, ``1 / median(diff(t))`` at the
+    change points, is not: where updates arrive in bursts it returns the within-burst spacing,
+    which on that same file gives 680 Hz.
+
+    ``x`` may be one channel or an (n, k) block; the first column is used.
+    """
+    x = np.asarray(x, float)
+    if x.ndim > 1:
+        x = x[:, 0]
+    t = np.asarray(t, float)
+    if len(t) < 2 or t[-1] <= t[0]:
+        raise ValueError("need at least two samples spanning a positive duration")
+    changed = np.r_[True, np.diff(x) != 0]
+    return float(changed.sum() / (t[-1] - t[0]))
+
+
 def read_phone(path: str, trim_clap_s: float = 0.0, *,
+               channel: str = "accel",
                trim_start_s: float | None = None,
                trim_end_s: float | None = None) -> MotionRecord:
     """Physics Toolbox phone log, raw app export or cleaned tab-separated form.
@@ -243,12 +271,37 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
     See ``_read_physics_toolbox_raw`` for what the raw format does that plain CSV readers
     get wrong.
 
-    ``ax``/``ay``/``az`` are linear acceleration in m/s^2, gravity removed by sensor fusion.
-    They are not in g, whatever an older version of the data dictionary said; reading them as
-    g inflates every quantity of motion by 9.80665. Only
-    ``gF*`` is in g, and it is total g-force *including* gravity — its magnitude sits at 1.0
-    on a phone at rest, so substituting it for ``a*`` inflates band-limited motion by a factor
-    of thousands rather than failing.
+    **Which channel, and why the default changed in 0.15.0.** A Physics Toolbox log carries two
+    accelerations and they are not interchangeable.
+
+    ``channel="accel"`` (the default) reads ``gFx``/``gFy``/``gFz``: the accelerometer itself,
+    total specific force *including* gravity, written in g and converted to m/s^2 here. Its
+    magnitude sits at about 1 g on a phone at rest. It updates at the accelerometer's own rate,
+    commonly 50 Hz but anywhere from 15 to 455 Hz depending on how the app was configured.
+
+    ``channel="fused"`` reads ``ax``/``ay``/``az``: linear acceleration, already in m/s^2, with
+    gravity removed by fusing the accelerometer with the gyroscope and magnetometer. They are
+    not in g, whatever an older data dictionary said; reading them as g inflates every quantity
+    of motion by 9.80665.
+
+    Use ``accel`` for anything about how much something moved. The fusion cannot output faster
+    than its slowest input, so it advances at the gyroscope's rate — about 15 Hz — and in a
+    0.2-5 Hz band most of what it carries is its own noise floor rather than the body. At
+    standstill amplitudes the body sits below that floor, and the floor differs between
+    handsets, so two phones recording the same stillness disagree by a factor that looks like a
+    device calibration difference and is not. That is why this default changed: on one session
+    the fused channel put a chest sensor at 1.65 mm/s against the accelerometer's 6.74, and made
+    a head sensor look 4.6 times more active than the chest when the true ratio is 1.12.
+
+    Use ``fused`` when you want the fusion's tilt correction and can accept the ceiling. Tilt is
+    real — rotating a sensor swings gravity across its axes and no high-pass can remove that —
+    but measure it before assuming it dominates: reconstructed from a gyroscope on one chest
+    recording it accounted for 6 per cent of the accelerometer's band-limited content, and
+    removing it did not move that channel toward the fused one.
+
+    Whichever you choose, the other is in ``meta["extra"]`` and both are in the same unit, m/s^2.
+    ``meta["channel_rates"]`` gives each sensor's own rate, which is not the rate of the file's
+    rows: an interleaved log's row spacing belongs to no instrument. See ``channel_rate``.
 
     **The rate is neither constant nor the nominal one.** Physics Toolbox delivers whatever the
     Android sensor stack gives it, so a log requested at 100 Hz arrives between roughly 100 and
@@ -284,8 +337,29 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
         if not m.any():
             raise ValueError(f"trimming {head_s} s from the start and {tail_s} s from the end "
                              f"leaves nothing of a {t[-1] - t[0]:.1f} s recording")
-    cols = [c for c in ("ax", "ay", "az") if c in df.columns]
+    # Which channel. Before 0.15.0 this was always the fused ax/ay/az, silently, and that is the
+    # wrong default for this package's own measure: the fusion cannot output faster than its
+    # slowest input, so it advances at the gyroscope's ~15 Hz and most of a 0.2-5 Hz band is its
+    # noise floor rather than the body. At standstill amplitudes the body is below that floor,
+    # and the floor differs between handsets, which is how a phantom device factor and a phantom
+    # fourfold head-over-chest gradient both arose in the Oslo Standstill Database.
+    if channel not in ("accel", "fused"):
+        raise ValueError(f"channel must be 'accel' or 'fused', not {channel!r}")
+    want = ("gFx", "gFy", "gFz") if channel == "accel" else ("ax", "ay", "az")
+    cols = [c for c in want if c in df.columns]
+    if len(cols) != 3:
+        other = ("ax", "ay", "az") if channel == "accel" else ("gFx", "gFy", "gFz")
+        have = [c for c in other if c in df.columns]
+        raise ValueError(
+            f"{path} carries no complete {channel} channel (wanted {want}, found {cols or 'none'})."
+            + (f" It does carry {have}; pass channel="
+               f"{'\'fused\'' if channel == 'accel' else '\'accel\''} to read that instead,"
+               " but see the docstring first: the two are not interchangeable." if have else ""))
     data = df[cols].to_numpy(float)[m]
+    # gF* is total specific force in g, including gravity. Convert to m/s^2 so that both channels
+    # leave this function in the same unit and a caller cannot mix them by accident.
+    if channel == "accel":
+        data = data * G
 
     # Missing samples are written as exact zeros, not NaN. Every file opens with a few.
     zero_rows = np.all(data == 0.0, axis=1)
@@ -325,8 +399,16 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
               "gaps": gaps,
               "segments": segments,
               "longest_continuous_s": float(longest),
+              "channel": channel,
+              # What each sensor's rate actually is, as opposed to the file's row rate. A caller
+              # comparing two recordings should check these agree before comparing the numbers.
+              "channel_rates": {name: channel_rate(tm, df[c].to_numpy(float)[m])
+                                for name, c in (("accel", "gFx"), ("fused", "ax"),
+                                                ("gyro", "wx"), ("magnetometer", "Bx"))
+                                if c in df.columns},
               "extra": {c: df[c].to_numpy(float)[m] for c in df.columns
-                        if c in ("wx", "wy", "wz", "gFx", "gFy", "gFz")}},
+                        if c in ("wx", "wy", "wz", "gFx", "gFy", "gFz", "ax", "ay", "az")
+                        and c not in cols}},
     )
 
 
