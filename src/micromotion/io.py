@@ -350,11 +350,16 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
     if len(cols) != 3:
         other = ("ax", "ay", "az") if channel == "accel" else ("gFx", "gFy", "gFz")
         have = [c for c in other if c in df.columns]
-        raise ValueError(
-            f"{path} carries no complete {channel} channel (wanted {want}, found {cols or 'none'})."
-            + (f" It does carry {have}; pass channel="
-               f"{'\'fused\'' if channel == 'accel' else '\'accel\''} to read that instead,"
-               " but see the docstring first: the two are not interchangeable." if have else ""))
+        # Built without a backslash inside an f-string expression: that is a SyntaxError on
+        # Python 3.10 and 3.11, which this package supports, and PEP 701 only relaxed it in 3.12.
+        # It passed local tests on 3.12 and was caught by CI on the older interpreters.
+        alt = "fused" if channel == "accel" else "accel"
+        msg = (f"{path} carries no complete {channel} channel "
+               f"(wanted {want}, found {cols or 'none'}).")
+        if have:
+            msg += (f" It does carry {have}; pass channel={alt!r} to read that instead, but see "
+                    f"the docstring first: the two are not interchangeable.")
+        raise ValueError(msg)
     data = df[cols].to_numpy(float)[m]
     # gF* is total specific force in g, including gravity. Convert to m/s^2 so that both channels
     # leave this function in the same unit and a caller cannot mix them by accident.
