@@ -22,7 +22,7 @@ import micromotion as mm
 
 rec  = mm.read("Standstill2017/mocap_data/A0001.tsv")   # dispatches on content, not extension
 head = rec.marker("P01")
-mm.qom(head, rec.fs, kind="position").mean_mm_s
+mm.qom(head, rec.fs, kind="position").median_mm_s   # the median is the convention; .mean_mm_s is also there
 ```
 
 ## Documentation
@@ -34,7 +34,7 @@ mm.qom(head, rec.fs, kind="position").mean_mm_s
 | [Changelog](CHANGELOG.md) | what changed, and why |
 
 New to it: [Getting started](https://fourms.github.io/micromotion/quickstart/), then
-[The two bands](https://fourms.github.io/micromotion/conventions/), which is the one convention
+[The three bands](https://fourms.github.io/micromotion/conventions/), which is the one convention
 you cannot skip.
 
 Reading files is its own subject, because the formats in this field lie about themselves:
