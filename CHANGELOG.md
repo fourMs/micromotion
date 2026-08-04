@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.15.1 — 2026-08-04
+
+Documentation only. No code changed, and no number this package returns moves.
+
+### Added: these definitions are duplicated inside archival records, and nothing keeps the copies in step
+
+`docs/conventions.md` now records a coupling that existed and was written down nowhere. Six
+deposited data records in the project this package was written for carry a hand-written copy of the
+band-pass, and some of them of the fourth-order derivative and the gap-bridging rule as well. That
+is deliberate — an archival record has to run for someone who has only that folder, so it may not
+import this package — and it makes a fork that nothing keeps in step.
+
+The failure is quiet from both sides. Change `BAND`, `ORDER`, `NYQUIST_MARGIN`, the interpolation
+limit or the derivative rule here, and those copies go on computing the old definition; each record
+checks itself against its own generator, so it stays internally consistent while drifting away from
+the corpus it belongs to. A change to any of those constants is therefore a change to seven places.
+
+Two conventions differ legitimately between those records and are now stated rather than assumed:
+some pass acceleration in g and some in m/s², and some integrate with the rectangle rule while
+others use the trapezoid. The two rules differ systematically by a fraction of a per cent, which is
+why `velocity_from_acceleration` takes `integrate` rather than choosing.
+
+### Added to the wiki
+
+Three traps and one recipe, all from the same reconciliation. A check that reads the first line of a
+file has not read the file, which is how internal paths shipped inside twenty-seven archival tables
+that an audit had passed every time. A lookup that matches nothing looks exactly like a lookup with
+nothing to find. A definition copied for good reasons is still a fork. And a recipe for comparing a
+copy against this package numerically, including the three things that hide a real difference:
+constants that are inert at the rate you test, a unit you assumed rather than found, and a
+quadrature rule that should be reported rather than enforced.
+
+### Fixed
+
+`CITATION.cff` carried the release date of 0.14.x against the version number of 0.15.0. It is a
+one-line file that has now drifted twice, most recently in 0.12.4, which was a release made to fix
+exactly this.
+
 ## 0.15.0 — 2026-08-03
 
 One breaking change, and it is a correctness fix: `read_phone` now returns the accelerometer by

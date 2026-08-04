@@ -238,3 +238,26 @@ The legacy low-pass cannot be computed at 20 Hz. Its 10 Hz cutoff is Nyquist the
 filter has no transition band left. Compute legacy values at the native rate. This also means
 any dataset natively recorded at 20 Hz has always had its legacy figures computed at the edge
 of what its rate supports.
+
+## These definitions are duplicated inside archival records
+
+Six deposited data records carry a hand-written copy of the band-pass, and some of them of the
+fourth-order derivative and the gap-bridging rule as well. That is deliberate: an archival record
+has to run for someone who has only that folder, so it may not import this package, and the
+definition is written out in numpy and scipy inside the record instead.
+
+The consequence is a fork that nothing keeps in step. Changing `BAND`, `ORDER`, `NYQUIST_MARGIN`,
+the interpolation limit or the derivative rule here does not change those copies, and nothing fails:
+each record's own check imports its own generator, so the record stays internally consistent while
+drifting away from the corpus it belongs to. It is the same shape as a test holding its own copy of
+a constant, and it is invisible from either side alone.
+
+So a change to any of those constants is a change to seven places, not one. The deposit tree carries
+`deposited_vs_toolbox.py`, which runs both implementations on the same synthetic signals and reports
+the worst disagreement; run it after touching `filters`, `qom` or `resample`.
+
+Two conventions differ legitimately between records and the check reports which each uses rather
+than enforcing one. Some pass acceleration in g and some in m/s², and some integrate with the
+rectangle rule while others use the trapezoid. The two quadrature rules differ by a fraction of a
+per cent — systematic rather than noise — which is why `velocity_from_acceleration` takes
+`integrate` rather than choosing for you.
