@@ -92,10 +92,30 @@ and magnetometer to remove gravity, and a fusion runs no faster than its slowest
 is the 15 Hz gyroscope. So the constraint is the channel, not the sensor, and a pipeline built on
 the raw accelerometer channel would have roughly three times the bandwidth.
 
-**What the ceiling costs.** Band-limited speed barely notices, since 5 Hz against 10 is within
-2.3 per cent on every collection, and 95 per cent of quiet-standing sway power lies below 1 Hz
-anyway. On a 199-recording optical collection the change moves the median 0.8 per cent and
-leaves the ranking at Spearman 0.996.
+**What the ceiling costs.** Measured on 2026-08-04 over 466 person-recordings from seven
+collections, computing both bands from the same array so that only the band differs. The typical
+recording barely notices — the median difference is 1.3 per cent, and 95 per cent of quiet-standing
+sway power lies below 1 Hz anyway — but this is a distribution, not a bound, and it has a tail:
+
+| collection | median | 90th percentile | maximum |
+|---|---|---|---|
+| Championships (optical, 100–200 Hz) | 2.83 % | 5.66 % | 9.07 % |
+| Taqasim | 1.66 % | 2.67 % | 4.16 % |
+| Stillness2025 | 1.11 % | 1.70 % | 2.29 % |
+| HpSp | 1.10 % | 3.05 % | 5.32 % |
+| Sverm | 0.98 % | 2.93 % | 7.03 % |
+| StillStanding365 | 0.61 % | 1.79 % | 2.38 % |
+| all | 1.28 % | 3.24 % | 9.07 % |
+
+This page previously said "within 2.3 per cent on every collection". That was not a bound: 19 per
+cent of recordings exceed it and the largest exceeds it fourfold. It fits worst exactly where the
+ceiling matters most — on the optical championships the *median* is above the old figure and 50 of
+80 sampled recordings exceed it — because markers sampled at 100 to 200 Hz genuinely resolve the
+octave between 5 and 10 Hz, while a chest accelerometer that never delivered that octave loses
+nothing by giving it up.
+
+Rankings survive this: it is a small and fairly uniform shrinkage rather than a reordering. Quoted
+levels do not. A figure computed before 2026-07-31 can be out by up to about nine per cent, not two.
 
 **What it costs that matters.** Jerk is two derivatives higher and lives in the octave being
 given up: at 5 Hz it is 37 to 66 per cent of its 10 Hz value, and the ranking shifts as well.

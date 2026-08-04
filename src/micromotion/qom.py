@@ -10,7 +10,15 @@ code. Any figure or paper should be able to say which variant produced its numbe
 Definition
 ----------
 Band-limit each axis to 0.2-5 Hz, bring it to velocity, band-limit again, take the
-Euclidean norm across axes, and report the mean in mm/s.
+Euclidean norm across axes, and report the MEDIAN in mm/s.
+
+The statistic is part of the definition, not a presentation choice, and this docstring said
+"mean" until 2026-08-04 while ``docs/conventions.md`` said median. The two are not close: on
+accelerometer data the mean-to-median speed ratio is about 2, and one corpus record carries a
+deposited mean of 12.79 mm/s beside a report quoting 11.12 for the same recordings at the same
+band, the whole difference being this choice with neither document saying which it had made.
+``speed_from_position`` and ``speed_from_acceleration`` return the speed SERIES and take no
+statistic, so the caller decides. Decide explicitly, and say which one a published figure used.
 
 Acceleration is brought to velocity by integration, position by differentiation. The second
 band-limiting is not cosmetic. Integrating a signal with any residual offset produces a

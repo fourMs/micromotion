@@ -48,7 +48,7 @@ refused a few comparisons that look reasonable and are not.
 |---|---|
 | compute a quantity of motion | [Getting started](quickstart.md) |
 | understand a method, or cite it | [Methods](methods.md) |
-| know which filter convention to use | [The two bands](conventions.md) |
+| know which filter convention to use | [The three bands](conventions.md) |
 | compare across datasets or devices | [Sampling rates](rates.md) |
 | load a file | [Reading files](formats.md) |
 | check data before trusting it | [Validating data](validation.md) |
