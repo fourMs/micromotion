@@ -698,7 +698,10 @@ def group_qom(points, fs, lo=filters.BAND[0], hi=filters.BAND[1], normalize="vis
        correlation falls to near zero.
 
        Pass ``normalize="worn"`` to reproduce a figure published before 1.0.
-       That path is bit-for-bit the old computation.
+       That path performs the old computation unchanged; it is bit-for-bit
+       identical on one machine and agrees to about 1 part in 10^7 across
+       platforms, since ``filtfilt`` is not bit-reproducible between scipy
+       builds.
 
     Args:
         points (np.ndarray): Trajectories of shape (N, M, D): N frames, M

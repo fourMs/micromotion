@@ -318,7 +318,15 @@ def test_docstrings_do_not_state_a_band_the_code_does_not_use():
 
 
 # The value 0.15.2 returned for _occluded_group(seed=5); the escape hatch is pinned to it.
+# The tolerance is relative and loose enough for filter arithmetic to differ between platforms:
+# this same value came out 1.3e-7 lower on one CI runner and 1.3e-8 higher on another, because
+# `filtfilt` is not bit-reproducible across scipy builds. A first version pinned it to 1e-9
+# absolute and failed on all four Pythons while passing locally, which is a test pinned to a
+# machine rather than to a claim. What is being asserted is that the escape hatch still performs
+# the old computation, and 1 part in 10^6 says that far more tightly than the 16 per cent bias it
+# exists to distinguish itself from.
 PRE_1_0_WORN = 76.40629424709411
+PRE_1_0_RTOL = 1e-6
 
 
 def _occluded_group(fs=100.0, n=12000, nm=12, seed=5):
@@ -384,13 +392,14 @@ def test_group_qom_visible_survives_decimation():
 def test_group_qom_worn_reproduces_the_pre_1_0_number():
     """`normalize="worn"` is the escape hatch for published figures, so pin it to a value.
 
-    Computed with the 0.15.2 implementation on this exact input.
+    Computed with the 0.15.2 implementation on this exact input, compared with a relative
+    tolerance because `filtfilt` is not bit-reproducible across scipy builds.
     """
     import micromotion as mm
 
     _, occ = _occluded_group(seed=5)
     worn, _, _ = mm.group_qom(occ, 100.0, normalize="worn")
-    assert abs(worn - PRE_1_0_WORN) < 1e-9, f"{worn} != {PRE_1_0_WORN}"
+    assert abs(worn - PRE_1_0_WORN) / PRE_1_0_WORN < PRE_1_0_RTOL, f"{worn} != {PRE_1_0_WORN}"
 
 
 def test_group_qom_rejects_an_unknown_normalisation():

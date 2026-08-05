@@ -19,8 +19,10 @@ the unoccluded truth and the correlation falls to near zero. It works through de
 matters because the default band decimates any recording at 200 Hz or above, and a presence mask
 left at the input rate would mask the wrong frames.
 
-`normalize="worn"` reproduces the pre-1.0 computation and is bit-for-bit identical to it, checked
-across twelve random cases at four sampling rates with and without occlusion. Use it to reproduce a
+`normalize="worn"` performs the pre-1.0 computation unchanged. It is bit-for-bit identical on one
+machine, across twelve random cases at four sampling rates with and without occlusion, and agrees to
+about 1 part in 10^7 across platforms, because `filtfilt` is not bit-reproducible between scipy
+builds. That is filter arithmetic rather than a difference in method. Use it to reproduce a
 published figure, and say which you used.
 
 A guard band around each gap was tried and rejected: widening the mask by 10, 25 or 50 samples
