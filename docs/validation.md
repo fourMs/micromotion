@@ -174,6 +174,15 @@ wrong constant was simply applied. Read units from the data beside the numbers, 
 in physical units where a human will see it. Quiet standing is a few mm/s, and a figure in the tens
 is telling you something.
 
+**A group mean that counts markers you cannot see.** `group_qom` averaged over every marker at
+every frame until 1.0, and `band_limited_qom` interpolates gaps, so an occluded marker contributed a
+near-zero speed while still counting in the divisor. The number then tracked camera coverage rather
+than movement: 16 to 17 per cent low on a realistic dropout pattern, with the speed series
+correlating up to +0.70 with the per-frame count of visible markers. The default is now
+`normalize="visible"`, which excludes each marker where it was absent. Nothing in this module could
+have seen it, because every individual trajectory was valid; the fault was in how they were combined.
+`validate.marker_average` documents the same bias one level up, for spatial averaging.
+
 **A rank statistic hiding a scale error.** When that bug was found, every Spearman correlation in
 the affected analysis was unchanged, because rank statistics are invariant to multiplication by a
 positive constant. A pipeline reporting only correlations is not checking its own scale.

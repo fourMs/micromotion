@@ -92,6 +92,11 @@ def marker_average(markers, where: str = "", max_gap_fraction: float = 0.5) -> l
 
     Pass a mapping of name to (n, 3) array. Repair each marker with
     :func:`micromotion.validate.zero_triplets` and NaN before averaging, then use ``nanmean``.
+    
+
+    The same bias appears one level up in :func:`micromotion.qom.group_qom`, which
+    averaged over markers that were not visible until 1.0. If you are averaging
+    positions here, check how you are averaging speeds there.
     """
     findings: list[Finding] = []
     if not markers:

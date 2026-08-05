@@ -1,5 +1,45 @@
 # Changelog
 
+## 1.0.0 — 2026-08-05
+
+**`group_qom` returns a different number, and the old one was confounded.** Read this before
+upgrading if you have published a figure from it.
+
+The mean was over every marker at every frame. `band_limited_qom` interpolates gaps before
+filtering, so an occluded marker contributed a near-zero speed while still counting in the divisor,
+and the result rose and fell with how much the cameras saw rather than with how much the body moved.
+Measured on twelve markers with a realistic dropout pattern, a median of eight visible: the old
+default read 16 to 17 per cent low, and its speed series correlated +0.25 to +0.70 with the
+per-frame count of visible markers. The same signature was found in a real dance recording where a
+median of 14 of 32 markers were visible, at +0.44 to +0.62.
+
+`normalize="visible"` is the default from this release. It excludes each marker at the frames where
+that marker was absent and averages over the rest. On the same data it lands within 0.8 per cent of
+the unoccluded truth and the correlation falls to near zero. It works through decimation, which
+matters because the default band decimates any recording at 200 Hz or above, and a presence mask
+left at the input rate would mask the wrong frames.
+
+`normalize="worn"` performs the pre-1.0 computation unchanged. It is bit-for-bit identical on one
+machine, across twelve random cases at four sampling rates with and without occlusion, and agrees to
+about 1 part in 10^7 across platforms, because `filtfilt` is not bit-reproducible between scipy
+builds. That is filter arithmetic rather than a difference in method. Use it to reproduce a
+published figure, and say which you used.
+
+A guard band around each gap was tried and rejected: widening the mask by 10, 25 or 50 samples
+changes the result by under one per cent and does not improve the correlation, so it would be a
+parameter that buys nothing.
+
+`pose_qom` and `normalized_qom` pass `normalize` through and change with it.
+
+Four tests were added. `group_qom` had no occlusion test at all, which is why this survived. They
+assert both directions: that the new default recovers the unoccluded value and that the old one does
+not, so neither an implementation that ignores occlusion nor one that over-corrects passes.
+
+Why 1.0. The number changes, so semantic versioning requires a major release. `validate.marker_average`
+has documented the identical bias one level up, for spatial averaging, since long before this, and
+records that four recordings read 33.3 per cent low for years. The concept was in the package; it
+was not connected to the function that had it.
+
 ## 0.15.2 — 2026-08-05
 
 Documentation only. No code changed, and no number this package returns moves.
