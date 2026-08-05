@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "micromotion"
-version = "0.15.1"
+version = "0.15.2"
 description = "Micromotion analysis of motion time series: mocap, IMU and force plate"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -45,4 +45,7 @@ Issues = "https://github.com/fourMs/micromotion/issues"
 packages = ["src/micromotion"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# `--doctest-modules` alone collects nothing here, because `testpaths` scopes the run and the
+# doctests live in `src`. Both paths have to be named or the setting is decoration.
+addopts = "--doctest-modules"
+testpaths = ["tests", "src/micromotion"]

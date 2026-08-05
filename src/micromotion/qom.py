@@ -493,8 +493,10 @@ def band_limited_qom(pos, fs, lo=filters.BAND[0], hi=filters.BAND[1], order=4, a
 
        Defaults follow ``filters.BAND``, like everything else in the package,
        so a number cannot be quoted from a second band by accident.
-       :func:`pose_qom` overrides the upper edge because image-space landmark
-       jitter dominates above about 5 Hz.
+       :func:`pose_qom` pins its upper edge at 5 Hz because image-space
+       landmark jitter dominates above that. Since the band became 0.2-5 Hz
+       the two coincide, so that pin currently changes nothing; it is kept
+       because it is a statement about pose data rather than about the band.
 
        **Use** :func:`speed_from_position` **for new work**, which band-limits
        again after differentiating; this one does not, and reads high as a
@@ -529,7 +531,7 @@ def band_limited_qom(pos, fs, lo=filters.BAND[0], hi=filters.BAND[1], order=4, a
         fs (float): Sampling rate of the trajectory (Hz).
         lo (float, optional): Lower band edge (Hz). Defaults to ``filters.BAND[0]`` (0.2 Hz).
         hi (float, optional): Upper band edge (Hz), clipped to 0.9 x Nyquist.
-            Defaults to 15.0.
+            Defaults to ``filters.BAND[1]`` (5.0 Hz).
         order (int, optional): Butterworth order of the direct band-pass.
             Defaults to 4.
         auto_decimate (bool, optional): Enable the decimate+SOS low-band regime.
@@ -656,7 +658,7 @@ def group_qom(points, fs, lo=filters.BAND[0], hi=filters.BAND[1], **kwargs):
             markers/landmarks, D spatial dimensions.
         fs (float): Sampling rate (Hz).
         lo (float, optional): Lower band edge (Hz). Defaults to ``filters.BAND[0]`` (0.2 Hz).
-        hi (float, optional): Upper band edge (Hz). Defaults to 15.0.
+        hi (float, optional): Upper band edge (Hz). Defaults to ``filters.BAND[1]`` (5.0 Hz).
         **kwargs: Passed on to `band_limited_qom`.
 
     Returns:

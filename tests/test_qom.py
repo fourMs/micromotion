@@ -277,6 +277,46 @@ def test_every_band_default_comes_from_filters_BAND():
             assert p["hi"].default == hi, f"{fn.__name__} hi={p['hi'].default} != {hi}"
 
 
+def test_docstrings_do_not_state_a_band_the_code_does_not_use():
+    """The prose must agree with the signature, not only the signature with BAND.
+
+    The test above checks that every default equals `filters.BAND`. It passed for five days while
+    two docstrings told the reader the upper edge defaulted to 15.0, which had been true before
+    2026-07-31 and was not after. Those strings render straight into the generated API page, so a
+    reader of the documentation got the old band from a package whose code used the new one.
+
+    This reads the docstring and compares what it claims against what the function actually does.
+    """
+    import inspect
+    import re
+    import micromotion as mm
+
+    checked = 0
+    for fn in (mm.band_limited_qom, mm.group_qom, mm.pose_qom, mm.normalized_qom,
+               mm.speed_from_position, mm.speed_from_acceleration):
+        doc = inspect.getdoc(fn) or ""
+        params = inspect.signature(fn).parameters
+        for edge in ("lo", "hi"):
+            if edge not in params:
+                continue
+            # "lo (float, optional): ... Defaults to <something>." up to the next parameter.
+            m = re.search(rf"^\s*{edge} \(.*?(?=^\s*\w+ \(|\Z)", doc, re.S | re.M)
+            if not m:
+                continue
+            claim = re.search(r"Defaults to ([^.\n]*(?:\.\d+)?)", m.group(0))
+            if not claim:
+                continue
+            text = claim.group(1)
+            numbers = [float(x) for x in re.findall(r"\d+\.\d+", text)]
+            if not numbers:
+                continue          # states the constant by name only, which cannot go stale
+            checked += 1
+            assert params[edge].default in numbers, (
+                f"{fn.__name__} {edge}: docstring says 'Defaults to {text}', "
+                f"signature says {params[edge].default}")
+    assert checked, "no docstring stated a band edge as a number; the test checked nothing"
+
+
 def test_low_rate_narrows_the_band_and_says_so():
     """A rate below twice the upper edge silently changes the measurement unless it warns.
 
