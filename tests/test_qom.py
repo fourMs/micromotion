@@ -317,6 +317,90 @@ def test_docstrings_do_not_state_a_band_the_code_does_not_use():
     assert checked, "no docstring stated a band edge as a number; the test checked nothing"
 
 
+# The value 0.15.2 returned for _occluded_group(seed=5); the escape hatch is pinned to it.
+PRE_1_0_WORN = 76.40629424709411
+
+
+def _occluded_group(fs=100.0, n=12000, nm=12, seed=5):
+    """A group of markers on a shared trajectory, with realistic short dropouts."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    t = np.arange(n) / fs
+    base = np.stack([np.sin(2 * np.pi * 0.8 * t), np.cos(2 * np.pi * 0.6 * t),
+                     0.3 * np.sin(2 * np.pi * 1.1 * t)], 1) * 20
+    clean = np.repeat(base[:, None, :], nm, axis=1) + rng.normal(0, 2, (n, nm, 3))
+    occ = clean.copy()
+    for m in range(nm):
+        i = 0
+        while i < n:
+            i += int(rng.exponential(0.9 * fs))
+            if i >= n:
+                break
+            gap = int(rng.exponential(0.45 * fs)) + 5
+            occ[i:i + gap, m, :] = np.nan
+            i += gap
+    return clean, occ
+
+
+def test_group_qom_default_is_not_confounded_by_occlusion():
+    """The 1.0 default must recover the unoccluded value; the old one must not.
+
+    Both halves matter. Asserting only that `visible` is close to the truth would pass on an
+    implementation that ignored occlusion entirely, so the test also pins that `worn` is
+    materially wrong on the same data. That is the behaviour this default was changed to escape.
+    """
+    import numpy as np
+    import micromotion as mm
+
+    clean, occ = _occluded_group()
+    truth, _, _ = mm.group_qom(clean, 100.0)
+    visible, series, fs_out = mm.group_qom(occ, 100.0)
+    worn, _, _ = mm.group_qom(occ, 100.0, normalize="worn")
+
+    assert abs(visible - truth) / truth < 0.03, (visible, truth)
+    assert (truth - worn) / truth > 0.08, f"worn={worn} truth={truth}: the old bias is gone?"
+
+    coverage = np.isfinite(occ[:, :, 0]).sum(1)[:len(series)]
+    ok = np.isfinite(series)
+    r = np.corrcoef(series[ok], coverage[:len(series)][ok])[0, 1]
+    assert abs(r) < 0.08, f"the default still tracks marker coverage, r={r}"
+
+
+def test_group_qom_visible_survives_decimation():
+    """At 200 Hz `band_limited_qom` decimates, so the presence mask must move with it.
+
+    A mask left at the input rate would be wrong by the decimation factor and would silently
+    mask the wrong frames, which is worse than not masking at all.
+    """
+    import micromotion as mm
+
+    clean, occ = _occluded_group(fs=200.0, n=24000, seed=9)
+    truth, _, _ = mm.group_qom(clean, 200.0)
+    visible, _, fs_out = mm.group_qom(occ, 200.0)
+    assert fs_out < 200.0, "expected decimation at 200 Hz; this test is no longer exercising it"
+    assert abs(visible - truth) / truth < 0.03, (visible, truth, fs_out)
+
+
+def test_group_qom_worn_reproduces_the_pre_1_0_number():
+    """`normalize="worn"` is the escape hatch for published figures, so pin it to a value.
+
+    Computed with the 0.15.2 implementation on this exact input.
+    """
+    import micromotion as mm
+
+    _, occ = _occluded_group(seed=5)
+    worn, _, _ = mm.group_qom(occ, 100.0, normalize="worn")
+    assert abs(worn - PRE_1_0_WORN) < 1e-9, f"{worn} != {PRE_1_0_WORN}"
+
+
+def test_group_qom_rejects_an_unknown_normalisation():
+    import numpy as np
+    import pytest
+    import micromotion as mm
+    with pytest.raises(ValueError):
+        mm.group_qom(np.zeros((500, 3, 3)), 100.0, normalize="average")
+
+
 def test_low_rate_narrows_the_band_and_says_so():
     """A rate below twice the upper edge silently changes the measurement unless it warns.
 
