@@ -237,7 +237,7 @@ def effective_band(fs: float, lo: float | None = BAND[0], hi: float = BAND[1],
     at 8 Hz the canonical 0.2-5 Hz band becomes 0.2-3.96, which is a different measurement.
 
     >>> effective_band(100.0)
-    (0.2, 10.0)
+    (0.2, 5.0)
     >>> effective_band(10.0)
     (0.2, 4.95)
     """

@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.15.2 — 2026-08-05
+
+Documentation only. No code changed, and no number this package returns moves.
+
+Two docstrings told the reader that the upper band edge defaults to 15.0 Hz. It has been 5.0 since
+the band moved on 2026-07-31, and those strings render straight into the generated API page, so the
+documentation published the old band from a package whose code used the new one. `band_limited_qom`
+even contradicted itself, its own note saying defaults follow `filters.BAND`. Both now name the
+constant the way the `lo` lines already did.
+
+The doctest for `effective_band` asserted `(0.2, 10.0)` at 100 Hz, where the function returns
+`(0.2, 5.0)`. It had been wrong since the same date and could not fail, because doctests were not
+collected.
+
+They are collected now. `--doctest-modules` on its own did nothing, since `testpaths` scoped the run
+to `tests` and the doctests are in `src`; both paths are named. The one example that reads a real
+dataset is marked `+SKIP`, being illustration rather than a test.
+
+`tests/test_qom.py` gains a check that a docstring stating a band edge as a number agrees with the
+signature. The existing check compared signatures against `filters.BAND` and passed throughout,
+because it never read the prose.
+
+And a note in `band_limited_qom` described `pose_qom` as overriding the upper edge. Since the band
+became 0.2-5 Hz the two coincide and it overrides nothing. The pin is kept, being a statement about
+pose data rather than about the band, and the note now says so.
+
 ## 0.15.1 — 2026-08-04
 
 Documentation only. No code changed, and no number this package returns moves.

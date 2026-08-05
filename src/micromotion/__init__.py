@@ -6,8 +6,8 @@ body-worn accelerometers, and force-plate centre of pressure, because the shared
 is the band and not the sensor.
 
     >>> import micromotion as mm
-    >>> rec = mm.read("Standstill2017/mocap_data/A0001.tsv")
-    >>> mm.qom(rec.marker("P01"), rec.fs, kind="position").mean_mm_s
+    >>> rec = mm.read("Standstill2017/mocap_data/A0001.tsv")     # doctest: +SKIP
+    >>> mm.qom(rec.marker("P01"), rec.fs, kind="position").mean_mm_s  # doctest: +SKIP
 
 The package is organised by what you are asking of a signal. :mod:`~micromotion.qom` asks how
 much movement there was, :mod:`~micromotion.posture` where it went,
@@ -119,7 +119,7 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "0.15.1"
+__version__ = "0.15.2"
 
 __all__ = [
     "sliding_null",
