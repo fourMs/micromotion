@@ -50,6 +50,7 @@ Unicode minus that turns negative values into NaN, an app whose clock stops when
 | `qom` | quantity of motion from position or acceleration |
 | `filters` | the band definitions, band-pass, low-pass, high-pass, cardiac notch |
 | `resample` | rate measurement, downsample-only resampling, irregular-to-regular gridding |
+| `io.channel_rate`, `io.channel_resolution` | whether a channel updates fast enough for your band, and resolves finely enough for your amplitude |
 | `validate` | checks that fail loudly on silently-wrong data |
 | `posture`, `balance` | sway geometry, centre-of-pressure measures |
 | `spectral`, `physio` | cardiac and respiratory peaks, band power, breathing rate |

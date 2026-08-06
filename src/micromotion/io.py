@@ -260,6 +260,53 @@ def channel_rate(t: np.ndarray, x: np.ndarray) -> float:
     return float(changed.sum() / (t[-1] - t[0]))
 
 
+def channel_resolution(x, need: float | None = None) -> dict:
+    """The quantisation step of a channel, against the amplitude you mean to measure.
+
+    The neighbour of :func:`channel_rate`, and the same class of mistake. That one asks whether a
+    channel updates fast enough to carry your band; this one asks whether it resolves finely enough
+    to carry your amplitude. A channel can satisfy either and fail the other.
+
+    The case it was written for. Delsys EMG sensors carry a three-axis accelerometer alongside the
+    muscle channel, and in a 2017 standstill recording those accelerometers step by 0.0395 m/s²,
+    identically on all twelve axes. Each axis therefore holds between eight and forty-nine distinct
+    values across 720000 samples, where the muscle channel beside it holds about fifty thousand. The
+    band-limited head acceleration being measured has a median of 0.033 m/s², so one quantisation
+    step was larger than the entire signal. Correlating those accelerometers against anything
+    returned about 0.03, which reads exactly like a real null and is not one.
+
+    An accelerometer bundled with another sensor is specified for that sensor's purpose. These are
+    there to tell a standing muscle from a walking one and they do that well. Check the step against
+    the amplitude you need before planning an analysis on a secondary channel.
+
+    Returns ``step``, the modal spacing between adjacent distinct values, ``levels``, how many
+    distinct values the channel holds, ``span``, and ``ratio`` where ``need`` is given: the
+    amplitude you asked for divided by the step. A ratio below about 10 means the quantisation is a
+    visible part of your measurement; below 1 the signal is inside one step and cannot be recovered.
+
+    ``x`` may be one channel or an (n, k) block, in which case each column is reported.
+    """
+    x = np.asarray(x, float)
+    if x.ndim > 1:
+        return {f"col{i}": channel_resolution(x[:, i], need) for i in range(x.shape[1])}
+    x = x[np.isfinite(x)]
+    if x.size < 2:
+        raise ValueError("need at least two finite samples")
+    u = np.unique(x)
+    if u.size < 2:
+        return dict(step=0.0, levels=int(u.size), span=0.0,
+                    ratio=float("inf") if need else None)
+    d = np.diff(u)
+    # The modal gap, not the median: a quantised channel with a few outliers has most gaps at the
+    # step and a handful much larger, and the median survives that where a mean does not.
+    counts, edges = np.histogram(d, bins=min(64, max(4, d.size)))
+    step = float(np.median(d[(d >= edges[counts.argmax()]) & (d <= edges[counts.argmax() + 1])]))
+    out = dict(step=step, levels=int(u.size), span=float(u[-1] - u[0]))
+    if need is not None:
+        out["ratio"] = float(need / step) if step > 0 else float("inf")
+    return out
+
+
 def read_phone(path: str, trim_clap_s: float = 0.0, *,
                channel: str = "accel",
                trim_start_s: float | None = None,

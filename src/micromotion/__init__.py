@@ -68,6 +68,7 @@ from .io import (
     read_equivital,
     read_fnirs,
     channel_rate,
+    channel_resolution,
     read_phone,
     read_qualisys,
     read_sverm,
@@ -119,7 +120,7 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     "sliding_null",
@@ -216,6 +217,7 @@ __all__ = [
     "read_equivital",
     "read_fnirs",
     "channel_rate",
+    "channel_resolution",
     "read_phone",
     "read_qualisys",
     "read_sverm",

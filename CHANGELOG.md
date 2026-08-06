@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0 — 2026-08-06
+
+**`channel_resolution`**, the neighbour of `channel_rate`. That one asks whether a channel updates
+fast enough to carry your band; this asks whether it resolves finely enough to carry your amplitude.
+It returns the quantisation step, the number of distinct values, the span, and `need / step` where
+you say what amplitude you are after.
+
+Written after a secondary accelerometer cost an afternoon. Delsys EMG sensors carry a three-axis
+accelerometer whose step is 0.0395 m/s², identical on all twelve axes, against a head acceleration
+of 0.033 m/s² median: the whole signal sat inside one step. Every correlation came back at about
+0.03, which reads exactly like a real null, and nothing in the data announced the problem. See
+`docs/rates.md`.
+
+No behaviour changes. Nothing else in the package is affected.
+
 ## 1.0.0 — 2026-08-05
 
 **`group_qom` returns a different number, and the old one was confounded.** Read this before

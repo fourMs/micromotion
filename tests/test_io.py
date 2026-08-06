@@ -203,3 +203,40 @@ def test_channel_rate_survives_bursts_and_repeats():
     x = np.repeat(np.arange(100, dtype=float), 2)
     assert 9.0 < mm.channel_rate(t, x) < 11.0
     assert 1.0 / np.median(np.diff(t)) > 100        # the estimator this replaces
+
+
+def test_channel_resolution_catches_a_signal_inside_one_step():
+    """The Delsys case: a quantisation step larger than the amplitude being measured.
+
+    Those accelerometers step by 0.0395 m/s2 while the head acceleration being measured has a
+    median of 0.033, so the whole signal sits inside one step and every correlation came back at
+    about 0.03 -- indistinguishable from a real null. The test asserts the two halves that matter:
+    the step is recovered, and `ratio` falls below 1 exactly when the signal cannot be resolved.
+    """
+    rng = np.random.default_rng(0)
+    step, need = 0.0395, 0.033
+    coarse = np.round(rng.normal(0, 1, 20_000) / step) * step
+    r = mm.channel_resolution(coarse, need=need)
+    assert abs(r["step"] - step) < 1e-9
+    assert r["ratio"] < 1.0                      # the signal is inside one step
+    assert r["levels"] < 500                     # and the channel holds few distinct values
+
+    fine = rng.normal(0, 1, 20_000)
+    f = mm.channel_resolution(fine, need=need)
+    assert f["step"] < step / 100
+    assert f["ratio"] > 10.0
+    assert f["levels"] == 20_000
+
+    # It must FAIL to report trouble when there is none: a fine channel with the same span and the
+    # same need must not be flagged. Without this the assertions above pass on any input at all.
+    assert f["ratio"] > r["ratio"] * 100
+
+
+def test_channel_resolution_handles_a_block_and_a_constant():
+    rng = np.random.default_rng(1)
+    block = np.column_stack([np.round(rng.normal(0, 1, 5_000) / 0.05) * 0.05,
+                             rng.normal(0, 1, 5_000)])
+    out = mm.channel_resolution(block)
+    assert set(out) == {"col0", "col1"}
+    assert out["col0"]["step"] > out["col1"]["step"] * 100
+    assert mm.channel_resolution(np.zeros(10))["levels"] == 1

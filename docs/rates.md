@@ -1,6 +1,8 @@
-# Sampling rates
+# Sampling rates and resolution
 
-Two rules, both learned by getting them wrong.
+Three rules, all learned by getting them wrong. A channel has to update fast enough to
+carry your band and resolve finely enough to carry your amplitude, and it can satisfy either
+while failing the other.
 
 ## The file's rate is not the sensor's rate
 
@@ -145,3 +147,28 @@ grid, y = mm.regularize(t, x, fs_out=20.0, max_gap_s=2.0)
 Sorts, drops duplicate and backward timestamps, interpolates, and returns NaN inside gaps longer
 than `max_gap_s`. We leave those gaps open rather than bridging them, so that a 132-second hole
 cannot be mistaken for 132 seconds of stillness.
+
+## The step can be larger than the signal
+
+```python
+mm.channel_resolution(x, need=0.033)   # step, levels, span, and need / step
+```
+
+`channel_rate` asks whether a channel updates fast enough for your band. This asks whether it
+resolves finely enough for your amplitude.
+
+Delsys EMG sensors carry a three-axis accelerometer beside the muscle channel. In one 2017
+standstill recording those accelerometers step by 0.0395 m/s², identically on all twelve axes, so
+each axis holds between eight and forty-nine distinct values across 720000 samples where the muscle
+channel beside it holds about fifty thousand. The head acceleration being measured has a median of
+0.033 m/s². One quantisation step was larger than the entire signal.
+
+The symptom is what makes it expensive. Correlating those accelerometers against anything returned
+about 0.03, which is indistinguishable from a real null, and a whole attribution analysis was
+written and discarded before anyone looked at the raw values. `ratio` below 1 means the signal is
+inside one step and cannot be recovered; below about 10 the quantisation is a visible part of the
+measurement.
+
+An accelerometer bundled with another sensor is specified for that sensor's purpose. These are there
+to tell a standing muscle from a walking one and they do that well. Check the step against the
+amplitude you need before planning an analysis on a secondary channel.
