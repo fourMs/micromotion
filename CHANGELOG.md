@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.1 — 2026-08-06
+
+### Changed
+- Documentation overhaul: beginner-oriented README, corrected API-page
+  rendering (docstring style was set to numpy against Google-style
+  docstrings), seven wrongly documented signatures fixed, the
+  `descriptors` module given an API page, new demo figures from genuine
+  tool output.
+
+### Fixed
+- CITATION.cff described the band as 0.2–10 Hz; the implemented band is
+  0.2–5 Hz.
+
 ## 1.1.0 — 2026-08-06
 
 **`channel_resolution`**, the neighbour of `channel_rate`. That one asks whether a channel updates
