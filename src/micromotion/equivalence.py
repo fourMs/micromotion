@@ -4,11 +4,11 @@ Most of this corpus's interesting results are nulls: no environment effect, no s
 no coupling between performers, no association between sound level and quantity of motion. A
 non-significant test does not support any of those claims. It says the data are compatible with
 no effect, and equally compatible with an effect too small for this sample to resolve. Stated as
-"we found no effect", that is an overclaim, and reviewers say so.
+"no effect was found", that is an overclaim, and reviewers say so.
 
 Equivalence testing states the claim the reports actually want to make. Two one-sided tests
 (TOST) invert the usual logic: the null is that the effect is at least as large as some bound,
-and rejecting it lets you say the effect is smaller than that bound. The bound is a smallest
+and rejecting it supports the statement that the effect is smaller than that bound. The bound is a smallest
 effect size of interest, and choosing it is a scientific judgement, not a statistical one --
 which is the point. "No effect" is not a testable claim; "smaller than half a millimetre per
 second" is.

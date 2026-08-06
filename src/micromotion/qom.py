@@ -12,13 +12,13 @@ Definition
 Band-limit each axis to 0.2-5 Hz, bring it to velocity, band-limit again, take the
 Euclidean norm across axes, and report the MEDIAN in mm/s.
 
-The statistic is part of the definition, not a presentation choice, and this docstring said
-"mean" until 2026-08-04 while ``docs/conventions.md`` said median. The two are not close: on
-accelerometer data the mean-to-median speed ratio is about 2, and one corpus record carries a
-deposited mean of 12.79 mm/s beside a report quoting 11.12 for the same recordings at the same
-band, the whole difference being this choice with neither document saying which it had made.
-``speed_from_position`` and ``speed_from_acceleration`` return the speed SERIES and take no
-statistic, so the caller decides. Decide explicitly, and say which one a published figure used.
+The statistic is part of the definition rather than a presentation choice. The two are not
+close: on accelerometer data the mean-to-median speed ratio is about 2, and one corpus record
+carries a deposited mean of 12.79 mm/s beside a report quoting 11.12 for the same recordings
+at the same band, the whole difference being this choice with neither document saying which it
+had made. ``speed_from_position`` and ``speed_from_acceleration`` return the speed SERIES and
+take no statistic, so the caller decides. Decide explicitly, and say which one a published
+figure used.
 
 Acceleration is brought to velocity by integration, position by differentiation. The second
 band-limiting is not cosmetic. Integrating a signal with any residual offset produces a
@@ -271,23 +271,32 @@ def qom(
 ) -> QomResult:
     """Quantity of motion for one recording.
 
-    Parameters
-    ----------
-    data
-        (n_samples, n_axes) acceleration or position.
-    fs
-        Measured sampling rate. Use the rate measured from the timestamps, not the nominal
-        one; see :func:`micromotion.resample.measured_rate`.
-    kind
-        ``"acceleration"`` or ``"position"``.
-    unit
-        Defaults to ``"m/s^2"`` for acceleration and ``"mm"`` for position.
-    variant
-        ``"raw"``, ``"compensated"`` or ``"tilt_corrected"``.
-    band
-        ``"micromotion"`` or ``"optical_legacy"``. See :data:`BANDS`.
-    gyro
-        (n_samples, 3) angular velocity in rad/s. Required by ``tilt_corrected``.
+    Args:
+        data (np.ndarray): (n_samples, n_axes) acceleration or position.
+        fs (float): Measured sampling rate. Use the rate measured from the timestamps,
+            not the nominal one; see :func:`micromotion.resample.measured_rate`.
+        kind (str): ``"acceleration"`` or ``"position"``.
+        unit (str, optional): Defaults to ``"m/s^2"`` for acceleration and ``"mm"`` for
+            position.
+        variant (str, optional): ``"raw"``, ``"compensated"`` or ``"tilt_corrected"``.
+            Defaults to ``"raw"``.
+        band (str, optional): ``"micromotion"``, ``"wideband"`` or ``"optical_legacy"``.
+            See :data:`BANDS`. Defaults to ``"micromotion"``.
+        gyro (np.ndarray, optional): (n_samples, 3) angular velocity in rad/s. Required by
+            ``tilt_corrected``.
+        integrate (str, optional): ``"rectangle"`` or ``"trapezoid"``, the quadrature rule
+            used to bring acceleration to velocity. The two differ by a systematic fraction
+            of a per cent, so the choice is the caller's and belongs in the record of the
+            analysis. Defaults to ``"rectangle"``.
+
+    Returns:
+        QomResult: The mean and median speed in mm/s, the full speed series, the rate it was
+            computed at, the variant, the notched cardiac frequency where one was found, and
+            ``edge_samples``, the length of the filter transient at each end.
+
+    Raises:
+        ValueError: If ``band`` or ``variant`` is unknown, if ``optical_legacy`` is asked for
+            on acceleration, or if ``tilt_corrected`` is asked for without a gyroscope.
     """
     x = _to_2d(data)
     if band not in BANDS:
@@ -683,25 +692,23 @@ def group_qom(points, fs, lo=filters.BAND[0], hi=filters.BAND[1], normalize="vis
 
     .. warning::
 
-       ``normalize`` changed default in 1.0 and the number this returns moves
-       with it. Before 1.0 the mean was over every marker at every frame, and
-       ``band_limited_qom`` interpolates gaps, so an occluded marker
-       contributed a near-zero speed while still counting in the divisor. The
-       result tracked how much the cameras saw. Measured on twelve markers with
-       a realistic dropout pattern, a median of eight visible: the old default
-       read 16 to 17 per cent low and its speed series correlated +0.25 to
-       +0.70 with the per-frame count of visible markers.
+       ``normalize`` decides what the divisor is, and the number this returns
+       moves with it. Say which was used.
 
-       ``normalize="visible"``, the default from 1.0, excludes each marker at
-       the frames where it was absent and averages over the rest. On the same
-       data it lands within 0.8 per cent of the unoccluded truth and the
-       correlation falls to near zero.
+       ``normalize="visible"``, the default, excludes each marker at the frames
+       where it was absent and averages over the rest. On twelve markers with a
+       realistic dropout pattern, a median of eight visible, it lands within
+       0.8 per cent of the unoccluded truth.
 
-       Pass ``normalize="worn"`` to reproduce a figure published before 1.0.
-       That path performs the old computation unchanged; it is bit-for-bit
-       identical on one machine and agrees to about 1 part in 10^7 across
-       platforms, since ``filtfilt`` is not bit-reproducible between scipy
-       builds.
+       ``normalize="worn"`` averages over every marker at every frame instead.
+       Since ``band_limited_qom`` interpolates gaps, an occluded marker then
+       contributes a near-zero speed while still counting in the divisor, and
+       the result tracks how much the cameras saw: on the same data it reads
+       16 to 17 per cent low and its speed series correlates +0.25 to +0.70
+       with the per-frame count of visible markers. It is kept so that a figure
+       computed that way keeps reproducing; it is bit-for-bit identical on one
+       machine and agrees to about 1 part in 10^7 across platforms, since
+       ``filtfilt`` is not bit-reproducible between scipy builds.
 
     Args:
         points (np.ndarray): Trajectories of shape (N, M, D): N frames, M

@@ -12,7 +12,7 @@ packages to the light ones:
 | `musiscape` | music corpora, fingerprints, similarity | + librosa, ambiscape |
 | `micromotion` | motion time series: mocap, IMU, force plate | numpy, scipy, pandas |
 
-We deliberately made `micromotion` depend on none of them. Someone analysing accelerometer data
+`micromotion` depends on none of them, deliberately. Someone analysing accelerometer data
 should not have to install a computer-vision stack to do it, and the arrow that makes sense runs
 the other way, with MGT depending on this package.
 
@@ -42,37 +42,33 @@ not track its surroundings, check that the same statistic detects something it s
 two environmental channels against each other is the cheap version of that check. If sound and light track each
 other and the body tracks neither, the null is about the body rather than about the pipeline.
 
-!!! warning "Unresolved overlap with MGT"
-    **The functions originated here.** Their docstrings credit the stillstanding and
-    Westney-comparisons studies, and they were copied into MGT rather than the other way
-    round, so this is not a case of matching someone else's prior art. Re-checked
-    MGT's repository version matches its PyPI release, so they remain unreleased and invisible
-    to anyone reading only PyPI.
-
+!!! warning "Overlap with MGT, and a measured disagreement"
     MGT contains `band_limited_qom`, `accel_to_speed`, `read_qtm_tsv`, `cop_sway_metrics` and
-    `respiration_rate`, credited in their docstrings to the same source study as this package.
+    `respiration_rate`. Their docstrings credit the same source studies as this package, and
+    they were copied into MGT rather than the other way round, so this is not a case of matching
+    someone else's prior art. Both packages are published, so the overlap is a published one.
 
-    Updated 2026-08-03: these ARE now released. MGT-python 1.7.0 went to PyPI on that date, so the
-    note that used to stand here -- that they existed only on an unreleased branch and were
-    invisible to anyone reading PyPI -- no longer holds. The overlap is now a published overlap
-    between two published packages, which makes the disagreement below more important rather than
-    less.
+    `band_limited_qom` band-limits the *position* and not the speed derived from it.
+    Differentiation amplifies the high end, so the velocity carries energy above the stated
+    upper edge and nothing removes it. Decomposed on a 200 Hz optical recording at a matched
+    band:
 
-    The two implementations do not agree. On the same 200 Hz optical recording:
+    | recipe | mean speed | |
+    |---|---|---|
+    | first difference, no second band-pass | 3.1475 mm/s | what `band_limited_qom` does |
+    | central difference, no second band-pass | 3.1490 | +0.05 %, so the differentiation rule is not the cause |
+    | first difference, second band-pass | 2.9743 | −5.50 %, which is the whole of it |
+    | central difference, second band-pass | 2.9754 | what `qom` and `speed_from_position` do |
 
-    | | mean speed |
-    |---|---|
-    | MGT `band_limited_qom`, its 0.3–15 Hz default | 5.675 mm/s |
-    | MGT `band_limited_qom`, forced to 0.3–10 Hz | 5.594 mm/s |
-    | `micromotion.qom`, matched 0.3–10 Hz | 5.455 mm/s |
+    The gap is therefore 5.5 per cent, and almost all of it is the second band-pass rather than
+    the differentiation rule. `micromotion.qom` is the one that respects its stated band.
+    `band_limited_qom` is kept unchanged, in both packages, so that figures already computed
+    with it keep reproducing. State which package and which function produced any number
+    reported.
 
-    (Rows 2 and 3 were run at a matched 0.3–10 Hz to isolate the algorithmic difference from
-    the band difference. Every `micromotion` function defaults to 0.2–5 Hz, so the first row
-    is the only one comparing defaults.)
-
-    4.0 per cent apart at their respective defaults; 2.6 per cent apart on the same band. The
-    residual comes from the differentiation and whether the result is band-limited a second
-    time. Until this is resolved, state which package produced any number you report.
+    One disagreement is unresolved. `balance.axial_rayleigh`, absorbed from MGT, returns
+    R = 0.9985 where `circular.rayleigh_axial` returns 0.9222 on the same bimodal input. Only
+    the latter matches the textbook resultant length of the doubled angles.
 
 ## MGT: video motion into micromotion
 

@@ -21,8 +21,8 @@ sampling rates in the project this package was written for, and the second cost 
 0.2–5 Hz quantity of motion across 365 recordings, because a 5 Hz ceiling sits at 0.8 of Nyquist at
 12.5 Hz and the anti-alias filter's roll-off reaches into the band.
 
-`channel_rate` counts value changes over the elapsed span. The tempting alternative — the reciprocal
-of the median interval between changes — fails where updates arrive in bursts, returning the
+`channel_rate` counts value changes over the elapsed span. The tempting alternative—the reciprocal
+of the median interval between changes—fails where updates arrive in bursts, returning the
 within-burst spacing: 680 Hz on a channel that advances 51 times a second.
 
 Rates are not stable across a long study either. Over one year of daily recordings from the same
@@ -35,7 +35,7 @@ phone, the accelerometer's own rate has a median of 50.7 Hz but sits near 15 Hz 
 mm.measured_rate(timestamps)      # samples over elapsed span
 ```
 
-We deliberately do not use the reciprocal of the median interval. Where timestamps are rounded to
+The reciprocal of the median interval is deliberately not used. Where timestamps are rounded to
 whole milliseconds the intervals become a mixture of adjacent integers whose median is a
 quantisation artefact:
 
@@ -60,8 +60,8 @@ staircase is a sequence of step edges, which is broadband high-frequency energy 
 differentiation amplifies once per derivative.
 
 **The stored grid is not the sensor rate either.** Resample that logger's output to a uniform
-100 Hz file and nothing downstream can tell it is a 6.7-fold upsample of a 15 Hz signal. We made
-`to_rate` refuse to upsample precisely to prevent this, but it never sees the raw file. Carry the measured
+100 Hz file and nothing downstream can tell it is a 6.7-fold upsample of a 15 Hz signal. `to_rate`
+refuses to upsample precisely to prevent this, but it never sees the raw file. Carry the measured
 sensor rate as its own column and check deliverability against *that*.
 
 **And a channel's rate is not its instrument's.** This one is the subtlest. That phone's deposited
@@ -115,7 +115,7 @@ mm.HARMONISED_RATE     # 100.0 — use this where every series can reach it
 mm.COMMON_RATE         #  20.0 — use this only when a 20 Hz collection must be included
 ```
 
-We set `COMMON_RATE` to 20 Hz because that is the greatest common divisor of the optical rates in
+`COMMON_RATE` is 20 Hz because that is the greatest common divisor of the optical rates in
 the source corpus, which are 20, 100, 120 and 200 Hz, so every recording reaches it by an integer
 decimation and none needs upsampling. That is its one virtue, and it is a real one: it is the only rate at
 which a natively-20 Hz collection can be placed beside the rest at all.
@@ -145,7 +145,7 @@ grid, y = mm.regularize(t, x, fs_out=20.0, max_gap_s=2.0)
 ```
 
 Sorts, drops duplicate and backward timestamps, interpolates, and returns NaN inside gaps longer
-than `max_gap_s`. We leave those gaps open rather than bridging them, so that a 132-second hole
+than `max_gap_s`. Those gaps are left open rather than bridged, so that a 132-second hole
 cannot be mistaken for 132 seconds of stillness.
 
 ## The step can be larger than the signal

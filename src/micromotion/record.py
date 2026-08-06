@@ -17,31 +17,21 @@ import numpy as np
 class MotionRecord:
     """One recording, in a form the rest of the package can use without special cases.
 
-    Attributes
-    ----------
-    data
-        (n_samples, n_channels) float array. Gaps are NaN, never a sentinel.
-    fs
-        Sampling rate in Hz, measured from the file where a timebase exists and taken from
-        the header only where it does not.
-    channels
-        Column names, one per column of ``data``.
-    kind
-        ``"position"`` or ``"acceleration"``: what the numbers are, which decides whether
-        quantity of motion differentiates or integrates.
-    unit
-        ``"mm"``, ``"m"``, ``"g"``, ``"m/s^2"`` or ``"counts"``.
-    vertical
-        Which axis letter is up. Not always Z: the 2019 championship is Y-up, alone in the
-        corpus.
-    t
-        Timestamps in seconds where the file carries them, otherwise None.
-    t0
-        Absolute start time where the file carries one, otherwise None.
-    source
-        Path the record was read from.
-    meta
-        Anything else the header held, unmodified.
+    Attributes:
+        data (np.ndarray): (n_samples, n_channels) float array. Gaps are NaN, never a
+            sentinel.
+        fs (float): Sampling rate in Hz, measured from the file where a timebase exists and
+            taken from the header only where it does not.
+        channels (list[str]): Column names, one per column of ``data``.
+        kind (str): ``"position"`` or ``"acceleration"``: what the numbers are, which decides
+            whether quantity of motion differentiates or integrates.
+        unit (str): ``"mm"``, ``"m"``, ``"g"``, ``"m/s^2"`` or ``"counts"``.
+        vertical (str): Which axis letter is up. Not always Z: the 2019 championship is Y-up,
+            alone in the corpus.
+        t (np.ndarray | None): Timestamps in seconds where the file carries them.
+        t0: Absolute start time where the file carries one.
+        source (str): Path the record was read from.
+        meta (dict): Anything else the header held, unmodified.
     """
 
     data: np.ndarray = field(repr=False)

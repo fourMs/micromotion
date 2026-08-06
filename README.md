@@ -6,90 +6,99 @@
 [![Python](https://img.shields.io/pypi/pyversions/micromotion.svg)](https://pypi.org/project/micromotion/)
 [![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 
-Analysis of human micromotion in motion time series: optical marker data, body-worn
-accelerometers, respiration belts and force plates.
+A Python package for measuring human micromotion: the small movement of a body that is
+standing, sitting or otherwise trying to stay still. It reads optical marker data, body-worn
+accelerometers, respiration belts and force plates, and reduces all of them to one measure.
 
-The measure the package exists for is **quantity of motion** — the average speed of a body part,
-band-limited to 0.2–5 Hz, in millimetres per second. It applies equally to all three sensor
-families because the shared abstraction is the frequency band, not the instrument.
+That measure is **quantity of motion**—the average speed of a body part, band-limited to
+0.2–5 Hz, in millimetres per second. It can be computed from every sensor family, because the
+shared abstraction is the frequency band rather than the instrument.
+
+![Band-limited speed of a synthetic head marker, with the median, the mean, and the same series in five-second bins](docs/img/qom-standstill.png)
+
+## Install
 
 ```bash
 pip install micromotion
 ```
 
+Python 3.10 or newer, with numpy, scipy and pandas. There is no computer-vision or audio stack
+to install.
+
+## Quickstart
+
 ```python
 import micromotion as mm
 
-rec  = mm.read("Standstill2017/mocap_data/A0001.tsv")   # dispatches on content, not extension
-head = rec.marker("P01")
-mm.qom(head, rec.fs, kind="position").median_mm_s   # the median is the convention; .mean_mm_s is also there
+rec = mm.read("mocap_data/A0001.tsv")      # dispatches on content, not on the extension
+head = rec.marker("P01")                   # (n_samples, 3), gaps already NaN
+result = mm.qom(head, rec.fs, kind="position", unit=rec.unit)
+
+print(result.median_mm_s, result.mean_mm_s)
 ```
+
+Report the median, and say that it is the median. The mean and the median can rank the same
+recordings differently, so both are returned and neither is chosen for the caller.
+
+Do not name a local variable `mm`. The conventional alias collides with a mean and with a value
+in millimetres, and rebinding it replaces the package for the rest of the file.
 
 ## Documentation
 
 | | |
 |---|---|
 | [Reference documentation](https://fourms.github.io/micromotion/) | how to use it, every function, the conventions |
-| [Wiki](https://github.com/fourMs/micromotion/wiki) | why it works this way — traps, recipes, open questions |
-| [Changelog](CHANGELOG.md) | what changed, and why |
+| [Wiki](https://github.com/fourMs/micromotion/wiki) | traps, worked recipes, design decisions |
+| [Changelog](CHANGELOG.md) | what changed between releases |
 
-New to it: [Getting started](https://fourms.github.io/micromotion/quickstart/), then
-[The three bands](https://fourms.github.io/micromotion/conventions/), which is the one convention
-you cannot skip.
-
-Reading files is its own subject, because the formats in this field lie about themselves:
-[Reading files](https://fourms.github.io/micromotion/formats/) covers what each reader handles,
-which axis is vertical in which system, and the traps that produce plausible numbers rather than
-errors — a Y/Z axis swap that reverses every sway direction while leaving magnitudes intact, a
-Unicode minus that turns negative values into NaN, an app whose clock stops when the phone sleeps.
+Read [Getting started](https://fourms.github.io/micromotion/quickstart/) first, then
+[The three bands](https://fourms.github.io/micromotion/conventions/), which is the one
+convention that cannot be skipped. [Reading files](https://fourms.github.io/micromotion/formats/)
+covers what each reader handles, which axis is vertical in which system, and the traps that
+produce plausible numbers rather than errors.
 
 ## What is in it
 
 | Module | Contents |
 |---|---|
-| `qom` | quantity of motion from position or acceleration |
-| `filters` | the band definitions, band-pass, low-pass, high-pass, cardiac notch |
-| `resample` | rate measurement, downsample-only resampling, irregular-to-regular gridding |
-| `io.channel_rate`, `io.channel_resolution` | whether a channel updates fast enough for your band, and resolves finely enough for your amplitude |
+| `qom` | quantity of motion from position or acceleration, in three named variants |
+| `filters` | the band definitions—`BAND`, `WIDEBAND`, `OPTICAL_LEGACY_BAND`—with band-pass, low-pass, high-pass and notch |
+| `resample` | rate measurement, downsample-only resampling, irregular-to-regular gridding, gap handling |
+| `io` | one reader per file layout, a content sniffer, and the per-channel rate and resolution checks |
+| `record` | `MotionRecord`, the common type every reader returns |
 | `validate` | checks that fail loudly on silently-wrong data |
-| `posture`, `balance` | sway geometry, centre-of-pressure measures |
-| `spectral`, `physio` | cardiac and respiratory peaks, band power, breathing rate |
-| `dynamics` | DFA, multifractality, recurrence, surrogates, entropy |
-| `group` | whether these people moved at the same moments |
-| `align`, `circular` | offsets between clocks; directional statistics |
-| `io`, `record` | one reader per corpus layout, a content sniffer, a common record type |
+| `posture`, `balance` | sway geometry, spatial extent, centre-of-pressure measures |
+| `spectral`, `physio` | cardiac and respiratory peaks, band power, breathing rate and breath phase |
+| `dynamics` | detrended fluctuation analysis, multifractality, recurrence, entropy, surrogates |
+| `group` | whether several people moved at the same moments |
+| `align` | offsets between instruments that share no clock |
+| `circular` | directional statistics, including the axial tests postural sway needs |
+| `features` | `feature_vector`, one fixed set of eleven descriptors per recording |
+| `equivalence` | stating that an effect is absent rather than failing to show it is present |
+| `descriptors` | how many independent dimensions a descriptor set holds, and whether a measure is a trait |
 
 Readers: Qualisys and Qualisys-style TSV in all three header shapes, Sverm, Axivity AX3,
-Physics Toolbox phone logs (raw app export or cleaned), Equivital, Wii balance board, Artinis
-fNIRS. `read` dispatches on content rather than extension, because in this corpus the extension
-is frequently wrong.
+Physics Toolbox phone logs, Equivital, Wii balance board, and Artinis fNIRS. `read` dispatches
+on content rather than on extension, because in this field the extension is frequently wrong.
 
-## Why it exists
+## Licence and credit
 
-It was built while constructing a single analysis across every dataset in the Oslo Standstill
-Database. There were 159 analysis scripts, of which 58 defined their own band-pass filter and 37
-computed quantity of motion. The project's central measure existed in dozens of copies that did
-not all agree, and the disagreements were invisible.
+GPL-3.0-or-later. Built at the [fourMs lab](https://github.com/fourMs), RITMO Centre for
+Interdisciplinary Studies in Rhythm, Time and Motion, University of Oslo. If you use the
+package, please cite it—see [CITATION.cff](CITATION.cff)—and cite the underlying methods too,
+since the [Methods](https://fourms.github.io/micromotion/methods/) page gives a reference for
+each.
 
-Every default here was measured rather than assumed, and the reasoning is kept beside it. The
-[traps page](https://github.com/fourMs/micromotion/wiki/Traps) lists the mistakes that shaped the
-design; each one happened, produced a believable wrong number, and raised nothing at the time.
-
-## Requirements
-
-Python 3.10+, numpy, scipy, pandas.
-
-## Licence
-
-GPL-3.0-or-later. If you use it, please cite it — see [CITATION.cff](CITATION.cff).
+Issues and pull requests are welcome at
+[fourMs/micromotion](https://github.com/fourMs/micromotion/issues). A case where a default here
+gives a misleading answer is the most useful kind of issue to file.
 
 ## Related toolboxes
 
-These four toolboxes come out of the [fourMs lab](https://github.com/fourMs) at the University of
-Oslo. They are separate packages with separate release cycles, but they are built to be used
-together and share several implementations, so a measure computed in one agrees with the same
-measure computed in another.
+These come out of the same lab, as separate packages with separate release cycles. They are
+built to be used together and share several implementations, so a measure computed in one
+agrees with the same measure computed in another.
 
-- [Musical Gestures Toolbox](https://github.com/fourMs/MGT-python) (`musicalgestures`) — video and audio: motiongrams, videograms, and motion analysis from ordinary video files
-- [ambiscape](https://github.com/fourMs/ambiscape) — soundscapes: the sonic ambience of a place, across level, spectral, spatial, temporal, ecological and source descriptors
-- [musiscape](https://github.com/fourMs/musiscape) — music collections: comparing many tracks and albums held as audio files in folders
+- [Musical Gestures Toolbox](https://github.com/fourMs/MGT-python) (`musicalgestures`)—video and audio: motiongrams, videograms, and motion analysis from ordinary video files
+- [ambiscape](https://github.com/fourMs/ambiscape)—soundscapes: the sonic ambience of a place, across level, spectral, spatial, temporal, ecological and source descriptors
+- [musiscape](https://github.com/fourMs/musiscape)—music collections: comparing many tracks and albums held as audio files in folders

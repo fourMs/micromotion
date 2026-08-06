@@ -5,10 +5,10 @@ timestamp column that steps backwards, a documented sampling rate that is not th
 of these raises an error, and all of them produce a plausible number. The characteristic failure
 is not a crash but a believable wrong answer, so the only defence is a check that runs every time.
 
-`micromotion.validate` is that set of checks. We added each one because the failure it catches has
+`micromotion.validate` is that set of checks. Each one exists because the failure it catches has
 occurred in real deposited datasets and gone unnoticed. The figures quoted below are measurements
-from those cases, given so that you can judge whether a tolerance is reasonable rather than take
-it on trust.
+from those cases, given so that a reader can judge whether a tolerance is reasonable rather than
+take it on trust.
 
 ## Using it as a gate
 
@@ -38,8 +38,16 @@ A median barely notices. Anything that sums or integrates does: in one recording
 out of 118 698 gave a head marker a path length of 119.8 m where the true figure was 11.0 m, which
 is a factor of eleven from 0.08 % of the samples.
 
-Exact zeros on all axes at once do not occur in real optical data, so we set the default tolerance
-to zero.
+Exact zeros on all axes at once do not occur in real optical data, so the default tolerance is
+zero.
+
+![Path length and median quantity of motion on a synthetic recording, with nine short runs of frames written as zero triplets: the path length rises tenfold while the median rises fourteen per cent](img/zero-triplets.png)
+
+The figure is `mm.path_length` and `mm.qom` on the same synthetic recording twice, once with nine
+short runs of gap frames left as `(0, 0, 0)` and once with them set to `NaN`. One tenth of one per
+cent of the frames multiplies the path length by ten and moves the median by fourteen per cent,
+which is the asymmetry the check exists for: a robust statistic hides the defect that destroys
+every summing measure beside it.
 
 ### `implausible_position`—the gap that is not a zero
 
@@ -51,7 +59,7 @@ Those samples are ordinary finite numbers and pass every sentinel and finiteness
 mm.validate.implausible_position(marker_xyz)
 ```
 
-We made the test physical rather than statistical. A marker on a standing body stays within a band
+The test is physical rather than statistical. A marker on a standing body stays within a band
 around its own median height, so anything below a third of it, or above two and a half times it,
 is a tracking artefact and not a posture. Markers whose median height is not a standing height,
 such as feet and floor references, are skipped, since there is no expectation to test them against.
@@ -141,7 +149,7 @@ up to 4.4 per cent, one was out by a factor of 37, and one set of wearable accel
 participants sharing a device shared a clock and everyone else did not.
 
 Every frequency-domain measure scales with this, and nothing further downstream can detect it,
-which is why we raise it as an error rather than a warning. See [sampling rates](rates.md) for why
+which is why it is raised as an error rather than a warning. See [sampling rates](rates.md) for why
 `measured_rate` counts samples over the elapsed span instead of inverting the median interval.
 
 ### `frame_count`—the 16-bit ceiling
@@ -174,12 +182,14 @@ wrong constant was simply applied. Read units from the data beside the numbers, 
 in physical units where a human will see it. Quiet standing is a few mm/s, and a figure in the tens
 is telling you something.
 
-**A group mean that counts markers you cannot see.** `group_qom` averaged over every marker at
-every frame until 1.0, and `band_limited_qom` interpolates gaps, so an occluded marker contributed a
-near-zero speed while still counting in the divisor. The number then tracked camera coverage rather
-than movement: 16 to 17 per cent low on a realistic dropout pattern, with the speed series
-correlating up to +0.70 with the per-frame count of visible markers. The default is now
-`normalize="visible"`, which excludes each marker where it was absent. Nothing in this module could
+**A group mean that counts markers that were not visible.** A group average taken over every
+marker at every frame counts an occluded marker in the divisor, and since `band_limited_qom`
+interpolates gaps, that marker contributes a near-zero speed rather than nothing at all. The
+number then tracks camera coverage rather than movement: 16 to 17 per cent low on a realistic
+dropout pattern, with the speed series correlating up to +0.70 with the per-frame count of
+visible markers. `group_qom` defaults to `normalize="visible"`, which excludes each marker where
+it was absent; `normalize="worn"` performs the older computation, for reproducing a figure that
+used it. Nothing in this module could
 have seen it, because every individual trajectory was valid; the fault was in how they were combined.
 `validate.marker_average` documents the same bias one level up, for spatial averaging.
 
@@ -235,8 +245,8 @@ validate.edge_motion(speed, fs)          # which end, and by how much
 validate.settling_time(speed, fs)        # (head, tail) seconds to trim
 ```
 
-We compare against the recording's own settled interior rather than an absolute threshold, because
-the quantity spans two orders of magnitude across sensor types.
+The comparison is against the recording's own settled interior rather than an absolute threshold,
+because the quantity spans two orders of magnitude across sensor types.
 
 This is worth checking even when you believe the trimming was done. Across 1465 recordings in one
 corpus, 784 were clean and the rest were not. Two collections accounted for nearly all of it, and

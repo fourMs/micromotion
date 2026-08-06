@@ -2,7 +2,7 @@
 
 ```python
 rec = mm.read(path)          # dispatches on content
-mm.sniff(path)               # just tell me what this is
+mm.sniff(path)               # -> the layout name, without reading the data
 ```
 
 `read` inspects the file's first lines rather than its extension. In the corpus this was
@@ -43,7 +43,7 @@ read correctly.
 
 ## Coordinate frames: which axis is up, and how to rotate
 
-We carry `MotionRecord.vertical` because the vertical axis is not always Z. Getting this wrong
+`MotionRecord.vertical` exists because the vertical axis is not always Z. Getting this wrong
 does not raise anything. It silently swaps a vertical measurement for a horizontal one, and every
 magnitude still looks plausible.
 
@@ -99,9 +99,9 @@ for the compensation before changing the data, and empty it in the same commit.
 
 ## Physics Toolbox Sensor Suite
 
-A widely used phone sensor-logging app. `read_phone` accepts
-both the app's own export and the cleaned tab-separated form, detecting which from the first two
-lines, so nothing needs converting by hand any more.
+A widely used phone sensor-logging app. `read_phone` accepts both the app's own export and the
+cleaned tab-separated form, detecting which from the first two lines, so nothing needs converting
+by hand.
 
 ### What the app's CSV actually is
 
@@ -126,13 +126,12 @@ decides whether it survives, so a file can look nine-tenths intact and be system
 1.0 on a phone at rest. `ax`/`ay`/`az` are linear acceleration in m/s², gravity removed by fusing
 the accelerometer with the gyroscope and magnetometer.
 
-Use `gF*`, converted to m/s² — this is what `read_phone` returns by default from 0.15.0, and the
-default changed because the old one was wrong for this package's own measure. A fusion cannot
-output faster than its slowest input, so `a*` advances at the gyroscope's rate, about 15 Hz, and in
-a 0.2–5 Hz band most of what it carries is its own noise floor rather than the body. At standstill
-amplitudes the body is below that floor, and the floor differs between handsets — so two phones
-recording the same stillness disagree by a factor that looks like a device calibration difference
-and is not. Measured: an S21 and an S23 differed by 2.29× on the fused channel and by 0.855× on the
+Use `gF*`, converted to m/s², which is what `read_phone` returns by default; pass
+`channel="fused"` for the other. A fusion cannot output faster than its slowest input, so `a*`
+advances at the gyroscope's rate, about 15 Hz, and in a 0.2–5 Hz band most of what it carries is
+its own noise floor rather than the body. At standstill amplitudes the body is below that floor,
+and the floor differs between handsets—so two phones recording the same stillness disagree by a
+factor that looks like a device calibration difference and is not. Measured: an S21 and an S23 differed by 2.29× on the fused channel and by 0.855× on the
 accelerometer, pointing the other way.
 
 Two traps remain either side of that choice. Reading `a*` as if it were g inflates every quantity
@@ -218,7 +217,7 @@ mm.gap_report(rec.data, rec.fs)
 clean = mm.interpolate_gaps(rec.data, max_gap=200)
 ```
 
-`interpolate_gaps` bridges short runs and leaves long ones as `NaN`. We draw the line there because
-bridging a dropped frame is reconstruction, while bridging a 469-second hole is invention. A single
+`interpolate_gaps` bridges short runs and leaves long ones as `NaN`. The line is drawn there
+because bridging a dropped frame is reconstruction, while bridging a 469-second hole is invention. A single
 missing fraction hides the distinction that matters. One per cent scattered evenly is a usable
 recording, and one per cent in a single block is two recordings.

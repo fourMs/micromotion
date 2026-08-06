@@ -1,6 +1,7 @@
 # API reference
 
-Every public function, grouped by what you are asking of a signal.
+Every public function, grouped by the question being asked of a signal. The pages below are
+generated from the docstrings in the source, so a signature here is the signature the code has.
 
 ## Quantity of motion
 
@@ -67,3 +68,7 @@ Every public function, grouped by what you are asking of a signal.
 ## Equivalence testing
 
 ::: micromotion.equivalence
+
+## Dimensionality and reliability
+
+::: micromotion.descriptors

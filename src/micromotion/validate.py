@@ -94,9 +94,9 @@ def marker_average(markers, where: str = "", max_gap_fraction: float = 0.5) -> l
     :func:`micromotion.validate.zero_triplets` and NaN before averaging, then use ``nanmean``.
     
 
-    The same bias appears one level up in :func:`micromotion.qom.group_qom`, which
-    averaged over markers that were not visible until 1.0. If you are averaging
-    positions here, check how you are averaging speeds there.
+    The same bias appears one level up in :func:`micromotion.qom.group_qom`, whose
+    ``normalize`` argument decides whether markers that were not visible count in the
+    divisor. Where positions are averaged here, check how speeds are averaged there.
     """
     findings: list[Finding] = []
     if not markers:
@@ -358,11 +358,11 @@ def settling_time(speed, fs: float, baseline_s: tuple[float, float] = (60.0, 300
 
     Returns ``(head, tail)``: the time to trim from the start and from the end so that what
     remains is within ``factor`` of the recording's own settled interior. Zero means that end is
-    already settled. Use it to choose a trim rather than guessing one — a fixed twelve seconds
+    already settled. Use it to choose a trim rather than guessing one: a fixed twelve seconds
     was not enough for any recording in the collection it was chosen for.
 
     The search stops at ``max_s`` and returns that value, which should be read as "still moving
-    when we stopped looking" rather than as a measurement.
+    when the search stopped" rather than as a measurement.
     """
     speed = np.asarray(speed, float)
     n = len(speed)

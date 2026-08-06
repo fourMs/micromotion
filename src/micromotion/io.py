@@ -318,8 +318,8 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
     See ``_read_physics_toolbox_raw`` for what the raw format does that plain CSV readers
     get wrong.
 
-    **Which channel, and why the default changed in 0.15.0.** A Physics Toolbox log carries two
-    accelerations and they are not interchangeable.
+    **Which channel.** A Physics Toolbox log carries two accelerations and they are not
+    interchangeable.
 
     ``channel="accel"`` (the default) reads ``gFx``/``gFy``/``gFz``: the accelerometer itself,
     total specific force *including* gravity, written in g and converted to m/s^2 here. Its
@@ -336,13 +336,14 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
     0.2-5 Hz band most of what it carries is its own noise floor rather than the body. At
     standstill amplitudes the body sits below that floor, and the floor differs between
     handsets, so two phones recording the same stillness disagree by a factor that looks like a
-    device calibration difference and is not. That is why this default changed: on one session
-    the fused channel put a chest sensor at 1.65 mm/s against the accelerometer's 6.74, and made
-    a head sensor look 4.6 times more active than the chest when the true ratio is 1.12.
+    device calibration difference and is not. That is why ``accel`` is the default: on one
+    session the fused channel put a chest sensor at 1.65 mm/s against the accelerometer's 6.74,
+    and made a head sensor look 4.6 times more active than the chest when the true ratio is
+    1.12.
 
-    Use ``fused`` when you want the fusion's tilt correction and can accept the ceiling. Tilt is
-    real — rotating a sensor swings gravity across its axes and no high-pass can remove that —
-    but measure it before assuming it dominates: reconstructed from a gyroscope on one chest
+    Use ``fused`` for the fusion's tilt correction, accepting the ceiling. Tilt is real, since
+    rotating a sensor swings gravity across its axes and no high-pass can remove that, but
+    measure it before assuming it dominates: reconstructed from a gyroscope on one chest
     recording it accounted for 6 per cent of the accelerometer's band-limited content, and
     removing it did not move that channel toward the fused one.
 
@@ -353,19 +354,19 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
     **The rate is neither constant nor the nominal one.** Physics Toolbox delivers whatever the
     Android sensor stack gives it, so a log requested at 100 Hz arrives between roughly 100 and
     170 Hz with millisecond-scale jitter, and differs between handsets recording the same event.
-    ``fs`` here is the measured mean rate over the span. **Long dropouts are common** — logging
+    ``fs`` here is the measured mean rate over the span. **Long dropouts are common**: logging
     stops when the app is backgrounded or the screen sleeps, and resumes silently, leaving gaps
     of tens of seconds inside a file that otherwise looks continuous. Check ``meta["gaps"]``
     before treating a file as one recording; resample onto a uniform grid before filtering.
 
     ``trim_clap_s`` drops that many seconds from **each** end. ``trim_start_s`` and
     ``trim_end_s`` override it per end, so an opening clap can be removed without discarding
-    good data at the close — pass ``trim_start_s=35, trim_end_s=0``.
+    good data at the close: pass ``trim_start_s=35, trim_end_s=0``.
 
-    **Trim before you plot or transform.** A recording that opens with a synchronisation clap
+    **Trim before plotting or transforming.** A recording that opens with a synchronisation clap
     carries a transient that is a timing marker, not movement, and it can be two orders of
-    magnitude above the standstill it precedes — in one recording 10.29 m/s² against a body
-    maximum of 0.155. Left in, it sets the y-axis of any plot, dominates any spectrum, and gives
+    magnitude above the standstill it precedes, reaching 10.29 m/s² in one recording against a
+    body maximum of 0.155. Left in, it sets the y-axis of any plot, dominates any spectrum, and gives
     a peak detector a transient that is not a breath.
 
     The settling that follows is slower and also worth removing. Measure it rather than guessing:
@@ -384,8 +385,8 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
         if not m.any():
             raise ValueError(f"trimming {head_s} s from the start and {tail_s} s from the end "
                              f"leaves nothing of a {t[-1] - t[0]:.1f} s recording")
-    # Which channel. Before 0.15.0 this was always the fused ax/ay/az, silently, and that is the
-    # wrong default for this package's own measure: the fusion cannot output faster than its
+    # Which channel. The fused ax/ay/az is the wrong default for this package's own measure:
+    # the fusion cannot output faster than its
     # slowest input, so it advances at the gyroscope's ~15 Hz and most of a 0.2-5 Hz band is its
     # noise floor rather than the body. At standstill amplitudes the body is below that floor,
     # and the floor differs between handsets, which is how a phantom device factor and a phantom

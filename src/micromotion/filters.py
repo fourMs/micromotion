@@ -52,10 +52,13 @@ gravity -- and a fusion cannot output faster than its slowest input, which is th
 The deposited files carry that fused channel, so their usable Nyquist really is 7.5 Hz. The limit
 is the channel chosen, not the hardware.
 
-**What it costs.** Band-limited *speed* barely notices: 5 Hz against 10 is within 2.3 per cent
-on every collection, and 95 per cent of quiet-standing sway power lies below 1 Hz anyway. On one
-199-recording optical collection the change moves the median 0.8 per cent and leaves the ranking
-at Spearman 0.996.
+**What it costs.** Band-limited *speed* mostly does not notice: measured over 466
+person-recordings, 5 Hz against 10 differs by a median of 1.3 per cent, and 95 per cent of
+quiet-standing sway power lies below 1 Hz anyway. That is a distribution rather than a bound.
+Its ninetieth percentile is 3.2 per cent and its maximum 9.1, largest on optical collections
+sampled at 100 to 200 Hz, which genuinely resolve the octave between 5 and 10 Hz. Rankings
+survive: on one 199-recording optical collection the change moves the median 0.8 per cent and
+leaves the ranking at Spearman 0.996.
 
 **What it costs that matters.** *Jerk* is two derivatives higher and lives in the discarded
 region: at 5 Hz it is 37 to 66 per cent of its 10 Hz value, and the ranking shifts too. So jerk
@@ -63,8 +66,6 @@ must not be computed at this band on data that could support a wider one -- use
 :data:`WIDEBAND` and say so. On the phone collection the wider jerk was never real: the 15 Hz
 sensor cannot produce it, and computing it there inflated jerk 18 to 27 per cent with
 interpolation.
-
-See ``deposit/_analysis/reports/band_edge_sensitivity/`` and ``ss365_sample_rate/``.
 """
 
 WIDEBAND = (0.2, 10.0)
