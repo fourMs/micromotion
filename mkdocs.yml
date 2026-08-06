@@ -34,11 +34,17 @@ nav:
 
 plugins:
   - search
+  - git-revision-date-localized:
+      enable_creation_date: true
   - mkdocstrings:
       handlers:
         python:
           options:
             docstring_style: google
+            # Types live in the docstrings, not in signature annotations;
+            # griffe 2.x would otherwise warn (fatal under --strict).
+            docstring_options:
+              warn_missing_types: false
             show_source: true
             show_root_heading: true
             heading_level: 3
