@@ -176,6 +176,57 @@ def implausible_position(x, where: str = "", axis: int = 2, min_fraction: float 
         where)]
 
 
+def marker_noise(x, fs: float, where: str = "", max_ratio: float = 5.0) -> list[Finding]:
+    """A marker that neither jumps nor drops out, but jitters.
+
+    :func:`zero_triplets` catches the dropped frame and :func:`implausible_position` catches the
+    reconstruction that lands near the laboratory origin. Neither can see the third failure, which
+    is a marker whose every sample is plausible and whose sample-to-sample noise is several times
+    what the body contributes. Nothing about such a trace looks wrong: it stays at head height, it
+    never leaps, and its median-based quantity of motion is perfectly ordinary.
+
+    It is destroyed only by measures that SUM. On one Sverm recording the band-limited quantity of
+    motion is 4.95 mm/s -- the corpus median, an unremarkable standstill -- while the raw
+    sample-to-sample path length runs at 79.18 mm/s, sixteen times higher. Plotted as cumulative
+    distance beside 190 other recordings it was the obvious outlier, and it is not a person who
+    moved.
+
+    The test compares the two. Raw path speed is the mean sample-to-sample displacement per second,
+    which counts everything including the sensor's own jitter; band-limited speed keeps only the
+    frequencies a standing body moves in. Their ratio is therefore how much of the measured path
+    lies outside the band, and it is bounded below by 1 rather than by 0. Over 193 Sverm
+    person-recordings it has a median of 1.39 and a 95th percentile of 2.30, then a gap to 4.5,
+    5.8, 10.7 and 16.0 -- so the default threshold sits in empty space rather than on a shoulder.
+
+    Sampling rate matters and is already accounted for: a faster recording accumulates more raw
+    path for identical behaviour, but it accumulates the same band-limited speed, so the ratio
+    rises with rate. That is the point. It is asking how much of what a summing measure would count
+    is not the body, and the answer legitimately depends on how often the sensor was asked.
+
+    Requires positions in millimetres. Returns nothing for a series too short to filter.
+    """
+    from .qom import speed_from_position          # local: qom imports filters, not this module
+
+    x = np.atleast_2d(np.asarray(x, float).T).T
+    if x.shape[1] < 2 or len(x) < 50 or not np.isfinite(x).all():
+        return []
+    step = np.linalg.norm(np.diff(x, axis=0), axis=1)
+    raw = float(step.sum()) * fs / len(step)
+    band = float(np.median(speed_from_position(x, fs, unit="mm")))
+    if band <= 0:
+        return []
+    ratio = raw / band
+    if ratio <= max_ratio:
+        return []
+    return [_finding(
+        "marker_noise", "error",
+        f"raw path length runs at {raw:.1f} mm/s against a band-limited {band:.2f} mm/s, a ratio "
+        f"of {ratio:.1f} where this corpus sits at a median of 1.4. Most of what a cumulative or "
+        f"summing measure would count here is marker jitter rather than the body; median-based "
+        f"measures are unaffected",
+        where)]
+
+
 def finite_fraction(x, where: str = "", min_finite: float = 0.8) -> list[Finding]:
     """Whether enough of a series survived to measure, and whether any of it did.
 

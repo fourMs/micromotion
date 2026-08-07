@@ -301,3 +301,48 @@ def test_implausible_position_flags_impossibly_high_too():
 
 def test_implausible_position_needs_enough_samples():
     assert mm.validate.implausible_position(_standing(n=50)) == []
+
+
+# ----------------------------------------------------------- marker_noise
+
+def _sway(n=6000, fs=100.0, mm_amp=6.0, noise_mm=0.0, seed=1):
+    """A standing head: slow sway in the micromotion band, plus optional per-sample jitter."""
+    rng = np.random.default_rng(seed)
+    t = np.arange(n) / fs
+    x = np.column_stack([
+        mm_amp * np.sin(2 * np.pi * 0.5 * t),
+        mm_amp * np.sin(2 * np.pi * 0.4 * t + 1.0),
+        1650.0 + 0.5 * np.sin(2 * np.pi * 0.3 * t),
+    ])
+    if noise_mm:
+        x = x + rng.standard_normal(x.shape) * noise_mm
+    return x
+
+
+def test_marker_noise_accepts_a_clean_recording():
+    assert mm.validate.marker_noise(_sway(), 100.0) == []
+
+
+def test_marker_noise_flags_a_jittering_marker():
+    """The failure the other two checks cannot see: every sample plausible, none of them still."""
+    x = _sway(noise_mm=1.5)
+    assert mm.validate.zero_triplets(x) == []            # no dropped frames
+    assert mm.validate.implausible_position(x) == []      # never leaves head height
+    f = mm.validate.marker_noise(x, 100.0)
+    assert len(f) == 1 and f[0].severity == "error"
+    assert "marker jitter" in f[0].message
+
+
+def test_marker_noise_leaves_a_median_measure_alone():
+    """Why it matters: the jitter destroys a summing measure and not a median one."""
+    clean, noisy = _sway(), _sway(noise_mm=1.5)
+    q_clean = float(np.median(mm.speed_from_position(clean, 100.0, unit="mm")))
+    q_noisy = float(np.median(mm.speed_from_position(noisy, 100.0, unit="mm")))
+    assert abs(q_noisy - q_clean) / q_clean < 0.5        # band-limited measure barely moves
+    path_clean = np.linalg.norm(np.diff(clean, axis=0), axis=1).sum()
+    path_noisy = np.linalg.norm(np.diff(noisy, axis=0), axis=1).sum()
+    assert path_noisy > 5 * path_clean                   # the summing measure is wrecked
+
+
+def test_marker_noise_too_short_to_judge():
+    assert mm.validate.marker_noise(_sway(n=20), 100.0) == []

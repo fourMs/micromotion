@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.2.0 — 2026-08-07
+
+### Added
+- **`validate.marker_noise`**, the third member of the marker-artefact family and the one
+  the other two cannot cover. `zero_triplets` catches a dropped frame written as three
+  exact zeros; `implausible_position` catches a reconstruction that lands near the
+  laboratory origin without being exactly on it. Neither can see a marker whose every
+  sample is plausible and whose sample-to-sample noise is several times what the body
+  contributes: it stays at head height, it never leaps, and its median-based quantity of
+  motion is perfectly ordinary.
+
+  It is destroyed only by measures that SUM. The recording that motivated this has a
+  band-limited quantity of motion of 4.95 mm/s — the corpus median, an unremarkable
+  standstill — and a raw sample-to-sample path length of 79.18 mm/s, sixteen times higher.
+  Plotted as cumulative distance beside 190 other recordings it was the obvious outlier,
+  and it is not a person who moved.
+
+  The test is the ratio of raw path speed to band-limited speed, which is how much of the
+  measured path lies outside the band a standing body moves in. Over 193 Sverm
+  person-recordings that ratio has a median of 1.39 and a 95th percentile of 2.30, then a
+  gap to 4.5, 5.8, 10.7 and 16.0, so the default threshold of 5 sits in empty space rather
+  than on a shoulder.
+
+  Deliberately NOT added to `validate_series`, which does not always have a sampling rate
+  or millimetre positions to work with. Call it explicitly where both are known.
+
+### Fixed
+- `__version__` said 1.1.0 while `pyproject.toml` said 1.1.1, so the two disagreed from the
+  1.1.1 release onward and `test_version_matches_pyproject` had been failing.
+
 ## 1.1.1 — 2026-08-06
 
 ### Changed
