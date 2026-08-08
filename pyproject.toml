@@ -4,7 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "micromotion"
-version = "1.2.0"
+# Single source of truth: src/micromotion/__init__.py.
+# Two static copies of a version number drift the moment a bump
+# touches one of them, which is how ambiscape shipped three
+# releases misreporting themselves and musiscape shipped one.
+dynamic = ["version"]
 description = "Micromotion analysis of motion time series: mocap, IMU and force plate"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -40,6 +44,9 @@ Documentation = "https://fourms.github.io/micromotion/"
 Repository = "https://github.com/fourMs/micromotion"
 Changelog = "https://github.com/fourMs/micromotion/blob/main/CHANGELOG.md"
 Issues = "https://github.com/fourMs/micromotion/issues"
+
+[tool.hatch.version]
+path = "src/micromotion/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/micromotion"]

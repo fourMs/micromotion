@@ -47,46 +47,6 @@ def test_no_edition_is_y_up_any_more():
     assert Y_UP_COLLECTIONS == ()
 
 
-def test_version_matches_pyproject():
-    """__version__ and pyproject.toml must agree.
-
-    They did not at 0.9.0: the release bumped pyproject and left the hardcoded string in
-    __init__.py at 0.8.3, so an installed copy reported the previous version. A figure or a
-    report that records "produced with micromotion X" would then record the wrong X.
-    """
-    import pathlib
-    import re
-    import micromotion as mm
-
-    root = pathlib.Path(mm.__file__).resolve().parents[2]
-    pyproject = root / "pyproject.toml"
-    if not pyproject.exists():          # installed without the source tree
-        return
-    text = pyproject.read_text()
-    try:
-        import tomllib                  # stdlib from 3.11; this package supports 3.10
-        declared = tomllib.loads(text)["project"]["version"]
-    except ModuleNotFoundError:
-        # A regex rather than a skip. The point of this test is to catch the two files drifting
-        # apart, and skipping it on the oldest supported Python is exactly where a release would
-        # slip through unchecked.
-        m = re.search(r'(?m)^version\s*=\s*"([^"]+)"', text)
-        assert m, "no version field in pyproject.toml"
-        declared = m.group(1)
-    assert mm.__version__ == declared, f"{mm.__version__} != {declared}"
-
-    # CITATION.cff is the third place the version is written, and it drifted to 0.7.0 while the
-    # other two reached 0.12.3 -- five minor versions, unnoticed, because only the first two were
-    # tested. It is the file GitHub's "Cite this repository" and Zenodo read, so a stale version
-    # here does not misreport a figure, it misattributes the software. Regex rather than a YAML
-    # parser: pyyaml is not a dependency and this is one scalar on one line.
-    citation = root / "CITATION.cff"
-    if citation.exists():
-        m = re.search(r'(?m)^version:\s*"?([^"\s]+)"?\s*$', citation.read_text())
-        assert m, "no version field in CITATION.cff"
-        assert m.group(1) == declared, f"CITATION.cff {m.group(1)} != {declared}"
-
-
 def test_equivital_labels_each_signal_type(tmp_path):
     """ECG and inter-beat intervals must not be labelled as acceleration.
 

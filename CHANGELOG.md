@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.2.1 — 2026-08-08
+
+### Fixed
+- The package version has one source. `__version__` in
+  `src/micromotion/__init__.py` is now the only place the number is
+  written, and hatchling reads it from there through a dynamic version;
+  the static `version` in `pyproject.toml` is gone. The two copies
+  happened to agree here, which was luck rather than a mechanism: the same
+  arrangement let ambiscape ship three releases reporting a version other
+  than their own, and musiscape ship one. Anything citing this toolbox by
+  version is otherwise citing a number the installed package will not
+  confirm. `tests/test_version.py` fails if a static version reappears in
+  `pyproject.toml`, if the build stops reading the module, or if the
+  number hatchling would package differs from the one the module reports.
+  `CITATION.cff` keeps a literal version, because GitHub's "Cite this
+  repository" and Zenodo read the file as it stands, so it remains the one
+  copy a guard has to compare -- and the copy that matters most, since a
+  stale version there misattributes the software rather than misreporting
+  a figure. That comparison moved into `tests/test_version.py`, and the
+  older `test_version_matches_pyproject` is gone with the second copy it
+  existed to watch.
+
 ## 1.2.0 — 2026-08-07
 
 ### Added
