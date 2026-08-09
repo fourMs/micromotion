@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.2.2 — 2026-08-09
+
+### Fixed
+- `resample.to_rate` no longer injects high-frequency energy into data that
+  sits on a large constant. It now subtracts the mean before
+  `signal.resample_poly` and restores it afterwards.
+
+  The bug needed two things at once, which is why it went unseen: a rate
+  ratio whose numerator exceeds one, so the polyphase filter interpolates
+  rather than merely decimating, and an offset far larger than the signal.
+  Optical position has both. A head marker sits one to two metres from the
+  laboratory origin while its motion is a fraction of a millimetre, and the
+  filter's finite stopband attenuation is applied to that offset as much as
+  to the signal, so the leakage lands well above the motion.
+
+  Measured on a real Standstill2019 head marker at (-1383, 350, 1718) mm,
+  resampled 120 to 100 Hz: the share of 0.02-20 Hz velocity power above
+  5 Hz was 5.4 per cent at the native rate and 92.8 per cent after
+  resampling. With the fix it is 5.4 again. Pure decimation, such as 200 to
+  100 Hz where the ratio is one half, was never affected, which is why the
+  corpus's other resampled collections looked correct and hid this one.
+
+  Below 5 Hz nothing moves, so band-limited quantity of motion at the
+  0.2-5 Hz micromotion band was never affected and figures computed there
+  stand. What was affected is any analysis of resampled position data
+  ABOVE that band.
+
+  `tests/test_resample.py` gains a regression test that fails on the old
+  behaviour.
+
 ## 1.2.1 — 2026-08-08
 
 ### Fixed

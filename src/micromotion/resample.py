@@ -116,7 +116,24 @@ def to_rate(x, fs_in: float, fs_out: float = COMMON_RATE):
     up, down = Fraction(fs_out / fs_in).limit_denominator(1000).as_integer_ratio()
     if up == 0:
         raise ValueError(f"rate ratio {fs_out}/{fs_in} is too extreme to resample")
-    return signal.resample_poly(x, up, down, axis=0, padtype="line")
+
+    # Centre before resampling and restore after. When up > 1 the polyphase filter interpolates,
+    # and interpolation of a signal sitting on a large constant leaks that constant into the
+    # stopband: the filter's finite attenuation is applied to the OFFSET as well as to the signal.
+    # Optical position is the case that matters, since a marker sits 1-2 metres from the origin
+    # while its motion is a fraction of a millimetre, so the leakage arrives far above the motion.
+    #
+    # Measured on Standstill2019, 120 -> 100 Hz, a real head marker at (-1383, 350, 1718) mm: the
+    # share of 0.02-20 Hz velocity power above 5 Hz went from 5.4 per cent at the native rate to
+    # 92.8 per cent after resampling, and back to 5.4 with this centring. A synthetic test isolates
+    # the two conditions: the artefact needs up > 1 AND a large offset, and pure decimation
+    # (up == 1, as in 200 -> 100 Hz) is immune to the offset entirely.
+    #
+    # This does not touch the band the corpus measures. The leakage lands above 5 Hz, so
+    # band-limited quantity of motion was unaffected and the published figures stand; what was
+    # affected is any analysis of the harmonised series ABOVE the band.
+    centre = x.mean(axis=0, keepdims=True) if x.ndim > 1 else x.mean()
+    return signal.resample_poly(x - centre, up, down, axis=0, padtype="line") + centre
 
 
 def regularize(t, x, fs_out: float | None = None, max_gap_s: float | None = None):

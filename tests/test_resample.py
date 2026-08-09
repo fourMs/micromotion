@@ -79,3 +79,34 @@ def test_rate_quality_reports_the_gap():
     q = resample.rate_quality(t)
     assert q["max_gap_s"] == pytest.approx(132.0, abs=0.1)
     assert q["coverage"] < 0.5
+
+
+def test_to_rate_does_not_inject_high_frequency_from_a_dc_offset():
+    """Downsampling must not ADD high-frequency energy, whatever the signal sits on.
+
+    Found 2026-08-09 on Standstill2019. Optical position sits 1-2 metres from the origin while its
+    motion is a fraction of a millimetre, and 120 -> 100 Hz needs up=5, so the polyphase filter
+    interpolates. Interpolation applies the filter's finite stopband attenuation to the OFFSET as
+    well as to the signal, and the leakage arrived far above the motion: the share of velocity power
+    above 5 Hz went from 5.4 per cent to 92.8. Pure decimation (up == 1) was never affected, which is
+    why 200 -> 100 Hz looked fine and hid it.
+    """
+    import numpy as np
+    from scipy import signal
+    import micromotion as mm
+
+    rng = np.random.default_rng(0)
+    slow = np.cumsum(rng.normal(scale=0.01, size=(12000, 3)), axis=0)
+
+    def hf_share(x, fs):
+        v = np.diff(x, axis=0) * fs
+        f, p = signal.welch(v, fs=fs, nperseg=min(len(v), int(fs * 60)), axis=0)
+        psd = p.sum(axis=1)
+        return psd[(f >= 5) & (f < 20)].sum() / psd[(f >= 0.02) & (f < 20)].sum()
+
+    at_origin = hf_share(mm.to_rate(slow, 120.0, 100.0), 100.0)
+    for offset in (100.0, 1700.0):
+        shifted = hf_share(mm.to_rate(slow + offset, 120.0, 100.0), 100.0)
+        assert abs(shifted - at_origin) < 0.02, (
+            f"a {offset:g} mm offset changed the high-frequency share from {at_origin:.3f} "
+            f"to {shifted:.3f}; to_rate must centre before resample_poly")
