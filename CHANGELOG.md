@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.3.0 — 2026-08-10
+
+### Added
+- `micromotion.windows`, for the question of whether two conditions were
+  measured over comparable stretches of time. `window_balance` reports
+  whether segment duration differs by condition; `equalise_windows`
+  truncates every segment to a common length so that it does not.
+
+  This exists because the fault it addresses is invisible to every other
+  kind of check. Segment duration usually follows the STIMULUS rather than
+  the design: a running order plays a track for as long as the track lasts
+  and leaves whatever gap it leaves, so two conditions end up different
+  lengths without anyone deciding they should be. Nothing about a table of
+  onsets and offsets announces it, and no amount of reading the analysis
+  code reveals it, because the defect is in the schedule rather than in the
+  arithmetic.
+
+  It changes results. A quantity averaged over a longer window settles
+  further toward its middle, so unequal windows estimate the two conditions
+  with unequal smoothing. Across six recording sessions where music
+  segments ran 20 to 60 s against silences of 16 to 180, equalising the
+  windows within each session raised a music-versus-silence contrast at
+  0.5-1 Hz from +1.70 to +2.10 per cent and moved two further frequency
+  bands from null to significant. In a different study in the same corpus
+  the same defect produced a false positive below 0.5 Hz instead. The
+  direction is not predictable from the imbalance, which is the argument
+  for measuring rather than reasoning.
+
+  `equalise_windows` takes `by=` for a reason worth stating. Capping every
+  group to one length across a study equalises the conditions and shortens
+  every window at once, and those pull in opposite directions: applied to
+  sessions whose segments ran from 20 to 180 s, a single cap made a real
+  effect look like it had collapsed, purely by discarding the signal of the
+  sessions that had recorded longest. Pass the session, edition or
+  recording as `by` and each is equalised against its own shortest segment.
+
 ## 1.2.2 — 2026-08-09
 
 ### Fixed

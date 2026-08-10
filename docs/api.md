@@ -19,6 +19,10 @@ generated from the docstrings in the source, so a signature here is the signatur
 
 ::: micromotion.validate
 
+## Comparing over equal windows
+
+::: micromotion.windows
+
 ## Reading files
 
 ::: micromotion.io
