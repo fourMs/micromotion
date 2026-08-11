@@ -81,25 +81,88 @@ def band_power(x, fs: float, band: tuple[float, float], window_s: float = 60.0) 
 
 
 def spectral_peak(x, fs: float, band: tuple[float, float],
-                  window_s: float = 60.0) -> dict:
-    """Peak frequency in a band, with a signal-to-noise ratio against the band's own median.
+                  window_s: float = 60.0, require_peak: bool = True,
+                  min_excess: float = 2.0) -> dict:
+    """Peak frequency in a band, or NaN when the band contains no peak.
 
-    The ratio is what makes the peak reportable. Every spectrum has a maximum somewhere
-    inside any band you choose; whether it rises above the surrounding noise decides whether
-    a rhythm is present at all. Below about 3, treat the peak as absent rather than weak.
+    Every spectrum has a maximum somewhere inside any band you choose, and on a falling
+    spectrum that maximum is the lowest bin. It is not a rhythm, it is the slope. With
+    ``require_peak`` the result is NaN unless the band holds something that stands above its own
+    background: an interior local maximum of the spectrum divided by a log-log straight-line fit
+    across the band, exceeding ``min_excess``. ``is_peak`` and ``excess`` in the returned dict say
+    which happened and by how much.
+
+    WHY THE BASELINE IS A FITTED SLOPE AND NOT THE BAND MEDIAN. Measuring a peak against the
+    median of its own band assumes the band is flat. Over a 1/f spectrum it is not: the median is
+    dragged down by the high-frequency end, so the low bins clear any threshold without being
+    peaks. On plain 1/f noise the band's largest value scores 3.7 against the median and 1.3 to
+    1.7 against the fitted slope, where a real rhythm scores 5 and up against either.
+
+    THE SIGNAL-TO-NOISE RATIO DOES NOT CATCH THIS, and an earlier version of this docstring
+    advised using it that way. It is wrong in the one case that matters. The lowest bin of a 1/f
+    spectrum has both the most power and the highest power-over-band-median of anything inside a
+    band drawn above the knee, so raising an SNR threshold SELECTS the artefact rather than
+    excluding it. In a year of daily standstill recordings, tightening the threshold from nothing
+    to 5 took the share of days whose "respiration rate" sat exactly on the band floor from 21 per
+    cent to 32, and moved the median from 10.5 breaths a minute to 9.0. Four analyses in the Oslo
+    Standstill corpus reported a band edge as a measurement before this was found, one of them on
+    662 of 930 values, and one of those numbers had reached a book.
+
+    REJECTING THE EDGE BIN IS NOT ENOUGH EITHER. On a monotone slope, refusing the first bin moves
+    the maximum to the second: the same 662 of 930 became 198 of 268, one bin along. Only asking
+    whether the thing is a peak at all separates the two cases.
+
+    IT IS MORE ACCURATE AND NOT ONLY MORE CAUTIOUS. Dividing out the slope finds peaks the raw
+    maximum misses: on 1/f noise plus a modest 0.25 Hz tone, the old answer is the band floor and
+    this returns 0.25.
+
+    WHAT IT COSTS. It is conservative, and a rhythm weaker than about half that returns NaN even
+    though it is really there. That is the right direction to fail in -- a missing value rather
+    than a wrong one -- but it is a false negative, so a rate aggregated over many recordings will
+    be missing its weakest cases and the count of NaNs is part of the result rather than a
+    nuisance. Lower ``min_excess`` to trade the other way, knowingly.
+
+    ``snr`` is still the peak over the band median, unchanged, because callers report it.
+    ``require_peak=False`` restores the old behaviour exactly, for a caller who wants the largest
+    value in a band and knows that is what they are asking for.
     """
+    nan = {"freq": float("nan"), "power": float("nan"), "snr": float("nan"),
+           "excess": float("nan"), "is_peak": False}
     x = np.asarray(x, float)
     if len(x) < fs * 10:
-        return {"freq": float("nan"), "power": float("nan"), "snr": float("nan")}
+        return nan
     nper = int(min(len(x), fs * window_s))
     f, p = signal.welch(signal.detrend(x), fs, nperseg=nper)
     m = (f >= band[0]) & (f <= band[1])
     if not m.any():
-        return {"freq": float("nan"), "power": float("nan"), "snr": float("nan")}
-    k = int(np.argmax(p[m]))
-    med = float(np.median(p[m]))
-    return {"freq": float(f[m][k]), "power": float(p[m][k]),
-            "snr": float(p[m][k] / med) if med > 0 else float("nan")}
+        return nan
+    fb, pb = f[m], p[m]
+    med = float(np.median(pb))
+
+    def result(k, excess, is_peak):
+        return {"freq": float(fb[k]), "power": float(pb[k]),
+                "snr": float(pb[k] / med) if med > 0 else float("nan"),
+                "excess": float(excess), "is_peak": bool(is_peak)}
+
+    if not require_peak:
+        return result(int(np.argmax(pb)), float("nan"), False)
+
+    ok = (fb > 0) & (pb > 0)
+    if ok.sum() < 5:
+        return nan
+    lf, lp = np.log(fb[ok]), np.log(pb[ok])
+    slope, intercept = np.polyfit(lf, lp, 1)
+    ratio = np.full(len(pb), np.nan)
+    ratio[ok] = pb[ok] / np.exp(slope * lf + intercept)
+    if np.all(np.isnan(ratio)):
+        return nan
+    k = int(np.nanargmax(ratio))
+    interior = 0 < k < len(pb) - 1
+    if not (interior and ratio[k] > ratio[k - 1] and ratio[k] > ratio[k + 1]):
+        return nan
+    if not ratio[k] >= min_excess:
+        return nan
+    return result(k, ratio[k], True)
 
 
 def band_rms(x, fs: float, band: tuple[float, float]) -> float:

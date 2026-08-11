@@ -1,6 +1,7 @@
 """Spectral helpers and the extra dynamics measures."""
 
 import numpy as np
+from scipy import signal
 import pytest
 
 from micromotion import dynamics as dy
@@ -19,6 +20,98 @@ def test_spectral_peak_finds_a_tone_and_reports_high_snr():
     r = sp.spectral_peak(tone(1.2, 100.0, 300, noise=0.3), 100.0, (0.7, 2.2))
     assert r["freq"] == pytest.approx(1.2, abs=0.03)
     assert r["snr"] > 10
+
+
+def pink(fs, dur, seed=0):
+    """A 1/f series: falling spectrum, no peak anywhere in it."""
+    n = int(fs * dur)
+    w = np.random.default_rng(seed).normal(0, 1, n)
+    F = np.fft.rfft(w)
+    f = np.fft.rfftfreq(n, 1 / fs)
+    F[1:] /= f[1:]
+    F[0] = 0
+    return np.fft.irfft(F, n=n)
+
+
+BAND = (0.12, 0.40)     # a respiration band, drawn above the knee of a 1/f spectrum
+
+
+def test_spectral_peak_refuses_a_slope_instead_of_returning_its_lowest_bin():
+    """The failure this function was reporting as a measurement.
+
+    A band drawn above the knee of a 1/f spectrum contains no peak, and a bare argmax returns the
+    band's lowest bin. That value is not a rhythm, it is the slope, and it is where four analyses
+    in the Oslo corpus were reading breathing rates and sway frequencies from -- one of them on
+    662 of 930 values, one of them into a book.
+    """
+    for seed in range(6):
+        r = sp.spectral_peak(pink(10.0, 600, seed), 10.0, BAND)
+        assert np.isnan(r["freq"]), f"seed {seed} found a peak in a slope"
+        assert r["is_peak"] is False
+
+
+def test_the_snr_does_not_catch_a_slope_which_is_why_the_excess_exists():
+    """Tightening an SNR threshold selects the artefact rather than excluding it.
+
+    The band median assumes a flat band. Over 1/f it is dragged down by the high-frequency end,
+    so the lowest bins clear any SNR bar without being peaks.
+    """
+    old = sp.spectral_peak(pink(10.0, 600), 10.0, BAND, require_peak=False)
+    assert not np.isnan(old["freq"])
+    assert old["snr"] > 3               # would pass the advice the old docstring gave
+    assert old["freq"] < BAND[0] + 0.04  # and it is the bottom of the band
+
+
+def test_rejecting_the_edge_bin_would_not_have_been_enough():
+    """The reason the test is "is this a peak" and not "where is it".
+
+    On a falling spectrum, refusing the first bin moves the maximum to the second.
+    """
+    x = pink(10.0, 600)
+    f, p = signal.welch(signal.detrend(x), 10.0, nperseg=int(10.0 * 60))
+    pb = p[(f >= BAND[0]) & (f <= BAND[1])]
+    assert int(np.argmax(pb)) <= 1                      # at or beside the floor
+    assert int(np.argmax(pb[1:])) <= 1                  # and one bin along, the same shape
+    assert np.isnan(sp.spectral_peak(x, 10.0, BAND)["freq"])
+
+
+def test_require_peak_false_restores_the_old_behaviour():
+    x = pink(10.0, 600)
+    assert np.isnan(sp.spectral_peak(x, 10.0, BAND)["freq"])
+    assert not np.isnan(sp.spectral_peak(x, 10.0, BAND, require_peak=False)["freq"])
+
+
+def test_a_real_rhythm_riding_on_a_slope_still_survives_the_rule():
+    """The rule must not throw away the thing it exists to protect.
+
+    A breath is a modest peak on top of a much larger postural slope, which is exactly the shape
+    that makes this hard: the raw argmax is still down at the band floor, and the peak is only
+    visible once the slope is divided out.
+    """
+    fs, dur = 10.0, 600
+    t = np.arange(0, dur, 1 / fs)
+    x = pink(fs, dur, seed=1) + 0.7 * np.sin(2 * np.pi * 0.25 * t)
+    raw = sp.spectral_peak(x, fs, BAND, require_peak=False)
+    assert raw["freq"] < BAND[0] + 0.02           # the old answer returns the band floor
+    r = sp.spectral_peak(x, fs, BAND)
+    assert r["is_peak"] is True
+    assert r["freq"] == pytest.approx(0.25, abs=0.02)  # the new one finds the rhythm
+    assert r["excess"] > 2
+
+
+def test_the_rule_is_conservative_and_misses_a_rhythm_below_the_slope():
+    """What it costs, stated rather than discovered later.
+
+    Dividing out the slope makes a peak findable, not visible from nothing. Below about half the
+    amplitude of the case above, a genuine 0.25 Hz rhythm is present and this returns NaN. That is
+    the intended direction to fail in -- a missing value rather than a wrong one -- but it is a
+    false negative and a rate computed from these will be missing its weakest cases.
+    """
+    fs, dur = 10.0, 600
+    t = np.arange(0, dur, 1 / fs)
+    for amp in (0.2, 0.3, 0.4):
+        x = pink(fs, dur, seed=1) + amp * np.sin(2 * np.pi * 0.25 * t)
+        assert np.isnan(sp.spectral_peak(x, fs, BAND)["freq"])
 
 
 def test_respiratory_peak_recovers_a_breath_riding_on_much_larger_slow_drift():

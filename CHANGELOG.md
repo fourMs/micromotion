@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.4.0 — 2026-08-11
+
+### Changed
+- `spectral_peak` returns NaN where the band contains no peak, instead of the
+  band's lowest bin. Every spectrum has a maximum somewhere inside any band you
+  choose, and on a falling spectrum that maximum is the floor. It is not a
+  rhythm, it is the slope, and it was being reported as a measurement.
+
+  The cost of the old behaviour is measured rather than hypothetical. Four
+  analyses in the Oslo Standstill corpus were reading rates off a band edge: a
+  belt breathing rate pinned at 6.0 breaths a minute on 5 of 90 recordings, a
+  head-marker rate at 9.0 on 26 of 85, a championship sway peak at 0.125 Hz on
+  662 of 930 values, and two daily respiration medians on 30 and 21 per cent of
+  a year of recordings. One of the numbers had reached a book. Two of the
+  reports quoted a rate that could not be measured at all.
+
+  The signal-to-noise ratio does not catch this, and the previous docstring
+  advised using it that way. It is wrong in the one case that matters. Measuring
+  a peak against the median of its own band assumes the band is flat; over 1/f
+  it is not, because the median is dragged down by the high-frequency end, so
+  the lowest bins clear any threshold without being peaks. Raising an SNR bar
+  therefore SELECTS the artefact. On one year of daily recordings, tightening it
+  from nothing to 5 took the share of days sitting on the band floor from 21 per
+  cent to 32 and moved the median from 10.5 breaths a minute to 9.0.
+
+  Rejecting the edge bin is not enough either. On a falling spectrum, refusing
+  the first bin moves the maximum to the second: 662 of 930 became 198 of 268,
+  one bin along. The test has to be whether the thing is a peak at all, so it is
+  now an interior local maximum of the spectrum divided by a log-log
+  straight-line fit across the band, exceeding `min_excess` (default 2.0). On
+  plain 1/f noise the largest value scores 3.7 against the band median and 1.3
+  to 1.7 against the fitted slope; a real rhythm scores 5 and up against either.
+
+  It is more accurate and not only more cautious: on 1/f noise plus a modest
+  0.25 Hz tone the old answer is the band floor and this returns 0.25. It is
+  also conservative, and a rhythm weaker than about half that returns NaN
+  although it is really there. That is the right direction to fail in, but it is
+  a false negative, and the count of NaNs is part of the result.
+
+  `require_peak=False` restores the old behaviour exactly. `snr` is unchanged.
+  The returned dict gains `excess` and `is_peak`.
+
 ## 1.3.0 — 2026-08-10
 
 ### Added
