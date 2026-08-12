@@ -1,18 +1,15 @@
 # Changelog
 
-> **Release order, from 2026-08-12.** Moving music analysis out of ambiscape
-> coupled three releases, and shipping them out of order breaks things:
+> **Release order.** Music analysis moved out of ambiscape on 2026-08-12,
+> which couples three of these packages. Shipping them out of order breaks
+> things:
 >
-> 1. **micromotion first.** musiscape now needs `circular_sd` and
->    `rayleigh_from_R`, added in the unreleased tree; PyPI has 1.2.1.
+> 1. **micromotion first.** musiscape needs `circular_sd` and
+>    `rayleigh_from_R`, which arrived in 1.9.0.
 > 2. **musiscape second.** Until it ships, the published 0.4.0 still does
 >    `from ambiscape import music`.
 > 3. **ambiscape last.** Releasing it before musiscape breaks that published
 >    0.4.0, whose feature extraction imports the functions that moved.
->
-> This package is deliberately unreleased --- a GitHub release publishes to
-> PyPI and cannot be undone --- so the chain is held here, at step 1, pending
-> ARJ's decision. Nothing is broken for anyone working from the checkouts.
 
 
 ## 1.9.0 — 2026-08-12
