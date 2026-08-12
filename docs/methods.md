@@ -143,6 +143,14 @@ it at +0.95. Whether that matters depends entirely on where the estimator reads:
 So the rule is not "never resample". It is that a local resampler feeding a short-lag estimator is
 the combination that has cost a conclusion, and an awkward rate ratio can reach the others too.
 
+**Band-limiting first immunises you**, and that is usually the cheapest fix. The fault needs
+broadband content near Nyquist to fold down; filtering to the analysis band removes it before the
+resampler can. Measured on one corpus analysis that band-limits to 0.2--5 Hz and then decimates to
+5 Hz, a bare `resample_poly` and `to_rate` agree to 0.03 per cent and give identical lag-one
+autocorrelations. The analysis that lost a conclusion resampled RAW position with the full tracking
+noise floor still in it. So the question to ask of any pipeline is not "does it resample?" but "does
+it resample something unfiltered, and does anything downstream read the shortest lags?"
+
 **Upsampling.** `to_rate` raises rather than upsampling, because interpolation invents structure
 between samples and a scaling exponent reads that invention as real. A corpus mixing 20 and 100 Hz
 recordings will hit this; the answer is to analyse at a rate every series reaches, or to exclude the

@@ -30,6 +30,11 @@
 - `docs/conventions.md` gains the project's own rule — data, toolbox, report, book — and
   the reversed conclusion that is the argument for it.
 
+- `docs/methods.md` also records the cheapest fix: band-limiting before resampling
+  removes the near-Nyquist content the fault needs. An analysis that filters to 0.2–5 Hz
+  and then decimates gets the same answer from a bare `resample_poly` as from `to_rate`,
+  to 0.03 per cent. The one that lost a conclusion resampled raw position.
+
 ## 1.5.0 — 2026-08-12
 
 ### Added
