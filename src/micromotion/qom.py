@@ -102,6 +102,48 @@ class QomResult:
         )
 
 
+def identify_acceleration_unit(acc, tol: float = 0.25) -> str:
+    """Which unit an accelerometer file is in, from its own values: ``"g"``, ``"mg"`` or ``"m/s^2"``.
+
+    A device that is mostly stationary is mostly measuring gravity, so the median vector norm of a
+    resting recording sits near 1, 981 or 9.81 depending on the convention. Those are three orders
+    of magnitude apart, and no plausible unit lies between them, so the identification is
+    unambiguous whenever the recording is dominated by gravity.
+
+    THIS EXISTS BECAUSE NO FILE FORMAT IN THIS FIELD DECLARES ITS UNITS. Four accelerometers
+    recorded simultaneously on one body in the Oslo corpus stored their values in three different
+    conventions, none of them stated anywhere in the files. The method is Finn Upham's, from the
+    analysis those recordings were made for: take the mean total acceleration while the participant
+    lies still, and read off which constant it is near.
+
+    A UNIT ERROR IS THE HARDEST KIND TO NOTICE. It scales one recording by 9.8 or 981 and leaves
+    every correlation, every rank statistic and every reliability estimate untouched, so nothing
+    downstream complains. It shows up as a suspiciously ROUND ratio against a known value -- a real
+    disagreement is ragged and a unit error is a constant.
+
+    ``tol`` is the fractional distance from a candidate at which the answer is still accepted.
+    Raises if the norm is near none of them, which means either the recording is not
+    gravity-dominated or the units are something this does not know about; in both cases guessing
+    would be worse than stopping.
+
+    >>> identify_acceleration_unit(np.full((100, 3), [0.0, 0.0, 1.0]))
+    'g'
+    """
+    a = _to_2d(np.asarray(acc, float))
+    if a.shape[1] != 3:
+        raise ValueError(f"need three axes to take a vector norm, got {a.shape[1]}")
+    n = float(np.nanmedian(np.linalg.norm(a, axis=1)))
+    if not np.isfinite(n) or n <= 0:
+        raise ValueError("the median vector norm is not a positive finite number")
+    for unit, expect in (("g", 1.0), ("mg", 1000.0), ("m/s^2", G)):
+        if abs(n - expect) / expect <= tol:
+            return unit
+    raise ValueError(
+        f"median vector norm {n:.4g} is not near 1 (g), 981 (mg) or {G:.4g} (m/s^2). "
+        "Either this recording is not dominated by gravity -- a stationary stretch is what the "
+        "method needs -- or the units are not one of these three.")
+
+
 def _to_2d(a) -> np.ndarray:
     a = np.asarray(a, float)
     return a[:, None] if a.ndim == 1 else a

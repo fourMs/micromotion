@@ -162,6 +162,26 @@ scale at every rate.
 
 ---
 
+## Which unit is this file in?
+
+```python
+mm.identify_acceleration_unit(acc)      # -> "g", "mg" or "m/s^2"
+```
+
+No accelerometer format in this field declares its units, and the conventions in use are three
+orders of magnitude apart. A device that is mostly stationary is mostly measuring gravity, so the
+median vector norm of a resting stretch sits near 1, 981 or 9.81 and nothing plausible lies between
+them. Pass a stationary stretch and the answer is unambiguous; pass a recording that is not
+gravity-dominated and it raises rather than guesses.
+
+Four accelerometers recorded simultaneously on one body in the Oslo corpus stored their values in
+three different conventions, none of them stated in any file. Get one wrong and that recording is
+scaled by 9.8 or 981 — while every correlation, rank statistic and reliability estimate stays
+exactly the same, so nothing downstream complains. The tell is a suspiciously ROUND ratio against a
+known value: a real disagreement is ragged and a unit error is a constant.
+
+---
+
 ## One missing sample voids the whole series
 
 Every band-limiting call here is zero-phase: the filter runs forwards and then backwards, so each

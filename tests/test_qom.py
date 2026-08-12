@@ -613,3 +613,23 @@ def test_bandpass_is_silent_on_clean_input():
     with _w.catch_warnings():
         _w.simplefilter("error")
         mm.bandpass(x, fs)
+
+
+@pytest.mark.parametrize("scale,expected", [(1.0, "g"), (1000.0, "mg"), (9.80665, "m/s^2")])
+def test_identify_acceleration_unit_reads_gravity(scale, expected):
+    """A mostly stationary recording is mostly measuring gravity, whatever it calls it."""
+    rng = np.random.default_rng(0)
+    a = np.array([0.0, 0.0, 1.0]) * scale + rng.normal(0, 0.01 * scale, size=(500, 3))
+    assert mm.identify_acceleration_unit(a) == expected
+
+
+def test_identify_acceleration_unit_refuses_rather_than_guesses():
+    """Between the three conventions there is nothing, so a norm in between is a real problem."""
+    a = np.full((100, 3), [0.0, 0.0, 50.0])          # 50: not 1, not 981, not 9.81
+    with pytest.raises(ValueError, match="not near"):
+        mm.identify_acceleration_unit(a)
+
+
+def test_identify_acceleration_unit_needs_three_axes():
+    with pytest.raises(ValueError, match="three axes"):
+        mm.identify_acceleration_unit(np.ones((100, 2)))
