@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.5.0 — 2026-08-12
+
+### Added
+- `peak_from_spectrum(f, p, band)`: the peak rule for a caller that already has a
+  spectrum. `spectral_peak` is this with a Welch in front of it. Several analyses
+  compute one spectrum and read three bands off it, and recomputing the transform
+  per band to reach the rule is both wasteful and an invitation to reimplement it
+  locally. A rule that is easier to copy than to import gets copied.
+
+- `dfa` takes the scale floor in SECONDS as well as in samples, via `min_scale_s`
+  and `fs`. The floor matters more than it looks and the sample-count default was
+  not rate-invariant: `smin=8` is 0.16 s at 50 Hz and 0.08 s at 100 Hz, so the same
+  call measured different physical scales across a corpus spanning 100 to 200 Hz.
+  On real standstill series, dropping the floor from 0.3 s to 8 samples moves the
+  exponent by up to 0.15 — because the shortest scales are dominated by measurement
+  noise, which is white, and pull the exponent toward 0.5.
+
+  The default is unchanged, so no existing call moves.
+
 ## 1.4.0 — 2026-08-11
 
 ### Changed

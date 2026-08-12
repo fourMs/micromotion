@@ -218,3 +218,40 @@ def test_plv_is_near_zero_for_independent_noise():
     rng = np.random.default_rng(0)
     a, b = rng.normal(size=8000), rng.normal(size=8000)
     assert dy.plv(a, b, 50.0, band=(0.3, 10.0))["plv"] < 0.2
+
+
+def test_dfa_scale_floor_in_seconds_matches_samples():
+    """`min_scale_s` is the same floor as `smin`, expressed in time."""
+    import numpy as np
+    import micromotion as mm
+    from micromotion import dynamics as dyn
+
+    rng = np.random.default_rng(3)
+    x = np.cumsum(rng.normal(size=8000))
+    a = dyn.dfa(x, smin=25)["alpha"]
+    b = dyn.dfa(x, fs=50.0, min_scale_s=0.5)["alpha"]
+    assert a == b
+    assert mm.dfa(x, fs=50.0, min_scale_s=0.5) == b
+
+
+def test_dfa_scale_floor_is_rate_invariant_in_seconds():
+    """The same stretch of time is the same floor whatever the rate."""
+    from micromotion import dynamics as dyn
+    import numpy as np
+
+    rng = np.random.default_rng(4)
+    x = np.cumsum(rng.normal(size=8000))
+    assert dyn.dfa(x, fs=50.0, min_scale_s=0.3)["alpha"] == dyn.dfa(x, smin=15)["alpha"]
+    assert dyn.dfa(x, fs=100.0, min_scale_s=0.3)["alpha"] == dyn.dfa(x, smin=30)["alpha"]
+
+
+def test_dfa_refuses_an_ambiguous_or_incomplete_scale_floor():
+    import numpy as np
+    import pytest
+    from micromotion import dynamics as dyn
+
+    x = np.cumsum(np.random.default_rng(5).normal(size=4000))
+    with pytest.raises(ValueError, match="needs fs"):
+        dyn.dfa(x, min_scale_s=0.3)
+    with pytest.raises(ValueError, match="once"):
+        dyn.dfa(x, smin=10, fs=50.0, min_scale_s=0.3)

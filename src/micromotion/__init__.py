@@ -119,10 +119,11 @@ from .spectral import (
     detect_breaths_adaptive,
     mean_frequency,
     respiratory_peak,
+    peak_from_spectrum,
     spectral_peak,
 )
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 __all__ = [
     
@@ -224,6 +225,7 @@ __all__ = [
     "spatial_extent",
     "spectral_band_fractions",
     "spectral_edges",
+    "peak_from_spectrum",
     "spectral_peak",
     "speed_from_acceleration",
     "speed_from_position",

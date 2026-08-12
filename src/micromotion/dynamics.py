@@ -101,16 +101,40 @@ def trev(x, tau: int = 1) -> float:
 
 
 def dfa(x, smin: int | None = None, smax: int | None = None, nsc: int = 18,
-        order: int = 1) -> dict:
+        order: int = 1, *, fs: float | None = None,
+        min_scale_s: float | None = None) -> dict:
     """Detrended fluctuation analysis.
 
     Returns the scaling exponent ``alpha``. For reference, 0.5 is white noise, 1.0 is pink
     noise, and 1.5 is Brownian motion. Values above 0.5 mean the series persists: a
     deviation tends to be followed by more of the same.
+
+    THE SCALE FLOOR MATTERS MORE THAN IT LOOKS, and it is the argument most worth setting.
+    The shortest scales of a real recording are dominated by measurement noise, which is
+    white, so including them pulls the exponent toward 0.5. On standstill head-marker series
+    the exponent moves by up to 0.15 between a floor of 8 samples and one of 0.3 s.
+
+    GIVE IT IN SECONDS WHERE YOU CAN. ``smin`` is a sample count, so the same call measures
+    different physical scales at different rates: 8 samples is 0.16 s at 50 Hz and 0.08 s at
+    100 Hz. Pass ``fs`` and ``min_scale_s`` instead and the floor is the same stretch of time
+    whatever the recording rate, which is what a comparison across a corpus needs.
+
+    A SINGLE EXPONENT MAY NOT DESCRIBE THE SERIES AT ALL. Where the scaling is multifractal
+    the answer depends on which scales are included, and the sensitivity above is a symptom of
+    that rather than of a bad estimator. Check with a multifractal width before quoting one
+    number.
     """
     x = np.asarray(x, float)
     x = x[np.isfinite(x)]
     n = len(x)
+    if min_scale_s is not None:
+        if fs is None:
+            raise ValueError("min_scale_s needs fs: a scale in seconds is meaningless "
+                             "without a sampling rate")
+        if smin is not None:
+            raise ValueError("give the scale floor once, as smin (samples) or min_scale_s "
+                             "(seconds), not both")
+        smin = max(8, int(round(min_scale_s * fs)))
     smin = smin or 8
     smax = smax or n // 4
     if n < 100 or smax <= smin:

@@ -227,3 +227,16 @@ def test_dcca_detects_a_shared_component_that_plain_correlation_misses():
     b = common + np.cumsum(rng.normal(size=6000)) * 3
     rho = dy.dcca(a, b)["rho"]
     assert np.nanmax(rho) > 0.3
+
+
+def test_peak_from_spectrum_is_the_same_rule_as_spectral_peak():
+    """The primitive and the convenience wrapper must not drift apart."""
+    fs, dur = 10.0, 600
+    t = np.arange(0, dur, 1 / fs)
+    for x in (pink(fs, dur, 3), pink(fs, dur, 1) + 0.7 * np.sin(2 * np.pi * 0.25 * t)):
+        nper = int(min(len(x), fs * 60.0))
+        f, p = signal.welch(signal.detrend(x), fs, nperseg=nper)
+        a = sp.spectral_peak(x, fs, BAND)
+        b = sp.peak_from_spectrum(f, p, BAND)
+        assert a["is_peak"] == b["is_peak"]
+        assert (np.isnan(a["freq"]) and np.isnan(b["freq"])) or a["freq"] == b["freq"]

@@ -123,6 +123,7 @@ where there plainly is an axis.
 
 ```python
 mm.spectral_peak(x, fs, band)
+mm.peak_from_spectrum(f, p, band)     # the same rule, on a spectrum you already have
 mm.band_power(x, fs, band)
 mm.band_rms(x, fs, band)
 mm.band_power_fraction(x, fs, {"resp": (0.1, 0.5), "card": (0.7, 2.2)})
@@ -135,6 +136,11 @@ mm.detect_breaths(x, fs)
 
 Spectra are estimated by Welch's method, with priors on where to look and a signal-to-noise
 criterion, so that a peak is only returned when it stands above the local background.
+
+`peak_from_spectrum` is `spectral_peak` without the transform in front of it, for the common case
+of computing one spectrum and reading several bands off it. It exists so that the rule is imported
+rather than reimplemented: recomputing a Welch per band to get at the rule is wasteful, and a rule
+that is easier to copy than to import gets copied.
 
 `cardiac_peak` works this way. `respiratory_peak` does not, and the reason is worth knowing
 before reaching for a spectrum on any slow rhythm. A periodogram of belt or body motion is red:

@@ -290,7 +290,7 @@ def stabilogram_diffusion(xy, fs, *, short_max_s=0.6, long_min_s=1.5,
                 crossover_s=crossover)
 
 
-def dfa(x, *, n_scales=18, min_scale=10):
+def dfa(x, *, n_scales=18, min_scale=10, fs=None, min_scale_s=None):
     """
     Detrended fluctuation analysis (DFA) scaling exponent, as a float.
 
@@ -300,11 +300,18 @@ def dfa(x, *, n_scales=18, min_scale=10):
     implementation and additionally returns the scales and fluctuation curve. The float
     return is kept because published code calls it that way.
 
+    ``min_scale`` is a SAMPLE COUNT, so the same call measures different physical scales at
+    different recording rates. Pass ``fs`` and ``min_scale_s`` to give the floor in seconds
+    instead; on a corpus spanning several rates that is what a comparison needs. See
+    :func:`micromotion.dynamics.dfa` for how much the floor is worth.
+
     Shared with musicalgestures. The two implementations agree to 1.2 per
     cent on Brownian motion before being merged; the surviving one sits closer to the
     analytic answer of 1.5.
     """
     from .dynamics import dfa as _dfa
+    if min_scale_s is not None:
+        return _dfa(x, nsc=n_scales, fs=fs, min_scale_s=min_scale_s)["alpha"]
     return _dfa(x, smin=min_scale, nsc=n_scales)["alpha"]
 
 

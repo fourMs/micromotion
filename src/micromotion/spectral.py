@@ -80,6 +80,53 @@ def band_power(x, fs: float, band: tuple[float, float], window_s: float = 60.0) 
     return float(np.trapezoid(p[m], f[m])) if m.sum() > 1 else float("nan")
 
 
+def peak_from_spectrum(f, p, band: tuple[float, float], require_peak: bool = True,
+                       min_excess: float = 2.0) -> dict:
+    """The peak rule, for a caller that already has a spectrum.
+
+    `spectral_peak` is this with a Welch in front of it. It exists separately because several
+    analyses compute one spectrum and read three bands off it, and recomputing the transform per
+    band to get at the rule would be both wasteful and an invitation to reimplement it locally.
+    A rule that is easier to copy than to import gets copied; that is how the reference markers
+    got into one of these analyses twice.
+
+    See `spectral_peak` for what the rule is and why.
+    """
+    f = np.asarray(f, float)
+    p = np.asarray(p, float)
+    nan = {"freq": float("nan"), "power": float("nan"), "snr": float("nan"),
+           "excess": float("nan"), "is_peak": False}
+    m = (f >= band[0]) & (f <= band[1]) & np.isfinite(p)
+    if not m.any():
+        return nan
+    fb, pb = f[m], p[m]
+    med = float(np.median(pb))
+
+    def result(k, excess, is_peak):
+        return {"freq": float(fb[k]), "power": float(pb[k]),
+                "snr": float(pb[k] / med) if med > 0 else float("nan"),
+                "excess": float(excess), "is_peak": bool(is_peak)}
+
+    if not require_peak:
+        return result(int(np.argmax(pb)), float("nan"), False)
+
+    ok = (fb > 0) & (pb > 0)
+    if ok.sum() < 5:
+        return nan
+    lf, lp = np.log(fb[ok]), np.log(pb[ok])
+    slope, intercept = np.polyfit(lf, lp, 1)
+    ratio = np.full(len(pb), np.nan)
+    ratio[ok] = pb[ok] / np.exp(slope * lf + intercept)
+    if np.all(np.isnan(ratio)):
+        return nan
+    k = int(np.nanargmax(ratio))
+    if not (0 < k < len(pb) - 1 and ratio[k] > ratio[k - 1] and ratio[k] > ratio[k + 1]):
+        return nan
+    if not ratio[k] >= min_excess:
+        return nan
+    return result(k, ratio[k], True)
+
+
 def spectral_peak(x, fs: float, band: tuple[float, float],
                   window_s: float = 60.0, require_peak: bool = True,
                   min_excess: float = 2.0) -> dict:
@@ -126,43 +173,13 @@ def spectral_peak(x, fs: float, band: tuple[float, float],
     ``require_peak=False`` restores the old behaviour exactly, for a caller who wants the largest
     value in a band and knows that is what they are asking for.
     """
-    nan = {"freq": float("nan"), "power": float("nan"), "snr": float("nan"),
-           "excess": float("nan"), "is_peak": False}
     x = np.asarray(x, float)
     if len(x) < fs * 10:
-        return nan
+        return {"freq": float("nan"), "power": float("nan"), "snr": float("nan"),
+                "excess": float("nan"), "is_peak": False}
     nper = int(min(len(x), fs * window_s))
     f, p = signal.welch(signal.detrend(x), fs, nperseg=nper)
-    m = (f >= band[0]) & (f <= band[1])
-    if not m.any():
-        return nan
-    fb, pb = f[m], p[m]
-    med = float(np.median(pb))
-
-    def result(k, excess, is_peak):
-        return {"freq": float(fb[k]), "power": float(pb[k]),
-                "snr": float(pb[k] / med) if med > 0 else float("nan"),
-                "excess": float(excess), "is_peak": bool(is_peak)}
-
-    if not require_peak:
-        return result(int(np.argmax(pb)), float("nan"), False)
-
-    ok = (fb > 0) & (pb > 0)
-    if ok.sum() < 5:
-        return nan
-    lf, lp = np.log(fb[ok]), np.log(pb[ok])
-    slope, intercept = np.polyfit(lf, lp, 1)
-    ratio = np.full(len(pb), np.nan)
-    ratio[ok] = pb[ok] / np.exp(slope * lf + intercept)
-    if np.all(np.isnan(ratio)):
-        return nan
-    k = int(np.nanargmax(ratio))
-    interior = 0 < k < len(pb) - 1
-    if not (interior and ratio[k] > ratio[k - 1] and ratio[k] > ratio[k + 1]):
-        return nan
-    if not ratio[k] >= min_excess:
-        return nan
-    return result(k, ratio[k], True)
+    return peak_from_spectrum(f, p, band, require_peak=require_peak, min_excess=min_excess)
 
 
 def band_rms(x, fs: float, band: tuple[float, float]) -> float:
