@@ -54,6 +54,35 @@ def circ_mean(angles, weights=None) -> dict:
     return {"mean": float(np.angle(z)), "R": float(np.abs(z)), "n": len(a)}
 
 
+def circular_sd(R: float) -> float:
+    """Circular standard deviation, in radians, from a resultant length.
+
+    ``sqrt(-2 ln R)``: zero when every angle agrees, growing without bound as
+    the resultant vanishes. Added 2026-08-12 because this module owns circular
+    statistics for the family and musiscape needed it --- a consumer that
+    cannot get a primitive from the owner writes its own, which is how the
+    Rayleigh implementations drifted apart in the first place.
+    """
+    R = float(R)
+    if not 0.0 < R <= 1.0:
+        return float("nan") if R <= 0.0 else 0.0
+    return float(np.sqrt(-2.0 * np.log(R)))
+
+
+def rayleigh_from_R(R: float, n: int) -> float:
+    """Rayleigh p from a resultant length and a count, without the angles.
+
+    :func:`rayleigh` is the entry point when the angles are to hand. This one
+    is for callers holding a summary --- a resultant length computed earlier,
+    or read from a table --- and uses the same Wilkie approximation, so the
+    two agree by construction rather than by intention.
+    """
+    nR = float(n) * float(R)
+    n = float(n)
+    return float(min(1.0, np.exp(
+        np.sqrt(1 + 4 * n + 4 * (n * n - nR * nR)) - (1 + 2 * n))))
+
+
 def rayleigh(angles) -> dict:
     """Test whether angles are spread uniformly around the circle.
 
