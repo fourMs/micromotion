@@ -579,3 +579,37 @@ def test_band_limited_qom_accepts_optical_legacy_band():
     clipped, _ = mm.band_limited_qom(x, 100.0, lo=None, hi=90.0)
     at_nyquist, _ = mm.band_limited_qom(x, 100.0, lo=None, hi=45.0)
     assert np.allclose(clipped, at_nyquist)
+
+
+def test_bandpass_warns_when_a_gap_will_void_the_output():
+    """A single NaN makes sosfiltfilt return all-NaN, which a caller sees as a silent loss.
+
+    Written from StillStanding365, where 108 of 365 days carry at least one missing accelerometer
+    sample and the obvious analysis path discarded every one of them without saying so.
+    """
+    fs = 12.5
+    x = np.sin(2 * np.pi * 1.0 * np.arange(500) / fs)
+    x[123] = np.nan
+    with pytest.warns(RuntimeWarning, match="non-finite"):
+        y = mm.bandpass(x, fs)
+    assert np.isnan(y).all(), "the warning exists because the whole output is voided"
+
+
+def test_speed_from_acceleration_warns_through_the_filter():
+    """The warning has to reach the caller who never names a filter, which is most of them."""
+    fs = 12.5
+    a = np.zeros((500, 3))
+    a[:, 0] = np.sin(2 * np.pi * 1.0 * np.arange(500) / fs)
+    a[77, 1] = np.nan
+    with pytest.warns(RuntimeWarning, match="non-finite"):
+        v = mm.speed_from_acceleration(a, fs)
+    assert np.isnan(v).all()
+
+
+def test_bandpass_is_silent_on_clean_input():
+    import warnings as _w
+    fs = 12.5
+    x = np.sin(2 * np.pi * 1.0 * np.arange(500) / fs)
+    with _w.catch_warnings():
+        _w.simplefilter("error")
+        mm.bandpass(x, fs)

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.7.0 — 2026-08-12
+
+### Changed
+- `bandpass`, `lowpass` and `highpass` warn when the input carries a non-finite sample.
+  Zero-phase filtering runs the series forwards and backwards, so ONE NaN propagates to
+  every output sample: the result is not mostly right with a hole in it, it is entirely
+  NaN, and a caller who takes a median of it gets NaN rather than an error. Measured on
+  StillStanding365, where 108 of 365 days carry at least one missing accelerometer
+  sample out of about 7500 — so the obvious analysis path silently discarded a third of
+  the record. It warns rather than raising, because asking for a filtered gappy series
+  and getting NaN back is a legitimate thing to want. The warning reaches callers who
+  never name a filter, `speed_from_acceleration` among them, because they all route
+  through these three.
+
 ## 1.6.0 — 2026-08-12
 
 ### Changed

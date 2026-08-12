@@ -162,6 +162,32 @@ scale at every rate.
 
 ---
 
+## One missing sample voids the whole series
+
+Every band-limiting call here is zero-phase: the filter runs forwards and then backwards, so each
+input sample influences every output sample. A single NaN therefore does not leave a hole, it
+leaves nothing — the returned array is NaN throughout.
+
+That is easy to miss, because nothing raises. A caller takes the median of the result, gets NaN,
+drops the recording as unusable, and never learns that one absent sample out of thousands is what
+made it unusable. Measured on StillStanding365: 108 of its 365 days carry at least one missing
+accelerometer sample, and 242 missing samples across the year account for all of them. The obvious
+analysis path discards 30 per cent of the record and says nothing.
+
+`bandpass`, `lowpass` and `highpass` now warn, and the warning reaches anything routed through
+them, `speed_from_acceleration` included. What to do about it depends on the gap:
+
+- ISOLATED SAMPLES, which is what dropout usually looks like: interpolate before filtering.
+  Linear is enough at these rates, and a handful of samples in thousands cannot move a band-limited
+  descriptor.
+- LONG GAPS: split the series and analyse the pieces, or drop the recording. Interpolating across
+  seconds invents low-frequency content, and the micromotion band is where that lands.
+
+Do not simply drop the non-finite samples. That closes the gap by shortening the series, which
+shifts every later sample earlier in time and puts a step where the gap was.
+
+---
+
 ## At what frequencies?
 
 ```python

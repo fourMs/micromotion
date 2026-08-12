@@ -169,6 +169,31 @@ def _edges(fs: float, lo: float, hi: float,
     return lo / ny, hi / ny
 
 
+def _checked(x, who: str) -> np.ndarray:
+    """The input as a float array, warning if a gap in it will void the whole output.
+
+    ``sosfiltfilt`` runs the filter forwards and backwards over the series, so a SINGLE
+    non-finite sample propagates to every output sample. The result is not "mostly right with a
+    hole in it"; it is entirely NaN, and a caller who then takes a median gets NaN rather than an
+    error. Measured on StillStanding365, where 108 of 365 days carry at least one missing
+    accelerometer sample out of about 7500: the obvious analysis path silently discards a third of
+    the record and reports on the rest.
+
+    This warns rather than raising, because filtering gappy data and getting NaN back is a
+    legitimate thing to ask for. Interpolate short gaps, or split the series at the long ones,
+    before calling.
+    """
+    a = np.asarray(x, float)
+    n = int((~np.isfinite(a)).sum())
+    if n:
+        warnings.warn(
+            f"{who}() was given {n} non-finite sample(s); zero-phase filtering propagates each "
+            "one across the WHOLE series, so every returned sample will be NaN. Interpolate short "
+            "gaps or split the series before calling.",
+            RuntimeWarning, stacklevel=3)
+    return a
+
+
 def bandpass(x, fs: float, lo: float | None = BAND[0], hi: float = BAND[1],
              order: int = ORDER, margin: float = NYQUIST_MARGIN):
     """Zero-phase band-limiting along the first axis.
@@ -179,7 +204,7 @@ def bandpass(x, fs: float, lo: float | None = BAND[0], hi: float = BAND[1],
         return lowpass(x, fs, hi, order, margin)
     wl, wh = _edges(fs, lo, hi, margin)
     sos = signal.butter(order, [wl, wh], btype="band", output="sos")
-    return signal.sosfiltfilt(sos, np.asarray(x, float), axis=0)
+    return signal.sosfiltfilt(sos, _checked(x, "bandpass"), axis=0)
 
 
 def lowpass(x, fs: float, fc: float = BAND[1], order: int = ORDER,
@@ -191,7 +216,7 @@ def lowpass(x, fs: float, fc: float = BAND[1], order: int = ORDER,
     ny = fs / 2.0
     fc = min(fc, ny * margin)
     sos = signal.butter(order, fc / ny, btype="low", output="sos")
-    return signal.sosfiltfilt(sos, np.asarray(x, float), axis=0)
+    return signal.sosfiltfilt(sos, _checked(x, "lowpass"), axis=0)
 
 
 def highpass(x, fs: float, fc: float = BAND[0], order: int = ORDER):
@@ -204,7 +229,7 @@ def highpass(x, fs: float, fc: float = BAND[0], order: int = ORDER):
     if fc <= 0 or fc >= ny:
         raise ValueError(f"cutoff {fc} Hz is not below Nyquist {ny} Hz")
     sos = signal.butter(order, fc / ny, btype="high", output="sos")
-    return signal.sosfiltfilt(sos, np.asarray(x, float), axis=0)
+    return signal.sosfiltfilt(sos, _checked(x, "highpass"), axis=0)
 
 
 def notch(x, fs: float, f0: float, q: float = 6.0):
