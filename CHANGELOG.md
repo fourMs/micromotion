@@ -15,6 +15,29 @@
 > ARJ's decision. Nothing is broken for anyone working from the checkouts.
 
 
+## 1.8.0 — 2026-08-12
+
+### Added
+- **`circular_sd` and `rayleigh_from_R`.** This module is the family's reference for circular
+  statistics, and musiscape needed both when its music analysis moved off ambiscape. A consumer that
+  cannot get a primitive from the owner writes its own, which is exactly how the two Rayleigh
+  implementations drifted apart in the first place. `rayleigh_from_R` is for a caller holding a
+  resultant length and a count rather than the angles, and uses the same Wilkie approximation as
+  `rayleigh`, so the two agree by construction — checked over 500 random draws.
+
+### Changed
+- **`circular` states the division.** micromotion owns circular statistics across the four
+  toolboxes: the axial tests sway needs, the circular-linear correlation, the V-test. ambiscape
+  keeps the time-series end — `phase_stats`, `relative_phase` — and the primitives those need, and
+  now matches this module exactly; it had been using Zar's earlier series expansion for the Rayleigh
+  test where this uses Wilkie's, and the two disagreed on about a fifth of random cases. Both are
+  published approximations and neither was wrong; nothing anywhere said they were meant to match.
+  `ambiscape/tests/test_circstats_agreement.py` asserts it now.
+
+  One difference is deliberate and remains: `circ_corr` returns a dict here and a float there.
+  Reconciling it is an API break in one direction or the other; the arithmetic is pinned by that
+  test so it cannot drift on top of the shape difference.
+
 ## 1.7.0 — 2026-08-12
 
 ### Changed
