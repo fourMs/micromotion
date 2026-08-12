@@ -108,7 +108,20 @@ def to_rate(x, fs_in: float, fs_out: float = COMMON_RATE):
     if abs(fs_in - fs_out) < 1e-9:
         return x
 
-    # Polyphase FIR, not signal.resample. The FFT resampler treats the series as periodic,
+    # WHAT A BARE RESAMPLE COSTS, measured rather than asserted. On optical head-marker position
+    # from the Oslo Standstill corpus, `scipy.signal.resample_poly` called directly leaves the first
+    # difference with a lag-one autocorrelation of -0.70 -- successive samples zigzagging against
+    # each other -- where this function leaves +0.95, which is what a slowly drifting position looks
+    # like. The zigzag is near-Nyquist tracking noise folded into the band.
+    #
+    # It matters most where an estimator reads the SHORTEST lags. On 2026-08-12 it reversed a
+    # published result: a Collins-De Luca short-term Hurst exponent read 0.107 through the bare
+    # call and 0.908 through this one, turning "a head marker cannot show the two regions of
+    # postural control" into "it shows them in 619 of 626 recordings". A multifractal width, read
+    # across a range of scales rather than the bottom of it, moved by 0.002 under the same
+    # substitution -- so the risk is not resampling, it is resampling plus a short-lag estimator.
+    #
+        # Polyphase FIR, not signal.resample. The FFT resampler treats the series as periodic,
     # so on optical position data -- which carries a large offset and does not begin and end
     # at the same value -- it rings across the whole recording. That moved quantity of
     # motion by up to 8 per cent and did so non-monotonically in the rate, which is exactly

@@ -119,6 +119,41 @@ where there plainly is an axis.
 
 ---
 
+## Resampling before a short-lag estimator
+
+Bring series to a common rate with `mm.to_rate`, not with a bare `scipy.signal` call.
+
+```python
+mm.to_rate(x, fs_in, fs_out)      # anti-aliased, and refuses to upsample
+```
+
+Two failure modes, both measured on this corpus rather than supposed.
+
+**Aliasing.** A bare polyphase resample folds near-Nyquist content into the band. On optical
+head-marker position it leaves the first difference anti-correlated at -0.70, where `to_rate` leaves
+it at +0.95. Whether that matters depends entirely on where the estimator reads:
+
+| estimator | reads | effect of the bare call |
+|---|---|---|
+| short-term Hurst exponent | the shortest lags | 0.107 against 0.908 — a reversed conclusion |
+| recurrence, sample entropy | short lags | at risk, same route |
+| multifractal width | a range of scales | 0.002 |
+| multifractal width, awkward rate ratio | a range of scales, 25 to 20 Hz | 1.115 against 0.768 |
+
+So the rule is not "never resample". It is that a local resampler feeding a short-lag estimator is
+the combination that has cost a conclusion, and an awkward rate ratio can reach the others too.
+
+**Upsampling.** `to_rate` raises rather than upsampling, because interpolation invents structure
+between samples and a scaling exponent reads that invention as real. A corpus mixing 20 and 100 Hz
+recordings will hit this; the answer is to analyse at a rate every series reaches, or to exclude the
+slow ones, not to interpolate them up.
+
+Where series must be compared across rates, state scale-dependent parameters in SECONDS. `mm.dfa`
+takes `fs` and `min_scale_s` for exactly this: its sample-count default is a different physical
+scale at every rate.
+
+---
+
 ## At what frequencies?
 
 ```python

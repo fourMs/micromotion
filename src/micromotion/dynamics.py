@@ -127,6 +127,18 @@ def dfa(x, smin: int | None = None, smax: int | None = None, nsc: int = 18,
     x = np.asarray(x, float)
     x = x[np.isfinite(x)]
     n = len(x)
+    if smin is None and min_scale_s is None and fs is not None:
+        # A caller who knows the rate but does not say what the floor should be is almost always
+        # taking the default without meaning to, and the default is a sample count: 8 samples is
+        # 0.16 s at 50 Hz and 0.08 s at 100. Across a corpus recorded at several rates that is not
+        # one analysis, it is several. Warn rather than raise, because a single-rate caller is
+        # entitled to the default.
+        import warnings as _w
+        _w.warn(
+            "dfa() is using its default scale floor of 8 samples, which is "
+            f"{8 / fs:.3g} s at {fs:g} Hz. The floor changes the exponent by up to 0.15 on real "
+            "standstill data and a sample count is not comparable across rates. Pass "
+            "min_scale_s to state it in seconds.", RuntimeWarning, stacklevel=2)
     if min_scale_s is not None:
         if fs is None:
             raise ValueError("min_scale_s needs fs: a scale in seconds is meaningless "

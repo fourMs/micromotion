@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.6.0 — 2026-08-12
+
+### Changed
+- `dfa` warns when it is given `fs` but no scale floor. The default is a SAMPLE COUNT,
+  8, which is 0.16 s at 50 Hz and 0.08 s at 100 — so the same call measures different
+  physical scales across a corpus recorded at several rates, and the floor moves the
+  exponent by up to 0.15 on real standstill data. A caller working at one rate is
+  entitled to the default and is not warned.
+
+- `stabilogram_diffusion` warns when the short-term Hurst exponent comes back below
+  0.45, because on real postural data that is more often a resampling artefact than a
+  finding. 619 of 626 head-marker recordings in the Oslo Standstill corpus clear 0.5
+  once the series is anti-alias resampled; 3 of 60 clear it when a bare polyphase call
+  folds near-Nyquist noise into the band. The threshold is 0.45 rather than 0.5 so that
+  a series whose true exponent is 0.5 does not trip it on half of all draws.
+
+### Documented
+- `to_rate` now records what a bare resample costs, measured rather than asserted: on
+  optical head-marker position a direct `scipy.signal.resample_poly` leaves the first
+  difference anti-correlated at -0.70 where this function leaves +0.95.
+
+- `docs/methods.md` gains a section on resampling before a short-lag estimator, with the
+  table that makes the risk usable: a short-term Hurst exponent moved 0.107 to 0.908
+  under the substitution, a multifractal width moved 0.002, and the same width at an
+  awkward rate ratio (25 to 20 Hz) moved 1.115 to 0.768. The risk is not resampling, it
+  is resampling plus an estimator that reads the bottom of the scale range.
+
+- `docs/conventions.md` gains the project's own rule — data, toolbox, report, book — and
+  the reversed conclusion that is the argument for it.
+
 ## 1.5.0 — 2026-08-12
 
 ### Added

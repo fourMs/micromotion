@@ -255,3 +255,21 @@ def test_dfa_refuses_an_ambiguous_or_incomplete_scale_floor():
         dyn.dfa(x, min_scale_s=0.3)
     with pytest.raises(ValueError, match="once"):
         dyn.dfa(x, smin=10, fs=50.0, min_scale_s=0.3)
+
+
+def test_dfa_warns_when_the_rate_is_known_but_the_floor_is_not_stated():
+    """A sample-count floor is not comparable across rates; say so rather than assume."""
+    import numpy as np
+    import pytest
+    from micromotion import dynamics as dyn
+
+    x = np.cumsum(np.random.default_rng(7).normal(size=6000))
+    with pytest.warns(RuntimeWarning, match="scale floor"):
+        dyn.dfa(x, fs=100.0)
+    # stating it, either way, is silent
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        dyn.dfa(x, fs=100.0, min_scale_s=0.3)
+        dyn.dfa(x, smin=30)
+        dyn.dfa(x)

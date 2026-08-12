@@ -45,6 +45,27 @@ channel cannot carry `WIDEBAND` may have a faster channel on the same instrument
 the fusion discussion in [Sampling rates](rates.md). "This collection has no jerk" and "this
 channel has no jerk" are different statements, and only the second is usually true.
 
+## Where a number should come from
+
+Data, then toolbox, then report, then book. A figure in a paper should trace back through a report
+that called this package, to a deposited recording — and at no step should an analysis carry its own
+copy of something the package already does.
+
+That is not tidiness. A copied estimator drifts, and the drift is invisible because both versions
+run without error. This package exists because a corpus of standstill analyses had, at various
+times, one script band-passing at 0.3 to 10 Hz while the rest used 0.2 to 5, another integrating
+with a cumulative sum where the rest used a trapezoid, and a third computing a device factor from a
+channel nobody else read. Each was defensible alone and wrong in company.
+
+The most expensive instance so far: a report reimplemented resampling with a bare `scipy.signal`
+call and published that an optical head marker cannot show the two regions of postural control. It
+can, in 619 of 626 recordings. The private copy aliased, the estimator read the shortest lags, and
+the conclusion inverted. Nothing errored, and a plausible mechanical explanation grew on top of the
+artefact and made it harder to doubt.
+
+So: if this package has a function for it, call it. If the function is wrong, fix it here, where
+one fix reaches every analysis — and where a test can hold it.
+
 ## Why the lower edge is optional for position and mandatory for acceleration
 
 An optical system measures position directly, so slow drift is a genuine displacement and
