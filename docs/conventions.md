@@ -10,6 +10,29 @@ as `band="micromotion"`, `band="wideband"` or `band="optical_legacy"`.
 A band-pass, and the package default, exported as `mm.BAND`. It is the only convention that can
 be applied to every sensor, so it is the one any cross-collection comparison must use.
 
+### The lower edge is where inertial devices stop agreeing with each other
+
+`BAND` was chosen by a sweep across seven optical datasets, and it serves optical data well. On
+INERTIAL data its lower edge is also the point at which different devices stop measuring the same
+quantity, which is a separate fact and a sharper one.
+
+Measured on four accelerometers mounted in one stack on one chest — so the body, the moment and the
+placement are all held fixed — against optical markers on the stack itself:
+
+| lower edge | spread across the four devices |
+|---|---|
+| 0.2 Hz | 9.2x (from 3.6 to 32.6 times the optical truth) |
+| 0.5 Hz | 1.2x (from 1.9 to 2.3) |
+
+Almost the whole disagreement between devices lives below 0.5 Hz. Quantity of motion integrates
+acceleration and integration divides by frequency, so a device that misbehaves only at 0.3 Hz
+misbehaves badly. The worst of the four carried 62 times another's power at 0.2–0.5 Hz and 0.6 times
+it at 2–5 Hz — the noisiest instrument in the band and the quietest above it.
+
+This is not an argument for moving `BAND`. It is an argument for STATING the lower edge beside any
+inertial figure, and for expecting cross-device comparisons at 0.2 Hz to be dominated by whichever
+device drifts most.
+
 ## `optical_legacy`—10 Hz low-pass, no lower edge
 
 Exported as `mm.OPTICAL_LEGACY_BAND`, which is `(None, 10.0)`. It retains sub-0.2 Hz postural
