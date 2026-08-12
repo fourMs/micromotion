@@ -15,6 +15,23 @@
 > ARJ's decision. Nothing is broken for anyone working from the checkouts.
 
 
+## 1.9.0 — 2026-08-12
+
+### Added
+- **`identify_acceleration_unit`**, which reads whether a recording is in g, milli-g or m/s^2 from
+  the median vector norm of a stationary stretch. A device that is mostly still is mostly measuring
+  gravity, so the norm sits near 1, 981 or 9.81 — three orders of magnitude apart, with nothing
+  plausible in between. It raises rather than guessing when the norm is near none of them, since
+  that means either the stretch is not gravity-dominated or the units are something else.
+
+  No accelerometer format in this field declares its units. Four devices recorded simultaneously on
+  one body in the Oslo corpus stored their values in three different conventions, none of them
+  stated anywhere in the files. The method is Finn Upham's, from the analysis those recordings were
+  made for.
+
+  A unit error is the hardest kind to notice: it scales one recording by 9.8 or 981 and leaves every
+  correlation, rank statistic and reliability estimate untouched, so nothing downstream complains.
+
 ## 1.8.0 — 2026-08-12
 
 ### Added

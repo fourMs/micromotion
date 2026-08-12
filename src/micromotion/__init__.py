@@ -124,7 +124,7 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "1.8.0"
+__version__ = "1.9.0"
 
 __all__ = [
     
