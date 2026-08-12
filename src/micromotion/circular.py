@@ -1,4 +1,23 @@
-"""Statistics for angles.
+"""Statistics for angles. This module is the family's reference for them.
+
+**Where circular statistics live across the four toolboxes.** micromotion owns
+them: the axial tests sway needs, the circular-linear correlation, the V-test.
+ambiscape keeps a small `circstats` for the time-series end --- `phase_stats`,
+`relative_phase` --- and the few primitives those need, rather than taking a
+dependency on this package for six short functions. MGT re-exports this module
+along with the rest of micromotion.
+
+That division decayed once and would have again. On 2026-08-12 the two
+Rayleigh implementations were found to disagree on about a fifth of random
+cases: this one uses Wilkie's approximation, ambiscape used Zar's earlier
+series expansion, both are published and neither was wrong, and nothing said
+they were meant to match. ambiscape now matches this module, and
+`ambiscape/tests/test_circstats_agreement.py` asserts it on every run rather
+than trusting it. One further difference is deliberate and remains:
+`circ_corr` returns a dict here and a float there, so a caller who swaps the
+import gets a different shape --- changing either is an API break, and the
+test pins the arithmetic so at least the numbers cannot drift on top of it.
+
 
 Sway direction, the phase of a breath, the time of day a session happened: all are circular,
 and ordinary statistics quietly give wrong answers on them. The mean of 350 degrees and 10
