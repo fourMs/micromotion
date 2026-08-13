@@ -14,6 +14,12 @@
 
 ## 1.10.0 — 2026-08-13
 
+### Fixed
+- **The `mixed` extra's floor let a broken pairing through.** `statsmodels>=0.14`
+  admits 0.14.1, which imports `_lazywhere` from `scipy._lib._util` — removed
+  in current scipy — so `intraclass_correlation` raised `ImportError` before
+  reaching any code here. Floor raised to the version verified working, 0.14.6.
+
 ### Added
 - **`NORESP_BAND`**, 0.45–5 Hz: the micromotion band with its lower edge above respiration, beside
   `BAND` and `WIDEBAND` and reachable as `qom(..., band="noresp")`. On a chest-worn sensor the

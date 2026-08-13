@@ -35,8 +35,13 @@ dependencies = ["numpy>=1.24", "scipy>=1.10", "pandas>=2.0"]
 # an extra rather than a hard dependency. It is in `test` as well because CI must exercise that
 # function: it was missing from both, so the suite passed locally where statsmodels happened to
 # be installed and failed on every CI runner.
-mixed = ["statsmodels>=0.14"]
-test = ["pytest>=7", "statsmodels>=0.14"]
+# The floor is 0.14.6 rather than 0.14 because statsmodels below it imports
+# `_lazywhere` from scipy._lib._util, which scipy has removed: 0.14.1 against
+# scipy 1.18 raises ImportError before any of this package's code runs. 0.14.6
+# is the version that was verified working, so the true floor may be a little
+# lower; it is set where it could be checked rather than where it was guessed.
+mixed = ["statsmodels>=0.14.6"]
+test = ["pytest>=7", "statsmodels>=0.14.6"]
 
 [project.urls]
 Homepage = "https://github.com/fourMs/micromotion"
