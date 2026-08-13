@@ -337,10 +337,10 @@ def test_band_share_warns_on_non_finite_input_like_the_filters_do():
 #
 # This package contained both of them before it said so: spectral.band_share and friends
 # integrate with the trapezoid rule over a closed [lo, hi], while physio.spectral_band_fractions
-# sums bins over a half-open [lo, hi). Migrating three analysis scripts from the second onto the
-# first would have moved a published share from 58 to 59 per cent, another from 16.6 to 15.1, a
-# fold from 3.1 to 3.2, and 18 of 24 numbers in one table. These tests hold the two conventions
-# apart and pin what each parameter selects.
+# sums bins over a half-open [lo, hi). Four analysis scripts were carried from the second onto the
+# first so that one corpus would hold a single convention, and the move republished a share from
+# 58 to 59 per cent, another from 16.6 to 15.1, a fold from 3.1 to 3.2, and 18 of the 24 numbers
+# in one table. These tests hold the two conventions apart and pin what each parameter selects.
 
 
 def exact_grid(n=400, df=1 / 20.0):
@@ -466,7 +466,7 @@ def test_band_share_forwards_the_convention_to_the_spectrum_it_computes():
 
 
 def test_the_bin_sum_convention_reproduces_spectral_band_fractions_exactly():
-    """The migration that was abandoned, made possible: the same number from both functions.
+    """The older convention, still reachable: the same number from both functions.
 
     ``spectral_band_fractions`` sums bins over [lo, hi) at numerator and denominator both, so
     ``band_share(..., integrate="sum", interval="half_open")`` on its own spectrum must give the

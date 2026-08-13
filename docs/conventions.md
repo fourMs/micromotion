@@ -96,8 +96,9 @@ A "fraction of power in band X" is a ratio of two integrals, and it moves when e
 moves. Four published-looking figures for the share of standstill motion — 38, 43, 45 and 58
 per cent — circulated in this corpus and were quoted against one another as though they measured
 the same thing. Traced to their origins, each came from a hand-rolled fraction with a different,
-sometimes unstated, denominator: the 58 reproduces only under its own 0.10–3.0 Hz denominator,
-and the 45 is untraceable to any measurement at all.
+sometimes unstated, denominator: the 58 traces only to its own 0.10–3.0 Hz denominator, where
+those bands read 59 under the arithmetic below, and the 45 is untraceable to any measurement at
+all.
 
 `mm.band_share(x, fs, num_band=..., den_band=...)` is the arithmetic with the bands made
 mandatory and keyword-only, so a call site cannot leave either unstated. It raises when the
@@ -151,6 +152,12 @@ prose that reads "25 per cent of 0.2–5 Hz raw chest-accelerometer acceleration
 0.8–2.5 Hz, integrated with the trapezoid rule over closed bands", and in a table it is a
 `share_convention` column reading `trapezoid/closed` or `sum/half_open`. A share is comparable
 only with a share computed the same way.
+
+This corpus holds `trapezoid/closed`, the default above. Four analysis scripts that summed bins
+over half-open bands were carried onto it, which republished a chest-phone cardiac share from 58
+to 59 per cent, a vest respiration figure from 16.6 to 15.1, a definitional fold from 3.1 to 3.2,
+and 18 of the 24 numbers in one decomposition table. That is a re-measurement rather than a
+refactor, and it buys one thing: every share in the corpus can now be quoted against every other.
 
 ## Where a number should come from
 

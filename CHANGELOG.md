@@ -12,6 +12,26 @@
 >    0.4.0, whose feature extraction imports the functions that moved.
 
 
+## 1.11.1 — 2026-08-13
+
+### Fixed
+- **The share docstrings said a migration had been abandoned; it was performed.** 1.11.0 was
+  written while three analysis scripts had been moved onto `band_share` and moved back, and
+  `band_share`, `physio.spectral_band_fractions`, `docs/conventions.md` and the convention tests
+  all recorded that as the reason the parameters exist. The corpus then decided to hold one
+  convention: four scripts — two chest-phone spectral extractions, a vest decomposition and an
+  optical-marker respiration share — were carried from bin-sum-over-half-open onto the defaults
+  here, `integrate="trapezoid", interval="closed"`. The move republished a chest-phone cardiac
+  share from 58 to 59 per cent, a vest respiration figure from 16.6 to 15.1, a definitional fold
+  from 3.1 to 3.2, and 18 of the 24 numbers in one decomposition table, exactly as the
+  counterfactual predicted. The text now says so.
+
+  **No behaviour changed and no default moved.** `band_share` and `band_share_from_spectrum`
+  still compute trapezoid-over-closed; `spectral_band_fractions` still sums bins over half-open
+  and is still where the older composition figures reproduce. `docs/conventions.md` now names
+  which of the two this corpus holds, which is the thing a reader needs and the file did not say.
+
+
 ## 1.11.0 — 2026-08-13
 
 ### Added

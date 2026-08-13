@@ -349,9 +349,9 @@ def band_share(x, fs: float, *, num_band: tuple[float, float],
     :func:`band_power`, :func:`band_power_fraction` and this function have always computed, and
     what the 25 per cent chest-phone cardiac share was measured under.
     ``integrate="sum", interval="half_open"`` is the other convention in this package,
-    implemented by :func:`~micromotion.physio.spectral_band_fractions` and by the analyses of
-    cardiac and respiratory composition in chest-accelerometer standstill recordings; pass it to
-    reproduce or extend those numbers rather than silently restating them.
+    implemented by :func:`~micromotion.physio.spectral_band_fractions`, and it is what the
+    older cardiac and respiratory composition figures for chest-accelerometer standstill were
+    taken under; pass it to reproduce those rather than silently restating them.
 
     BOTH CHOICES MOVE REAL SHARES BY MORE THAN THEY LOOK LIKE THEY SHOULD. Measured on
     chest-accelerometer standstill recordings with the mask held fixed so that only the
@@ -360,11 +360,13 @@ def band_share(x, fs: float, *, num_band: tuple[float, float],
     recordings, and it costs that much because analysts choose round band edges: at the
     conventional 60 s window the bin spacing is 1/60 Hz, so 0.40, 0.70, 2.20, 3.0, 5.0 and
     8.0 Hz all land exactly on a bin, and closing the interval adds a whole bin at the
-    numerator's upper edge and at the denominator's, which do not cancel. A migration of three
-    analysis scripts from the bin-sum convention onto the defaults here would have moved one
-    published share from 58 to 59 per cent, another from 16.6 to 15.1, a fold from 3.1 to 3.2,
-    and 18 of 24 numbers in one table; it was abandoned rather than performed, which is why
-    these parameters exist.
+    numerator's upper edge and at the denominator's, which do not cancel. Four analysis scripts
+    in one corpus were carried from the bin-sum convention onto the defaults here, so that every
+    share in that corpus is taken the same way and each is comparable with the rest. The move
+    republished one share from 58 to 59 per cent, another from 16.6 to 15.1, a fold from 3.1 to
+    3.2, and 18 of the 24 numbers in one table. That is a re-measurement rather than a refactor,
+    and it is why these parameters exist: a convention has to be nameable before a corpus can
+    decide to hold one.
 
     THE TWO AGREE EXACTLY ON A FLAT BAND, which is why they look interchangeable. Where the
     spectrum is flat, the trapezoid's half-weighted end bins remove precisely one bin's worth,
@@ -379,7 +381,7 @@ def band_share(x, fs: float, *, num_band: tuple[float, float],
     moves. Four published-looking figures for the share of standstill motion -- 38, 43, 45 and 58
     per cent -- circulated in one project and were quoted against one another as though they
     measured the same thing. Traced to their origins, each came from a hand-rolled fraction with a
-    different, sometimes unstated, denominator; the 58 reproduces only under its own 0.10-3.0 Hz
+    different, sometimes unstated, denominator; the 58 traces only to its own 0.10-3.0 Hz
     denominator, and the 45 is untraceable to any measurement at all. A share whose two bands are
     not stated beside it is not a reportable number. Report the domain (power of what quantity),
     the site (sensor and placement) and both bands, every time: acceleration power and position

@@ -140,9 +140,11 @@ def spectral_band_fractions(signal, fs, bands, *, total_band=None,
     two conventions agree only where the band is flat, which the low end of a
     body-worn sensor's spectrum never is.
 
-    Nothing here is deprecated and no default has moved, because published
-    shares in this corpus were computed by exactly this arithmetic and would
-    change if it did. To compute a share under the other convention, or to state
+    Nothing here is deprecated and no default has moved. This is a named
+    convention with a stated arithmetic, and the standstill composition figures
+    the corpus carried before it settled on the trapezoid-and-closed rule were
+    computed by exactly it, so this is where they reproduce. To compute a share
+    under the other convention, or to state
     which convention a number was taken under, call
     ``band_share(..., integrate="sum", interval="half_open")``, which reproduces
     this function on the same spectrum, or leave those parameters at their
