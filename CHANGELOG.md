@@ -12,6 +12,31 @@
 >    0.4.0, whose feature extraction imports the functions that moved.
 
 
+## 1.10.0 — 2026-08-13
+
+### Added
+- **`NORESP_BAND`**, 0.45–5 Hz: the micromotion band with its lower edge above respiration, beside
+  `BAND` and `WIDEBAND` and reachable as `qom(..., band="noresp")`. On a chest-worn sensor the
+  0.15–0.45 Hz stretch the canonical band keeps is dominated by respiratory chest tilt — gravity
+  re-projected by the breathing ribcage, a rotation rather than a translation; across the year-long
+  chest-phone record, 94 to 99 per cent of the power in that band lies perpendicular to that day's
+  gravity vector. The StillStanding365 deposit now carries quantity of motion at both bands, each
+  with its band stated, and the constant exists so an analysis can name the same band the data
+  names rather than write 0.45 by hand. The choice between the two is a purpose decision, not a
+  correctness one, and no default changed.
+
+- **`band_share` and `band_share_from_spectrum`**: fraction of spectral power in one band over
+  another, with both bands mandatory and keyword-only. Four published-looking shares of standstill
+  motion — 38, 43, 45 and 58 per cent — were quoted against one another in this corpus while each
+  hand-rolled its own fraction with a different, sometimes unstated, denominator; the 58 reproduces
+  only under its own 0.10–3.0 Hz denominator and the 45 is untraceable to any measurement. The
+  function raises when the numerator band reaches outside the denominator, warns when the
+  denominator's upper edge exceeds what the sampling rate delivers — the way `bandpass` warns, and
+  pointing at `channel_rate` because a row rate or a resampled grid overstates a channel — and
+  warns on non-finite input the way the filters have since 1.7.0. The `_from_spectrum` form exists
+  for the same reason `peak_from_spectrum` does: one Welch, several bands read off it, and a rule
+  that is easier to copy than to import gets copied.
+
 ## 1.9.0 — 2026-08-12
 
 ### Added
