@@ -1,9 +1,9 @@
-# The three bands
+# The four bands
 
-There are three quantity-of-motion conventions here and they are not interchangeable. Reporting
+There are four quantity-of-motion conventions here and they are not interchangeable. Reporting
 a number without saying which one produced it is the single most common way results in this
-field stop being comparable. The three are named in `mm.BANDS` and are passed to `qom` by name,
-as `band="micromotion"`, `band="wideband"` or `band="optical_legacy"`.
+field stop being comparable. The four are named in `mm.BANDS` and are passed to `qom` by name,
+as `band="micromotion"`, `band="wideband"`, `band="noresp"` or `band="optical_legacy"`.
 
 ## `micromotion`—0.2 to 5 Hz
 
@@ -32,6 +32,28 @@ it at 2–5 Hz — the noisiest instrument in the band and the quietest above it
 This is not an argument for moving `BAND`. It is an argument for STATING the lower edge beside any
 inertial figure, and for expecting cross-device comparisons at 0.2 Hz to be dominated by whichever
 device drifts most.
+
+## `noresp`—0.45 to 5 Hz
+
+Exported as `mm.NORESP_BAND`: the canonical band with its lower edge raised above respiration.
+
+On a chest-worn sensor the 0.15–0.45 Hz stretch that `BAND` keeps is dominated by respiratory
+chest tilt. The ribcage turns the sensor as it expands, so what the accelerometer reads there is
+gravity re-projected between axes — a rotation, not the sensor travelling. Measured across the
+year-long chest-phone record, 94 to 99 per cent of the power in that band lies perpendicular to
+that day's gravity vector, implying a tilt of 0.05 to 0.14 degrees. So a `BAND` value from a
+chest sensor carries a respiratory term inside every number, and a `noresp` value does not.
+
+**The choice between the two is a purpose decision, not a correctness one.** For a
+cardiorespiratory torso measure, and for any comparison with the rest of the corpus, use `BAND`:
+the respiratory term is part of what is being measured, and it is the band everything else was
+computed at. For micromotion above respiration — a postural question asked of a chest-worn
+sensor — use `noresp`, and say so. The StillStanding365 record deposits both, as `qom_mm_s` and
+`qom_045_5hz_mm_s`, each with its band stated, which is the practice to copy.
+
+It is not the `compensated` variant, which raises the edge further, to 0.5 Hz, and also notches
+the recording's own cardiac peak. `noresp` changes the band and nothing else; the
+ballistocardiac impulse is still inside it.
 
 ## `optical_legacy`—10 Hz low-pass, no lower edge
 
@@ -67,6 +89,26 @@ test against it.
 channel cannot carry `WIDEBAND` may have a faster channel on the same instrument that can, as in
 the fusion discussion in [Sampling rates](rates.md). "This collection has no jerk" and "this
 channel has no jerk" are different statements, and only the second is usually true.
+
+## A share of power needs both its bands named
+
+A "fraction of power in band X" is a ratio of two integrals, and it moves when either band
+moves. Four published-looking figures for the share of standstill motion — 38, 43, 45 and 58
+per cent — circulated in this corpus and were quoted against one another as though they measured
+the same thing. Traced to their origins, each came from a hand-rolled fraction with a different,
+sometimes unstated, denominator: the 58 reproduces only under its own 0.10–3.0 Hz denominator,
+and the 45 is untraceable to any measurement at all.
+
+`mm.band_share(x, fs, num_band=..., den_band=...)` is the arithmetic with the bands made
+mandatory and keyword-only, so a call site cannot leave either unstated. It raises when the
+numerator band reaches outside the denominator, warns when the denominator's upper edge exceeds
+what the rate can deliver, and warns on non-finite input. `mm.band_share_from_spectrum` is the
+same rule for a spectrum already in hand.
+
+The three-label rule when quoting one: state the domain (power of what quantity), the site
+(sensor and placement) and both bands. Acceleration power and position power weight the spectrum
+by a factor of frequency to the fourth relative to each other, so a share of one is not even
+approximately a share of the other, from the same sensor on the same body.
 
 ## Where a number should come from
 

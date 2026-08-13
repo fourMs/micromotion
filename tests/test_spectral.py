@@ -240,3 +240,94 @@ def test_peak_from_spectrum_is_the_same_rule_as_spectral_peak():
         b = sp.peak_from_spectrum(f, p, BAND)
         assert a["is_peak"] == b["is_peak"]
         assert (np.isnan(a["freq"]) and np.isnan(b["freq"])) or a["freq"] == b["freq"]
+
+
+def two_tone(fs=50.0, dur=600.0):
+    """0.3 Hz at amplitude 1 and 1.2 Hz at amplitude 2: powers 0.5 and 2.0."""
+    t = np.arange(0, dur, 1 / fs)
+    return np.sin(2 * np.pi * 0.3 * t) + 2.0 * np.sin(2 * np.pi * 1.2 * t)
+
+
+def test_band_share_recovers_an_analytic_two_tone_share():
+    """A share the arithmetic can be checked against by hand.
+
+    The 1.2 Hz tone carries power 2.0 and the 0.3 Hz tone 0.5, so the cardiac band's share of a
+    0.1-3.0 Hz denominator is 2.0 / 2.5 = 0.8 exactly.
+    """
+    s = sp.band_share(two_tone(), 50.0, num_band=(0.7, 2.2), den_band=(0.1, 3.0))
+    assert s == pytest.approx(0.8, abs=0.01)
+
+
+def test_band_share_and_from_spectrum_agree():
+    """The primitive and the convenience wrapper must not drift apart."""
+    x, fs = two_tone(), 50.0
+    f, p = signal.welch(signal.detrend(x), fs, nperseg=int(fs * 60.0))
+    a = sp.band_share(x, fs, num_band=(0.7, 2.2), den_band=(0.1, 3.0))
+    b = sp.band_share_from_spectrum(f, p, num_band=(0.7, 2.2), den_band=(0.1, 3.0))
+    assert a == pytest.approx(b, rel=1e-12)
+
+
+def test_band_share_bands_cannot_be_passed_silently():
+    """The bands are keyword-only, so a call site has to name both.
+
+    That is the point of the function: four shares -- 38, 43, 45 and 58 per cent -- were quoted
+    against each other in this corpus while resting on different, sometimes unstated,
+    denominators. A share whose bands are not named is not a reportable number.
+    """
+    with pytest.raises(TypeError):
+        sp.band_share(two_tone(), 50.0, (0.7, 2.2), (0.1, 3.0))
+    with pytest.raises(TypeError):
+        sp.band_share(two_tone(), 50.0, num_band=(0.7, 2.2))          # denominator missing
+
+
+def test_a_numerator_reaching_outside_the_denominator_raises():
+    """The trap the legacy 58 per cent sat next to: a 'share' that is really a ratio.
+
+    Power the denominator does not contain can push the quotient past 1, and a disjoint pair
+    measures two different things divided by each other. All three shapes raise.
+    """
+    x = two_tone()
+    for num in [(0.05, 2.2),        # reaches below the denominator
+                (0.7, 4.0),         # reaches above it
+                (4.0, 6.0)]:        # disjoint from it
+        with pytest.raises(ValueError, match="outside the denominator"):
+            sp.band_share(x, 50.0, num_band=num, den_band=(0.1, 3.0))
+    # and the whole denominator over itself is exactly 1
+    s = sp.band_share(x, 50.0, num_band=(0.1, 3.0), den_band=(0.1, 3.0))
+    assert s == pytest.approx(1.0, rel=1e-12)
+
+
+def test_band_share_warns_when_the_rate_cannot_deliver_the_denominator():
+    """A denominator edge above Nyquist silently narrows the share's reference.
+
+    At 10 Hz sampling a 0.1-8 Hz denominator is really 0.1-5, so the share is over a band the
+    caller did not name. The same call at 50 Hz is silent, which is the check that the warning
+    watches the rate and not the call.
+    """
+    import warnings as _w
+    x10 = two_tone(fs=10.0)
+    with pytest.warns(RuntimeWarning, match="truncated denominator"):
+        sp.band_share(x10, 10.0, num_band=(0.7, 2.2), den_band=(0.1, 8.0))
+    with _w.catch_warnings():
+        _w.simplefilter("error")
+        sp.band_share(two_tone(), 50.0, num_band=(0.7, 2.2), den_band=(0.1, 8.0))
+
+
+def test_band_share_from_spectrum_warns_when_the_spectrum_stops_short():
+    x, fs = two_tone(fs=10.0), 10.0
+    f, p = signal.welch(signal.detrend(x), fs, nperseg=int(fs * 60.0))
+    with pytest.warns(RuntimeWarning, match="spectrum ends"):
+        sp.band_share_from_spectrum(f, p, num_band=(0.7, 2.2), den_band=(0.1, 8.0))
+
+
+def test_band_share_warns_on_non_finite_input_like_the_filters_do():
+    """One NaN makes the whole Welch spectrum NaN, so the share is NaN, not mostly right."""
+    import warnings as _w
+    x = two_tone()
+    x[100] = np.nan
+    with pytest.warns(RuntimeWarning, match="non-finite"):
+        s = sp.band_share(x, 50.0, num_band=(0.7, 2.2), den_band=(0.1, 3.0))
+    assert np.isnan(s)
+    with _w.catch_warnings():
+        _w.simplefilter("error")
+        sp.band_share(two_tone(), 50.0, num_band=(0.7, 2.2), den_band=(0.1, 3.0))

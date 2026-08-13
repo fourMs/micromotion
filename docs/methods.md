@@ -216,6 +216,8 @@ mm.peak_from_spectrum(f, p, band)     # the same rule, on a spectrum you already
 mm.band_power(x, fs, band)
 mm.band_rms(x, fs, band)
 mm.band_power_fraction(x, fs, {"resp": (0.1, 0.5), "card": (0.7, 2.2)})
+mm.band_share(x, fs, num_band=(0.7, 2.2), den_band=(0.1, 3.0))
+mm.band_share_from_spectrum(f, p, num_band=(0.7, 2.2), den_band=(0.1, 3.0))
 mm.mean_frequency(x, fs, band)
 mm.cardiac_peak(x, fs)
 mm.respiratory_peak(x, fs)
@@ -230,6 +232,16 @@ criterion, so that a peak is only returned when it stands above the local backgr
 of computing one spectrum and reading several bands off it. It exists so that the rule is imported
 rather than reimplemented: recomputing a Welch per band to get at the rule is wasteful, and a rule
 that is easier to copy than to import gets copied.
+
+`band_share` is the fraction of power in one band over another, with both bands mandatory and
+keyword-only. Four hand-rolled versions of that fraction produced four published-looking shares —
+38, 43, 45 and 58 per cent — that were quoted against one another while resting on different,
+sometimes unstated, denominators, and one of the four is untraceable to any measurement. Quote a
+share with its domain, its site and both bands, or not at all; see
+[the four bands](conventions.md) for the rule. `band_share_from_spectrum` is the same split as
+`peak_from_spectrum`. If two channels have to meet at one rate before their shares are compared,
+resample with `to_rate`, which anti-aliases and refuses to upsample; plain interpolation onto a
+slower clock folds sensor noise into the cardiac band.
 
 `cardiac_peak` works this way. `respiratory_peak` does not, and the reason is worth knowing
 before reaching for a spectrum on any slow rhythm. A periodogram of belt or body motion is red:
@@ -632,7 +644,7 @@ worth knowing:
 
 | Choice | Default here | Why |
 |---|---|---|
-| Filter band | 0.2–5 Hz | Lower edge swept across seven datasets, spread smallest at 0.2 Hz; upper edge set by the slowest instrument's Nyquist. `WIDEBAND` (0.2–10 Hz) for jerk where the rate allows. See [the three bands](conventions.md) |
+| Filter band | 0.2–5 Hz | Lower edge swept across seven datasets, spread smallest at 0.2 Hz; upper edge set by the slowest instrument's Nyquist. `WIDEBAND` (0.2–10 Hz) for jerk where the rate allows. See [the four bands](conventions.md) |
 | Embedding delay | first AMI minimum | The autocorrelation-zero rule assumes linearity |
 | RQA threshold | fixed recurrence rate | A fixed absolute threshold confounds determinism with amplitude |
 

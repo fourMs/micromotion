@@ -9,6 +9,8 @@ locating them first.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 from scipy import signal
 
@@ -197,9 +199,12 @@ def band_power_fraction(x, fs: float, bands: dict, window_s: float = 60.0) -> di
     """Proportion of total power falling in each named band.
 
     Pass something like ``{"respiratory": (0.1, 0.5), "cardiac": (0.7, 2.2)}``. This is how
-    the finding that roughly 38 per cent of the chest-phone signal power sits at the heart
-    rate was established, which is in turn why the compensated quantity-of-motion variant
-    exists.
+    the chest-phone cardiac share that motivated the compensated quantity-of-motion variant
+    was established. The number that finding long circulated as -- 38 per cent -- did not
+    survive re-measurement under stated bands; the figure that reproduces is 25 per cent of
+    0.2-5 Hz acceleration power at 0.8-2.5 Hz, on the raw accelerometer channel. That history
+    is why :func:`band_share` exists and makes both bands mandatory; prefer it whenever the
+    result is going to be quoted.
     """
     x = np.asarray(x, float)
     nper = int(min(len(x), fs * window_s))
@@ -211,6 +216,134 @@ def band_power_fraction(x, fs: float, bands: dict, window_s: float = 60.0) -> di
         out[name] = (float(np.trapezoid(p[m], f[m]) / total)
                      if m.sum() > 1 and total > 0 else float("nan"))
     return out
+
+
+def _share_bands_checked(num_band: tuple[float, float],
+                         den_band: tuple[float, float]) -> None:
+    for name, (lo, hi) in (("num_band", num_band), ("den_band", den_band)):
+        if not (np.isfinite(lo) and np.isfinite(hi)) or lo < 0 or hi <= lo:
+            raise ValueError(f"{name} {lo}-{hi} Hz is not a band; need 0 <= lo < hi")
+    if num_band[0] < den_band[0] or num_band[1] > den_band[1]:
+        raise ValueError(
+            f"numerator band {num_band[0]}-{num_band[1]} Hz reaches outside the denominator "
+            f"band {den_band[0]}-{den_band[1]} Hz. A 'share' of power the denominator does not "
+            "contain can exceed 1 and is a ratio, not a share; if a ratio of two disjoint or "
+            "overlapping bands is what you mean, compute band_power() twice and divide, and "
+            "report it as a ratio."
+        )
+
+
+def _share(f, p, num_band, den_band) -> float:
+    mn = (f >= num_band[0]) & (f <= num_band[1])
+    md = (f >= den_band[0]) & (f <= den_band[1])
+    if mn.sum() < 2 or md.sum() < 2:
+        return float("nan")
+    den = float(np.trapezoid(p[md], f[md]))
+    if not np.isfinite(den) or den <= 0:
+        return float("nan")
+    return float(np.trapezoid(p[mn], f[mn]) / den)
+
+
+def band_share_from_spectrum(f, p, *, num_band: tuple[float, float],
+                             den_band: tuple[float, float]) -> float:
+    """The share rule, for a caller that already has a spectrum.
+
+    :func:`band_share` is this with a Welch in front of it, and its docstring states the rule and
+    the incident behind it. The split mirrors :func:`peak_from_spectrum`: several analyses compute
+    one spectrum and read more than one share off it, and a rule that is easier to copy than to
+    import gets copied.
+
+    The deliverability check here is against the spectrum itself: a denominator edge above the
+    highest frequency the spectrum reaches means the share is taken over a truncated denominator,
+    and the warning says so. Everything else -- the mandatory bands, the containment rule, the
+    non-finite warning -- is the same.
+    """
+    _share_bands_checked(num_band, den_band)
+    f = np.asarray(f, float)
+    p = np.asarray(p, float)
+    n_bad = int((~np.isfinite(p)).sum())
+    if n_bad:
+        warnings.warn(
+            f"band_share_from_spectrum() was given {n_bad} non-finite spectrum value(s); "
+            "the integrals will be NaN. A Welch spectrum of a series with any non-finite "
+            "sample is entirely NaN -- clean the series before the transform.",
+            RuntimeWarning, stacklevel=2)
+    top = float(f[np.isfinite(f)].max()) if np.isfinite(f).any() else float("nan")
+    if den_band[1] > top:
+        warnings.warn(
+            f"denominator band reaches {den_band[1]} Hz but the spectrum ends at {top:.4g} Hz. "
+            f"The result is a share over {den_band[0]}-{top:.4g} Hz, not "
+            f"{den_band[0]}-{den_band[1]} Hz, and is not comparable with a share computed over "
+            "the full denominator.",
+            RuntimeWarning, stacklevel=2)
+    return _share(f, p, num_band, den_band)
+
+
+def band_share(x, fs: float, *, num_band: tuple[float, float],
+               den_band: tuple[float, float], window_s: float = 60.0) -> float:
+    """Fraction of spectral power in one band over another. Both bands are mandatory.
+
+    Returns numerator-band power over denominator-band power, integrated on a Welch spectrum,
+    as a number in 0 to 1. The numerator band must lie inside the denominator band, and neither
+    has a default.
+
+    WHY THERE ARE NO DEFAULTS. A share is a ratio of two integrals and it moves when either band
+    moves. Four published-looking figures for the share of standstill motion -- 38, 43, 45 and 58
+    per cent -- circulated in one project and were quoted against one another as though they
+    measured the same thing. Traced to their origins, each came from a hand-rolled fraction with a
+    different, sometimes unstated, denominator; the 58 reproduces only under its own 0.10-3.0 Hz
+    denominator, and the 45 is untraceable to any measurement at all. A share whose two bands are
+    not stated beside it is not a reportable number. Report the domain (power of what quantity),
+    the site (sensor and placement) and both bands, every time: acceleration power and position
+    power weight the spectrum by a factor of frequency to the fourth relative to each other, so a
+    share of one is not even approximately a share of the other from the same sensor on the same
+    body.
+
+    WHAT IT REFUSES AND WHAT IT WARNS ABOUT. A numerator band wider than or outside the
+    denominator raises, because the result would not be a share. A denominator edge above what
+    ``fs`` can deliver warns, the way :func:`~micromotion.filters.bandpass` warns, because the
+    share silently becomes one over a narrower band -- and ``fs`` must be the channel's own rate,
+    not the file's row rate or a resampled grid's; measure it with
+    :func:`~micromotion.io.channel_rate` on an interleaved log. A non-finite input warns, as the
+    filters have since 1.7.0: one NaN makes the whole Welch spectrum NaN, so the share is NaN
+    rather than mostly right.
+
+    IF TWO CHANNELS MUST MEET AT ONE RATE FIRST, resample with
+    :func:`~micromotion.resample.to_rate`, which is an anti-aliased polyphase FIR resampler and
+    refuses to upsample. Plain interpolation onto a slower clock is not a resampler: measured in
+    the vest decomposition work, interpolating 256 Hz accelerometer axes to a belt's 25.6 Hz
+    folded high-frequency sensor noise into the cardiac band, which inflates exactly the kind of
+    share this function computes.
+
+    For a spectrum already in hand, :func:`band_share_from_spectrum` applies the same rule
+    without recomputing the transform. For several named bands over one common total,
+    :func:`band_power_fraction` remains the convenience; this function is the one whose result
+    is meant to be quoted, which is why it makes the denominator explicit.
+    """
+    _share_bands_checked(num_band, den_band)
+    x = np.asarray(x, float)
+    from .filters import NYQUIST_MARGIN
+
+    deliverable = fs / 2.0 * NYQUIST_MARGIN
+    if den_band[1] > deliverable:
+        warnings.warn(
+            f"denominator band reaches {den_band[1]} Hz but {fs} Hz sampling delivers only "
+            f"{deliverable:.4g} Hz. The result is a share over a truncated denominator and is "
+            "not comparable with one computed at a rate that carries the full band. Note also "
+            "that fs must be the channel's own rate, not the file's row rate or a resampled "
+            "grid's -- see channel_rate().",
+            RuntimeWarning, stacklevel=2)
+    n_bad = int((~np.isfinite(x)).sum())
+    if n_bad:
+        warnings.warn(
+            f"band_share() was given {n_bad} non-finite sample(s); a spectrum of a series with "
+            "any non-finite sample is entirely NaN, so the share is NaN rather than mostly "
+            "right. Interpolate short gaps or split the series before calling.",
+            RuntimeWarning, stacklevel=2)
+        return float("nan")
+    nper = int(min(len(x), fs * window_s))
+    f, p = signal.welch(signal.detrend(x), fs, nperseg=nper)
+    return _share(f, p, num_band, den_band)
 
 
 def mean_frequency(x, fs: float, band: tuple[float, float] = (0.1, 5.0),

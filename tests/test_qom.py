@@ -633,3 +633,36 @@ def test_identify_acceleration_unit_refuses_rather_than_guesses():
 def test_identify_acceleration_unit_needs_three_axes():
     with pytest.raises(ValueError, match="three axes"):
         mm.identify_acceleration_unit(np.ones((100, 2)))
+
+
+def test_noresp_band_value_and_exports():
+    """The respiration-excluded band, and the promise that nothing else moved.
+
+    The StillStanding365 deposit carries `qom_045_5hz_mm_s` at 0.45-5 Hz beside the canonical
+    column; the constant exists so an analysis names the same band the data names. `BAND` and the
+    `qom` default must be untouched: the choice between the two is a purpose decision, and this
+    addition makes it nameable, not automatic.
+    """
+    import inspect
+
+    assert mm.NORESP_BAND == (0.45, 5.0)
+    assert mm.NORESP_BAND is filters.NORESP_BAND
+    assert mm.BANDS["noresp"] is filters.NORESP_BAND
+    assert mm.BAND == (0.2, 5.0)
+    assert inspect.signature(mm.qom).parameters["band"].default == "micromotion"
+
+
+def test_noresp_band_excludes_the_respiratory_stretch_and_keeps_the_rest():
+    """band='noresp' must reject a tone in the respiratory-tilt stretch and pass one above it."""
+    fs = 50.0
+    t = np.arange(0, 300, 1 / fs)
+    resp = np.column_stack([np.sin(2 * np.pi * 0.3 * t)] * 3) * 0.01
+    card = np.column_stack([np.sin(2 * np.pi * 1.2 * t)] * 3) * 0.01
+
+    kept = mm.qom(resp, fs).median_mm_s
+    excl = mm.qom(resp, fs, band="noresp").median_mm_s
+    assert excl < 0.2 * kept, "a 0.3 Hz tone should be rejected at a 0.45 Hz edge"
+
+    a = mm.qom(card, fs).median_mm_s
+    b = mm.qom(card, fs, band="noresp").median_mm_s
+    assert b == pytest.approx(a, rel=0.02), "above the edge the two bands are the same measure"

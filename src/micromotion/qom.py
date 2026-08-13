@@ -284,9 +284,10 @@ def speed_from_position(
 BANDS = {
     "micromotion": filters.BAND,
     "wideband": filters.WIDEBAND,
+    "noresp": filters.NORESP_BAND,
     "optical_legacy": filters.OPTICAL_LEGACY_BAND,
 }
-"""The three conventions in use, by name.
+"""The four conventions in use, by name.
 
 ``micromotion`` is 0.2-5 Hz and is the only one every instrument in the corpus can deliver, so
 it is the one a cross-collection comparison must use.
@@ -294,6 +295,12 @@ it is the one a cross-collection comparison must use.
 ``wideband`` is 0.2-10 Hz, for jerk and other high-derivative measures that need the octave the
 canonical band gives up. Only on collections sampled fast enough to reach it; check with
 :func:`effective_band`, and do not infer the rate from a file's grid, which may be an upsample.
+
+``noresp`` is 0.45-5 Hz, the canonical band with its lower edge above respiration. On a
+chest-worn sensor the 0.15-0.45 Hz stretch is dominated by respiratory chest tilt -- gravity
+re-projected by the breathing ribcage, a rotation rather than a translation -- so the choice
+between this and ``micromotion`` is a purpose decision: keep the respiratory term or exclude
+it. See :data:`~micromotion.filters.NORESP_BAND`.
 
 ``optical_legacy`` is the 10 Hz low-pass behind the published championship figures. It retains
 sub-0.2 Hz postural drift and reads about 15 per cent higher. It is kept because those numbers
@@ -322,8 +329,8 @@ def qom(
             position.
         variant (str, optional): ``"raw"``, ``"compensated"`` or ``"tilt_corrected"``.
             Defaults to ``"raw"``.
-        band (str, optional): ``"micromotion"``, ``"wideband"`` or ``"optical_legacy"``.
-            See :data:`BANDS`. Defaults to ``"micromotion"``.
+        band (str, optional): ``"micromotion"``, ``"wideband"``, ``"noresp"`` or
+            ``"optical_legacy"``. See :data:`BANDS`. Defaults to ``"micromotion"``.
         gyro (np.ndarray, optional): (n_samples, 3) angular velocity in rad/s. Required by
             ``tilt_corrected``.
         integrate (str, optional): ``"rectangle"`` or ``"trapezoid"``, the quadrature rule

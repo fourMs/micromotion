@@ -61,8 +61,8 @@ from .descriptors import effective_dimensionality, intraclass_correlation
 from .equivalence import (equivalence_correlation, interpret, tost_independent,
                           tost_paired)
 from .features import FEATURE_NAMES, feature_vector
-from .filters import (BAND, OPTICAL_LEGACY_BAND, WIDEBAND, bandpass, effective_band, highpass,
-                      lowpass, notch)
+from .filters import (BAND, NORESP_BAND, OPTICAL_LEGACY_BAND, WIDEBAND, bandpass,
+                      effective_band, highpass, lowpass, notch)
 from .io import (
     read,
     read_ax3,
@@ -115,6 +115,8 @@ from .spectral import (
     band_power,
     band_power_fraction,
     band_rms,
+    band_share,
+    band_share_from_spectrum,
     cardiac_peak,
     detect_breaths,
     detect_breaths_adaptive,
@@ -137,6 +139,7 @@ __all__ = [
     "G",
     "HARMONISED_RATE",
     "MotionRecord",
+    "NORESP_BAND",
     "OPTICAL_LEGACY_BAND",
     "QomResult",
     "WIDEBAND",
@@ -149,6 +152,8 @@ __all__ = [
     "band_power",
     "band_power_fraction",
     "band_rms",
+    "band_share",
+    "band_share_from_spectrum",
     "bandpass",
     "bin_series",
     "body_scale",

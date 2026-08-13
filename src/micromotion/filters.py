@@ -80,6 +80,29 @@ It is deliberately not the default. A quantity computed here is not comparable w
 computed at :data:`BAND`, and it is not computable at all on the slower collections.
 """
 
+NORESP_BAND = (0.45, 5.0)
+"""0.45-5 Hz: the micromotion band with its lower edge raised above respiration.
+
+The 0.15-0.45 Hz stretch that :data:`BAND` keeps is, on a chest-worn sensor, dominated by
+respiratory chest tilt. The ribcage turns the sensor as it expands, so what the accelerometer
+reads there is gravity re-projected between axes -- a rotation, not the sensor travelling.
+Measured across the year-long chest-phone record, 94 to 99 per cent of the power in that band
+lies perpendicular to that day's gravity vector, implying a tilt of 0.05 to 0.14 degrees. This
+band excludes it; a quantity computed here is micromotion above respiration.
+
+The choice between :data:`BAND` and this one is a purpose decision, not a correctness one.
+:data:`BAND` keeps the respiratory term, which makes it the cardiorespiratory torso measure and
+the band every cross-collection comparison must use; this one drops the term, which makes it the
+band for a postural question on a chest-worn sensor. The StillStanding365 record deposits
+quantity of motion at both, as ``qom_mm_s`` and ``qom_045_5hz_mm_s``, each with its band stated
+-- which is the practice to copy, because a value at either band with the band unstated will
+sooner or later be compared against one at the other.
+
+It is not the ``compensated`` variant of :func:`~micromotion.qom.qom`, which raises the edge
+further, to 0.5 Hz, and also notches the recording's own cardiac peak. This constant changes
+the band and nothing else: the ballistocardiac impulse is still inside it.
+"""
+
 OPTICAL_LEGACY_BAND = (None, 10.0)
 """A 10 Hz low-pass with no lower edge: the convention behind the published championship
 quantity of motion.
