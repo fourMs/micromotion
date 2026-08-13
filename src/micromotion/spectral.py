@@ -74,7 +74,13 @@ def respiratory_peak(x, fs: float, window_s: float = 120.0) -> float:
 
 
 def band_power(x, fs: float, band: tuple[float, float], window_s: float = 60.0) -> float:
-    """Integrated power between two frequencies."""
+    """Integrated power between two frequencies.
+
+    Trapezoid quadrature over a closed interval, ``[lo, hi]``. A ratio of two of these is not
+    the same number as a ratio computed by summing bins over ``[lo, hi)``, which is what
+    :func:`~micromotion.physio.spectral_band_fractions` does; :func:`band_share` names the
+    convention it uses and can express either.
+    """
     x = np.asarray(x, float)
     nper = int(min(len(x), fs * window_s))
     f, p = signal.welch(signal.detrend(x), fs, nperseg=nper)
@@ -205,6 +211,15 @@ def band_power_fraction(x, fs: float, bands: dict, window_s: float = 60.0) -> di
     0.2-5 Hz acceleration power at 0.8-2.5 Hz, on the raw accelerometer channel. That history
     is why :func:`band_share` exists and makes both bands mandatory; prefer it whenever the
     result is going to be quoted.
+
+    WHICH CONVENTION THIS IS. Trapezoid quadrature over a closed interval, ``[lo, hi]``, with the
+    whole spectrum as the denominator rather than a named band -- the same arithmetic as
+    :func:`band_power` and as :func:`band_share` at its defaults, and NOT the same arithmetic as
+    :func:`~micromotion.physio.spectral_band_fractions`, which sums bins over ``[lo, hi)`` and
+    divides by a named band. The two are not interchangeable: on chest-accelerometer standstill
+    recordings the quadrature rule alone moves a respiratory share by up to 0.034 absolute on a
+    share of about 0.16, and the closure by up to 0.025. Do not compare a fraction from here with
+    one from there; :func:`band_share` can express either, and says which it used.
     """
     x = np.asarray(x, float)
     nper = int(min(len(x), fs * window_s))
@@ -233,19 +248,47 @@ def _share_bands_checked(num_band: tuple[float, float],
         )
 
 
-def _share(f, p, num_band, den_band) -> float:
-    mn = (f >= num_band[0]) & (f <= num_band[1])
-    md = (f >= den_band[0]) & (f <= den_band[1])
+SHARE_RULES = ("trapezoid", "sum")
+"""The quadrature rules a share can be taken under. See :func:`band_share`."""
+
+SHARE_INTERVALS = ("closed", "half_open")
+"""The band-edge conventions a share can be taken under. See :func:`band_share`."""
+
+
+def _share_rule_checked(integrate: str, interval: str) -> None:
+    if integrate not in SHARE_RULES:
+        raise ValueError(
+            f"unknown integration rule {integrate!r}; use 'trapezoid' or 'sum'")
+    if interval not in SHARE_INTERVALS:
+        raise ValueError(
+            f"unknown interval {interval!r}; use 'closed' or 'half_open'")
+
+
+def _band_mask(f, band: tuple[float, float], interval: str):
+    lo, hi = band
+    return (f >= lo) & (f <= hi) if interval == "closed" else (f >= lo) & (f < hi)
+
+
+def _share(f, p, num_band, den_band, integrate: str = "trapezoid",
+           interval: str = "closed") -> float:
+    mn = _band_mask(f, num_band, interval)
+    md = _band_mask(f, den_band, interval)
     if mn.sum() < 2 or md.sum() < 2:
         return float("nan")
-    den = float(np.trapezoid(p[md], f[md]))
+    if integrate == "sum":
+        num, den = float(p[mn].sum()), float(p[md].sum())
+    else:
+        num = float(np.trapezoid(p[mn], f[mn]))
+        den = float(np.trapezoid(p[md], f[md]))
     if not np.isfinite(den) or den <= 0:
         return float("nan")
-    return float(np.trapezoid(p[mn], f[mn]) / den)
+    return float(num / den)
 
 
 def band_share_from_spectrum(f, p, *, num_band: tuple[float, float],
-                             den_band: tuple[float, float]) -> float:
+                             den_band: tuple[float, float],
+                             integrate: str = "trapezoid",
+                             interval: str = "closed") -> float:
     """The share rule, for a caller that already has a spectrum.
 
     :func:`band_share` is this with a Welch in front of it, and its docstring states the rule and
@@ -256,9 +299,17 @@ def band_share_from_spectrum(f, p, *, num_band: tuple[float, float],
     The deliverability check here is against the spectrum itself: a denominator edge above the
     highest frequency the spectrum reaches means the share is taken over a truncated denominator,
     and the warning says so. Everything else -- the mandatory bands, the containment rule, the
-    non-finite warning -- is the same.
+    non-finite warning, and both convention parameters -- is the same.
+
+    ``integrate`` is ``"trapezoid"`` or ``"sum"`` and ``interval`` is ``"closed"`` or
+    ``"half_open"``, exactly as in :func:`band_share`, which states what the four combinations
+    mean and what they cost. ``integrate="sum", interval="half_open"`` is the convention
+    :func:`~micromotion.physio.spectral_band_fractions` implements, and on the same spectrum the
+    two then agree to floating point; the defaults here are the convention
+    :func:`band_power`, :func:`band_power_fraction` and :func:`band_share` use.
     """
     _share_bands_checked(num_band, den_band)
+    _share_rule_checked(integrate, interval)
     f = np.asarray(f, float)
     p = np.asarray(p, float)
     n_bad = int((~np.isfinite(p)).sum())
@@ -276,16 +327,53 @@ def band_share_from_spectrum(f, p, *, num_band: tuple[float, float],
             f"{den_band[0]}-{den_band[1]} Hz, and is not comparable with a share computed over "
             "the full denominator.",
             RuntimeWarning, stacklevel=2)
-    return _share(f, p, num_band, den_band)
+    return _share(f, p, num_band, den_band, integrate, interval)
 
 
 def band_share(x, fs: float, *, num_band: tuple[float, float],
-               den_band: tuple[float, float], window_s: float = 60.0) -> float:
+               den_band: tuple[float, float], window_s: float = 60.0,
+               integrate: str = "trapezoid", interval: str = "closed") -> float:
     """Fraction of spectral power in one band over another. Both bands are mandatory.
 
     Returns numerator-band power over denominator-band power, integrated on a Welch spectrum,
     as a number in 0 to 1. The numerator band must lie inside the denominator band, and neither
     has a default.
+
+    THE TWO BANDS ARE NOT THE WHOLE LABEL: THE ARITHMETIC IS PART OF IT. Two conventions for
+    turning a Welch spectrum into a band power are in use in this field, and this package used
+    both before it said so. ``integrate`` selects the quadrature rule -- ``"trapezoid"``, which
+    weights the two edge bins by a half, or ``"sum"``, which adds the bins in the mask (the
+    rectangle rule; the bin width cancels in a ratio, so a bin-summed fraction is exactly this).
+    ``interval`` selects what the band edges mean -- ``"closed"``, ``[lo, hi]``, or
+    ``"half_open"``, ``[lo, hi)``. The defaults, ``"trapezoid"`` and ``"closed"``, are what
+    :func:`band_power`, :func:`band_power_fraction` and this function have always computed, and
+    what the 25 per cent chest-phone cardiac share was measured under.
+    ``integrate="sum", interval="half_open"`` is the other convention in this package,
+    implemented by :func:`~micromotion.physio.spectral_band_fractions` and by the analyses of
+    cardiac and respiratory composition in chest-accelerometer standstill recordings; pass it to
+    reproduce or extend those numbers rather than silently restating them.
+
+    BOTH CHOICES MOVE REAL SHARES BY MORE THAN THEY LOOK LIKE THEY SHOULD. Measured on
+    chest-accelerometer standstill recordings with the mask held fixed so that only the
+    quadrature rule changed, the respiratory share moved by up to 0.034 absolute on a share of
+    about 0.16 -- over a fifth of the value. Closure costs up to 0.025 absolute on the same
+    recordings, and it costs that much because analysts choose round band edges: at the
+    conventional 60 s window the bin spacing is 1/60 Hz, so 0.40, 0.70, 2.20, 3.0, 5.0 and
+    8.0 Hz all land exactly on a bin, and closing the interval adds a whole bin at the
+    numerator's upper edge and at the denominator's, which do not cancel. A migration of three
+    analysis scripts from the bin-sum convention onto the defaults here would have moved one
+    published share from 58 to 59 per cent, another from 16.6 to 15.1, a fold from 3.1 to 3.2,
+    and 18 of 24 numbers in one table; it was abandoned rather than performed, which is why
+    these parameters exist.
+
+    THE TWO AGREE EXACTLY ON A FLAT BAND, which is why they look interchangeable. Where the
+    spectrum is flat, the trapezoid's half-weighted end bins remove precisely one bin's worth,
+    so ``"trapezoid", "closed"`` equals ``"sum", "half_open"`` to floating point. The
+    disagreement is driven by the slope inside the band, so it is largest at the low end of a
+    red spectrum -- the respiratory band, on every body-worn sensor here.
+
+    A share is comparable only with a share taken the same way. Record the rule and the closure
+    beside the two bands whenever the number is going to be quoted.
 
     WHY THERE ARE NO DEFAULTS. A share is a ratio of two integrals and it moves when either band
     moves. Four published-looking figures for the share of standstill motion -- 38, 43, 45 and 58
@@ -317,10 +405,14 @@ def band_share(x, fs: float, *, num_band: tuple[float, float],
 
     For a spectrum already in hand, :func:`band_share_from_spectrum` applies the same rule
     without recomputing the transform. For several named bands over one common total,
-    :func:`band_power_fraction` remains the convenience; this function is the one whose result
-    is meant to be quoted, which is why it makes the denominator explicit.
+    :func:`band_power_fraction` remains the convenience -- it computes the default convention
+    here, over the whole spectrum rather than a named denominator. For the bin-sum convention
+    with a named denominator band, :func:`~micromotion.physio.spectral_band_fractions` is where
+    it already lives. This function is the one whose result is meant to be quoted, which is why
+    it makes the denominator explicit and lets the convention be named rather than assumed.
     """
     _share_bands_checked(num_band, den_band)
+    _share_rule_checked(integrate, interval)
     x = np.asarray(x, float)
     from .filters import NYQUIST_MARGIN
 
@@ -343,7 +435,7 @@ def band_share(x, fs: float, *, num_band: tuple[float, float],
         return float("nan")
     nper = int(min(len(x), fs * window_s))
     f, p = signal.welch(signal.detrend(x), fs, nperseg=nper)
-    return _share(f, p, num_band, den_band)
+    return _share(f, p, num_band, den_band, integrate, interval)
 
 
 def mean_frequency(x, fs: float, band: tuple[float, float] = (0.1, 5.0),

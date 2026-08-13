@@ -10,11 +10,16 @@ Two pure numpy/scipy surfaces ported from the "still standing" study:
   falling in each of a set of caller-supplied named frequency bands. This is
   the generic "cardiorespiratory QoM" spectral-composition diagnostic with
   the heart-rate/respiration bands supplied by the caller, so the function
-  carries no dependency on any particular physiological sensor.
+  carries no dependency on any particular physiological sensor. It sums bins
+  over half-open bands, which is not the convention
+  :mod:`~micromotion.spectral` computes shares under; its docstring says what
+  the difference costs and how to ask for either.
 
 Source: still standing study (Jensenius) -- Deichman / Equivital physiology
 analyses.
 """
+
+import warnings
 
 import numpy as np
 
@@ -91,7 +96,15 @@ def respiration_rate(waveform, fs, *, band=(0.1, 0.6), window_s=30,
                 if np.isfinite(rate_bpm).any() else np.nan)
 
 
-def spectral_band_fractions(signal, fs, bands, *, total_band=(0.1, 8.0),
+DEFAULT_TOTAL_BAND = (0.1, 8.0)
+"""Hz. The denominator :func:`spectral_band_fractions` falls back on when none is given.
+
+It is a fallback and not a standard. Published shares in this corpus rest on it, so it cannot
+move; a caller who does not name a denominator is warned rather than quietly given this one.
+"""
+
+
+def spectral_band_fractions(signal, fs, bands, *, total_band=None,
                             nperseg_s=20):
     """
     Fraction of a signal's power in each of a set of named frequency bands.
@@ -102,9 +115,47 @@ def spectral_band_fractions(signal, fs, bands, *, total_band=(0.1, 8.0),
     for the "cardiorespiratory QoM artifact" analysis (e.g. how much of a
     chest-accelerometer QoM signal sits in a cardiac vs a respiration band),
     with the bands supplied by the caller so there is no built-in dependence
-    on a heart-rate or respiration sensor. Power is bin-summed on the Welch
-    grid; the study source integrated with trapz, which yields nearly
-    identical results on the uniform frequency spacing of Welch.
+    on a heart-rate or respiration sensor.
+
+    WHICH CONVENTION THIS IS, AND WHAT ELSE IS IN THIS PACKAGE. Power is
+    bin-summed on the Welch grid over a half-open interval, ``[lo, hi)``, at
+    both the numerator and the denominator. That is one of the two spectral-share
+    conventions micromotion contains, and the other one is the default
+    everywhere else: :func:`~micromotion.spectral.band_power`,
+    :func:`~micromotion.spectral.band_power_fraction` and
+    :func:`~micromotion.spectral.band_share` integrate with the trapezoid rule
+    over a closed ``[lo, hi]``. A share from here and a share from there are
+    not comparable, and until 1.11.0 neither docstring said so.
+
+    An earlier version of this docstring claimed the two "yield nearly
+    identical results on the uniform frequency spacing of Welch". They do not.
+    Measured on chest-accelerometer standstill recordings, holding the mask
+    fixed so that only the quadrature rule changed, the respiratory share moved
+    by up to 0.034 absolute on a share of about 0.16 -- over a fifth of the
+    value. Interval closure costs a further 0.025 absolute on the same
+    recordings, because analysts pick round band edges and at the conventional
+    60 s window (1/60 Hz bins) 0.40, 0.70, 2.20, 3.0, 5.0 and 8.0 Hz all land
+    exactly on a bin, so closing the interval adds a whole bin at both the
+    numerator's and the denominator's upper edge and the two do not cancel. The
+    two conventions agree only where the band is flat, which the low end of a
+    body-worn sensor's spectrum never is.
+
+    Nothing here is deprecated and no default has moved, because published
+    shares in this corpus were computed by exactly this arithmetic and would
+    change if it did. To compute a share under the other convention, or to state
+    which convention a number was taken under, call
+    ``band_share(..., integrate="sum", interval="half_open")``, which reproduces
+    this function on the same spectrum, or leave those parameters at their
+    defaults to get the trapezoid-and-closed convention. New work that will
+    quote a number should prefer :func:`~micromotion.spectral.band_share`: it
+    makes the denominator mandatory and the convention explicit.
+
+    ``total_band`` has no silent default. Left unset it falls back to
+    :data:`DEFAULT_TOTAL_BAND`, 0.1-8.0 Hz, and warns, because a share is a
+    ratio of two integrals and a denominator nobody wrote down is the failure
+    that put four incompatible standstill shares -- 38, 43, 45 and 58 per cent
+    -- into one project's writing. Passing the band explicitly, including
+    passing ``(0.1, 8.0)``, silences the warning and changes no number.
 
     Source: still standing study (Jensenius), Deichman chest-QoM
     cardiorespiratory spectral-composition analysis (``deichman_full``).
@@ -115,7 +166,8 @@ def spectral_band_fractions(signal, fs, bands, *, total_band=(0.1, 8.0),
         bands (dict): Mapping of band name to ``(low, high)`` in Hz, e.g.
             ``{"cardiac": (0.9, 1.3), "resp": (0.12, 0.5)}``.
         total_band (tuple, optional): ``(low, high)`` reference band whose
-            power is the denominator. Defaults to ``(0.1, 8.0)``.
+            power is the denominator. Unset falls back to
+            :data:`DEFAULT_TOTAL_BAND`, ``(0.1, 8.0)``, with a warning.
         nperseg_s (float, optional): Welch segment length in seconds.
             Defaults to 20.
 
@@ -124,6 +176,19 @@ def spectral_band_fractions(signal, fs, bands, *, total_band=(0.1, 8.0),
             (``nan`` if the total band contains no power).
     """
     from scipy.signal import welch
+
+    if total_band is None:
+        total_band = DEFAULT_TOTAL_BAND
+        warnings.warn(
+            "spectral_band_fractions() was not given a total_band, so the fractions are over "
+            f"{DEFAULT_TOTAL_BAND[0]}-{DEFAULT_TOTAL_BAND[1]} Hz. A share whose denominator is "
+            "not stated beside it is not a reportable number -- four shares of standstill "
+            "motion were quoted against one another in this corpus while each rested on a "
+            "different, unstated denominator. Pass total_band explicitly; passing "
+            f"{DEFAULT_TOTAL_BAND} changes nothing but the warning. Note also that this "
+            "function sums bins over a half-open interval, which is not what band_share() "
+            "computes by default; see its docstring.",
+            RuntimeWarning, stacklevel=2)
 
     x = np.asarray(signal, dtype=float)
     x = x[np.isfinite(x)]

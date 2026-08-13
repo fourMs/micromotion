@@ -331,3 +331,207 @@ def test_band_share_warns_on_non_finite_input_like_the_filters_do():
     with _w.catch_warnings():
         _w.simplefilter("error")
         sp.band_share(two_tone(), 50.0, num_band=(0.7, 2.2), den_band=(0.1, 3.0))
+
+
+# --- the two spectral-share conventions -------------------------------------------------
+#
+# This package contained both of them before it said so: spectral.band_share and friends
+# integrate with the trapezoid rule over a closed [lo, hi], while physio.spectral_band_fractions
+# sums bins over a half-open [lo, hi). Migrating three analysis scripts from the second onto the
+# first would have moved a published share from 58 to 59 per cent, another from 16.6 to 15.1, a
+# fold from 3.1 to 3.2, and 18 of 24 numbers in one table. These tests hold the two conventions
+# apart and pin what each parameter selects.
+
+
+def exact_grid(n=400, df=1 / 20.0):
+    """A frequency grid whose round edges are exactly representable.
+
+    ``np.arange(n) / 20`` puts 0.4, 0.7, 2.2, 3.0 and 5.0 Hz exactly on a bin, which is the
+    situation a 60 s Welch window produces on real data and the situation in which closure
+    costs a whole bin at each edge. Division rather than multiplication by ``df``, because
+    ``14 * 0.05`` is not the double nearest 0.7 and ``14 / 20`` is.
+    """
+    return np.arange(n) / (1.0 / df)
+
+
+def red_spectrum():
+    """A falling spectrum with a respiratory and a cardiac bump, on the exact grid.
+
+    Shaped like a chest accelerometer at standstill: a 1/f^1.6 background, a breathing bump at
+    0.25 Hz and a ballistocardiac one at 1.1 Hz.
+    """
+    f = exact_grid()
+    p = np.zeros_like(f)
+    p[1:] = 1.0 / f[1:] ** 1.6
+    p += 3.0 * np.exp(-0.5 * ((f - 0.25) / 0.06) ** 2)
+    p += 1.5 * np.exp(-0.5 * ((f - 1.1) / 0.15) ** 2)
+    p[0] = p[1]
+    return f, p
+
+
+def test_the_round_band_edges_land_exactly_on_bins():
+    """Why closure bites at all: the edges analysts choose are bins, not gaps between them.
+
+    At a 60 s window the spacing is 1/60 Hz and 0.40, 0.70, 2.20, 3.0, 5.0 and 8.0 Hz are all
+    integer multiples of it, so [lo, hi] holds one more bin than [lo, hi) at both the
+    numerator's edge and the denominator's.
+    """
+    f = np.fft.rfftfreq(int(50.0 * 60.0), 1 / 50.0)
+    for edge in (0.4, 0.7, 2.2, 3.0, 5.0, 8.0):
+        assert (f == edge).any(), f"{edge} Hz is not on the 60 s Welch grid"
+
+
+def test_each_convention_parameter_selects_the_arithmetic_it_names():
+    """All four combinations, against arithmetic done by hand on a flat spectrum.
+
+    Flat power, a 0.4-0.7 Hz numerator and a 0.1-5.0 Hz denominator on a 0.05 Hz grid. Closed
+    holds 7 numerator bins and 99 denominator bins, half-open one fewer of each; the trapezoid
+    reduces to the band widths, 0.3 over 4.9 and 0.25 over 4.85.
+    """
+    f = exact_grid()
+    p = np.ones_like(f)
+    num, den = (0.4, 0.7), (0.1, 5.0)
+    got = {(r, c): sp.band_share_from_spectrum(f, p, num_band=num, den_band=den,
+                                               integrate=r, interval=c)
+           for r in ("trapezoid", "sum") for c in ("closed", "half_open")}
+    assert got[("sum", "closed")] == pytest.approx(7 / 99, rel=1e-12)
+    assert got[("sum", "half_open")] == pytest.approx(6 / 98, rel=1e-12)
+    assert got[("trapezoid", "closed")] == pytest.approx(0.3 / 4.9, rel=1e-12)
+    assert got[("trapezoid", "half_open")] == pytest.approx(0.25 / 4.85, rel=1e-12)
+
+    # On a FLAT band the trapezoid's half-weighted end bins remove exactly one bin's worth, so
+    # two of the four coincide. That identity is why the conventions look interchangeable.
+    assert got[("trapezoid", "closed")] == pytest.approx(got[("sum", "half_open")], rel=1e-12)
+
+
+def test_the_quadrature_rule_alone_moves_a_share():
+    """Same mask, different rule: 0.230 against 0.207, a tenth of the cardiac share.
+
+    The claim this replaces -- that the two "yield nearly identical results on the uniform
+    frequency spacing of Welch" -- was in a docstring in this package. On chest-accelerometer
+    standstill data the rule alone moves a respiratory share by up to 0.034 absolute on a share
+    of about 0.16.
+    """
+    f, p = red_spectrum()
+    kw = dict(num_band=(0.7, 2.2), den_band=(0.1, 3.0), interval="closed")
+    trap = sp.band_share_from_spectrum(f, p, integrate="trapezoid", **kw)
+    summed = sp.band_share_from_spectrum(f, p, integrate="sum", **kw)
+    assert trap == pytest.approx(0.2298, abs=5e-4)
+    assert summed == pytest.approx(0.2073, abs=5e-4)
+    assert abs(trap - summed) > 0.02
+
+
+def test_interval_closure_alone_moves_a_share():
+    """Same rule, different closure: 0.685 against 0.658 on a respiratory band.
+
+    Both band edges sit on bins, so closing the interval adds a whole bin to the numerator and
+    a whole bin to the denominator. They do not cancel, because the added bins carry very
+    different power on a falling spectrum.
+    """
+    f, p = red_spectrum()
+    kw = dict(num_band=(0.1, 0.4), den_band=(0.1, 3.0), integrate="sum")
+    closed = sp.band_share_from_spectrum(f, p, interval="closed", **kw)
+    half = sp.band_share_from_spectrum(f, p, interval="half_open", **kw)
+    assert closed == pytest.approx(0.6854, abs=5e-4)
+    assert half == pytest.approx(0.6579, abs=5e-4)
+    assert abs(closed - half) > 0.02
+
+
+def test_the_defaults_are_still_trapezoid_and_closed():
+    """The released convention, pinned. Changing it moves every share this package has quoted."""
+    f, p = red_spectrum()
+    kw = dict(num_band=(0.7, 2.2), den_band=(0.1, 3.0))
+    default = sp.band_share_from_spectrum(f, p, **kw)
+    assert default == sp.band_share_from_spectrum(f, p, integrate="trapezoid",
+                                                  interval="closed", **kw)
+    assert default != sp.band_share_from_spectrum(f, p, integrate="sum",
+                                                  interval="half_open", **kw)
+
+    x, fs = two_tone(), 50.0
+    assert sp.band_share(x, fs, **kw) == sp.band_share(x, fs, integrate="trapezoid",
+                                                       interval="closed", **kw)
+
+
+def test_band_share_forwards_the_convention_to_the_spectrum_it_computes():
+    """The Welch front end must not quietly compute a different convention from the primitive."""
+    x, fs = two_tone(), 50.0
+    f, p = signal.welch(signal.detrend(x), fs, nperseg=int(fs * 60.0))
+    for rule in ("trapezoid", "sum"):
+        for closure in ("closed", "half_open"):
+            a = sp.band_share(x, fs, num_band=(0.7, 2.2), den_band=(0.1, 3.0),
+                              integrate=rule, interval=closure)
+            b = sp.band_share_from_spectrum(f, p, num_band=(0.7, 2.2), den_band=(0.1, 3.0),
+                                            integrate=rule, interval=closure)
+            assert a == pytest.approx(b, rel=1e-12), f"{rule}/{closure} disagree"
+
+
+def test_the_bin_sum_convention_reproduces_spectral_band_fractions_exactly():
+    """The migration that was abandoned, made possible: the same number from both functions.
+
+    ``spectral_band_fractions`` sums bins over [lo, hi) at numerator and denominator both, so
+    ``band_share(..., integrate="sum", interval="half_open")`` on its own spectrum must give the
+    identical value. Compared on one spectrum rather than one series because the two functions
+    detrend differently -- linear against mean removal -- and that difference is not the share
+    rule.
+    """
+    from scipy.signal import welch
+
+    from micromotion import physio
+
+    # A red series rather than two clean tones: where a spectrum is empty between the bands,
+    # every convention returns the same number and the comparison proves nothing.
+    fs = 50.0
+    x = pink(fs, 600.0) + 0.02 * two_tone(fs, 600.0)
+    nperseg = min(len(x), max(8, int(fs * 20)))
+    f, p = welch(x - x.mean(), fs, nperseg=nperseg)
+
+    num, den = (0.7, 2.2), (0.1, 3.0)
+    theirs = physio.spectral_band_fractions(x, fs, {"cardiac": num}, total_band=den)["cardiac"]
+    ours = sp.band_share_from_spectrum(f, p, num_band=num, den_band=den,
+                                       integrate="sum", interval="half_open")
+    assert ours == pytest.approx(theirs, rel=1e-12)
+
+    # and the default convention does NOT reproduce it, which is the whole point
+    default = sp.band_share_from_spectrum(f, p, num_band=num, den_band=den)
+    assert abs(default - theirs) > 0.005, (
+        f"the two conventions agreed to {abs(default - theirs):.4g} on this spectrum; "
+        "pick one with more power near the band edges or the test watches nothing")
+
+
+def test_an_unknown_rule_or_closure_raises_rather_than_falling_back():
+    """A misspelled convention must not silently compute the default one."""
+    f, p = red_spectrum()
+    kw = dict(num_band=(0.7, 2.2), den_band=(0.1, 3.0))
+    for bad in ("trapz", "rectangle", "", None):
+        with pytest.raises(ValueError, match="integration rule"):
+            sp.band_share_from_spectrum(f, p, integrate=bad, **kw)
+        with pytest.raises(ValueError, match="integration rule"):
+            sp.band_share(two_tone(), 50.0, integrate=bad, **kw)
+    for bad in ("half-open", "open", "left", None):
+        with pytest.raises(ValueError, match="unknown interval"):
+            sp.band_share_from_spectrum(f, p, interval=bad, **kw)
+        with pytest.raises(ValueError, match="unknown interval"):
+            sp.band_share(two_tone(), 50.0, interval=bad, **kw)
+
+
+def test_the_guards_still_fire_under_the_other_convention():
+    """The bands, the containment rule and both warnings are convention-independent."""
+    import warnings as _w
+    other = dict(integrate="sum", interval="half_open")
+
+    with pytest.raises(TypeError):
+        sp.band_share(two_tone(), 50.0, (0.7, 2.2), (0.1, 3.0), **other)
+    with pytest.raises(ValueError, match="outside the denominator"):
+        sp.band_share(two_tone(), 50.0, num_band=(0.05, 2.2), den_band=(0.1, 3.0), **other)
+    with pytest.warns(RuntimeWarning, match="truncated denominator"):
+        sp.band_share(two_tone(fs=10.0), 10.0, num_band=(0.7, 2.2), den_band=(0.1, 8.0),
+                      **other)
+    x = two_tone()
+    x[100] = np.nan
+    with pytest.warns(RuntimeWarning, match="non-finite"):
+        assert np.isnan(sp.band_share(x, 50.0, num_band=(0.7, 2.2), den_band=(0.1, 3.0),
+                                      **other))
+    with _w.catch_warnings():
+        _w.simplefilter("error")
+        s = sp.band_share(two_tone(), 50.0, num_band=(0.7, 2.2), den_band=(0.1, 3.0), **other)
+    assert 0.0 < s < 1.0

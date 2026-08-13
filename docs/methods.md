@@ -217,6 +217,8 @@ mm.band_power(x, fs, band)
 mm.band_rms(x, fs, band)
 mm.band_power_fraction(x, fs, {"resp": (0.1, 0.5), "card": (0.7, 2.2)})
 mm.band_share(x, fs, num_band=(0.7, 2.2), den_band=(0.1, 3.0))
+mm.band_share(x, fs, num_band=(0.7, 2.2), den_band=(0.1, 3.0),   # the other convention
+              integrate="sum", interval="half_open")
 mm.band_share_from_spectrum(f, p, num_band=(0.7, 2.2), den_band=(0.1, 3.0))
 mm.mean_frequency(x, fs, band)
 mm.cardiac_peak(x, fs)
@@ -242,6 +244,14 @@ share with its domain, its site and both bands, or not at all; see
 `peak_from_spectrum`. If two channels have to meet at one rate before their shares are compared,
 resample with `to_rate`, which anti-aliases and refuses to upsample; plain interpolation onto a
 slower clock folds sensor noise into the cardiac band.
+
+The bands are not the whole label. `integrate` picks the quadrature rule, `"trapezoid"` or
+`"sum"`, and `interval` picks what the edges mean, `"closed"` or `"half_open"`; the defaults are
+`"trapezoid"` and `"closed"`, which is what `band_power` and `band_power_fraction` compute, and
+`integrate="sum", interval="half_open"` is what `spectral_band_fractions` computes. On
+chest-accelerometer standstill data the rule alone moves a respiratory share by up to 0.034
+absolute on a share of about 0.16 and the closure by up to 0.025, so the two are not
+interchangeable — see [the arithmetic label](conventions.md#and-the-arithmetic-which-is-the-fourth-label).
 
 `cardiac_peak` works this way. `respiratory_peak` does not, and the reason is worth knowing
 before reaching for a spectrum on any slow rhythm. A periodogram of belt or body motion is red:

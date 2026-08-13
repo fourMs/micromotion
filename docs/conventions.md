@@ -110,6 +110,48 @@ The three-label rule when quoting one: state the domain (power of what quantity)
 by a factor of frequency to the fourth relative to each other, so a share of one is not even
 approximately a share of the other, from the same sensor on the same body.
 
+### And the arithmetic, which is the fourth label
+
+Two bands on one spectrum still do not fix the number, because there are two ways to turn a
+Welch spectrum into a band power and this package used both before it said so. The rule is the
+quadrature — trapezoid, which weights the two edge bins by a half, or a plain sum of the bins in
+the mask, which is the rectangle rule and is what a "bin-summed fraction" means. The closure is
+what the edges mean — `[lo, hi]` or `[lo, hi)`. Four combinations, four numbers.
+
+They are not close. Measured on chest-accelerometer standstill recordings, holding the mask fixed
+so that only the quadrature rule changed, a respiratory share moved by up to 0.034 absolute on a
+share of about 0.16, over a fifth of the value; closure costs a further 0.025 absolute on the same
+recordings. Closure costs that much because analysts choose round band edges: at the conventional
+60 s window the bins are 1/60 Hz apart, so 0.40, 0.70, 2.20, 3.0, 5.0 and 8.0 Hz all land exactly
+on a bin, and closing the interval adds a whole bin at the numerator's upper edge and another at
+the denominator's, which do not cancel.
+
+The reason this stayed invisible is that the two agree *exactly* where the band is flat: the
+trapezoid's half-weighted end bins remove precisely one bin's worth, so trapezoid-over-`[lo, hi]`
+equals bin-sum-over-`[lo, hi)` on flat power. The disagreement is driven by the slope inside the
+band, so it is worst at the low end of a red spectrum — the respiratory band, on every body-worn
+sensor here.
+
+Which is which, in this package:
+
+| Function | Rule | Closure | Denominator |
+| --- | --- | --- | --- |
+| `mm.band_power`, `mm.band_power_fraction` | trapezoid | `[lo, hi]` | whole spectrum (`band_power_fraction`) |
+| `mm.band_share`, `mm.band_share_from_spectrum` | `integrate=` | `interval=` | named band, mandatory |
+| `mm.spectral_band_fractions` | sum | `[lo, hi)` | named band, `physio.DEFAULT_TOTAL_BAND` if unset |
+
+`band_share` defaults to `integrate="trapezoid", interval="closed"`, which is what it and
+`band_power` have always computed. `band_share(..., integrate="sum", interval="half_open")`
+reproduces `spectral_band_fractions` on the same spectrum to floating point, which is the call to
+use when extending numbers computed that way. Neither is more correct; only one of them is the one
+your comparison was computed under.
+
+So the label is four things, not three: the domain, the site, both bands, and the arithmetic. In
+prose that reads "25 per cent of 0.2–5 Hz raw chest-accelerometer acceleration power lies at
+0.8–2.5 Hz, integrated with the trapezoid rule over closed bands", and in a table it is a
+`share_convention` column reading `trapezoid/closed` or `sum/half_open`. A share is comparable
+only with a share computed the same way.
+
 ## Where a number should come from
 
 Data, then toolbox, then report, then book. A figure in a paper should trace back through a report

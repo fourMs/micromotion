@@ -12,6 +12,60 @@
 >    0.4.0, whose feature extraction imports the functions that moved.
 
 
+## 1.11.0 — 2026-08-13
+
+### Added
+- **`band_share` and `band_share_from_spectrum` can now say which convention they computed.**
+  `integrate` is `"trapezoid"` or `"sum"`, `interval` is `"closed"` (`[lo, hi]`) or `"half_open"`
+  (`[lo, hi)`). This package contained BOTH conventions and neither docstring mentioned the other:
+  `band_power`, `band_power_fraction` and the new `band_share` integrate with the trapezoid rule
+  over a closed interval, while `physio.spectral_band_fractions` sums bins over a half-open one.
+  Three analysis scripts were migrated onto `band_share` and all three had to be put back, because
+  the migration moved published numbers: one share from 58 to 59 per cent, another from 16.6 to
+  15.1, a fold from 3.1 to 3.2, and 18 of 24 numbers in one table. A function whose purpose is to
+  stop incompatible shares circulating could not express the convention half the package used.
+
+  **No default changed.** `band_share` and `band_share_from_spectrum` still compute
+  `integrate="trapezoid", interval="closed"`, which is what they computed in 1.10.0, what
+  `band_power` and `band_power_fraction` compute, and what the 25 per cent chest-phone cardiac
+  share was measured under. `integrate="sum", interval="half_open"` reproduces
+  `spectral_band_fractions` on the same spectrum, to floating point, and is the convention the
+  standstill chest-QoM composition numbers rest on. The precedent is `qom(integrate=...)`: name the
+  quadrature rule, default to what this package's own reference numbers were computed with, and put
+  the choice in the record of the analysis rather than settle it by argument.
+
+  An unknown rule or closure raises rather than falling back on the default, and every existing
+  guard — mandatory keyword-only bands, the containment rule, the truncated-denominator warning,
+  the non-finite warning — fires the same under either convention.
+
+### Changed
+- **`spectral_band_fractions` warns when no `total_band` is given.** Its denominator defaulted
+  silently to 0.1–8.0 Hz, and a share whose denominator nobody wrote down is exactly the failure
+  that put 38, 43, 45 and 58 per cent into one project's writing as though they were comparable.
+  The band itself CANNOT move — published numbers were computed with it — so it is now
+  `physio.DEFAULT_TOTAL_BAND`, reached by leaving the parameter unset, with a warning. Passing
+  `total_band=(0.1, 8.0)` explicitly returns the identical value and is silent. Nothing is
+  deprecated: the function keeps the bin-sum half-open convention its numbers were computed under,
+  and now says so and names the alternative.
+
+### Fixed
+- **A docstring claim that measurement contradicts.** `spectral_band_fractions` said bin-summing
+  and trapz "yield nearly identical results on the uniform frequency spacing of Welch". Measured on
+  chest-accelerometer standstill recordings with the mask held fixed so that only the quadrature
+  rule changed, the respiratory share moves by up to 0.034 absolute on a share of about 0.16 — over
+  a fifth of the value. Interval closure costs a further 0.025 absolute on the same recordings, and
+  it costs that much because analysts choose round band edges: at the conventional 60 s window the
+  bins are 1/60 Hz apart, so 0.40, 0.70, 2.20, 3.0, 5.0 and 8.0 Hz all land exactly ON a bin, and
+  closing the interval adds a whole bin at both the numerator's and the denominator's upper edge,
+  which do not cancel. The two conventions agree exactly only where the band is flat — there the
+  trapezoid's half-weighted end bins remove precisely one bin's worth — and the low end of a
+  body-worn sensor's spectrum never is.
+
+- **The five functions that compute a spectral share now name each other.** `band_power`,
+  `band_power_fraction`, `band_share`, `band_share_from_spectrum` and `spectral_band_fractions`
+  each state which convention they implement and where the other one lives, so a share from one is
+  not compared with a share from another again.
+
 ## 1.10.0 — 2026-08-13
 
 ### Fixed
