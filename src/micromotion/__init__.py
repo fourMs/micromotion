@@ -112,6 +112,7 @@ from .resample import (
     to_rate,
 )
 from .spectral import (
+    band_edge_sweep,
     band_power,
     band_power_fraction,
     band_rms,
@@ -119,6 +120,7 @@ from .spectral import (
     band_share_from_spectrum,
     cardiac_peak,
     detect_breaths,
+    is_band_floor,
     detect_breaths_adaptive,
     mean_frequency,
     respiratory_peak,
@@ -126,7 +128,7 @@ from .spectral import (
     spectral_peak,
 )
 
-__version__ = "1.11.1"
+__version__ = "1.12.0"
 
 __all__ = [
     
@@ -148,6 +150,7 @@ __all__ = [
     "apply_lag",
     "axial_rayleigh",
     "balance",
+    "band_edge_sweep",
     "band_limited_qom",
     "band_power",
     "band_power_fraction",
@@ -191,6 +194,7 @@ __all__ = [
     "instantaneous_rate",
     "interpolate_gaps",
     "intraclass_correlation",
+    "is_band_floor",
     "longest_finite_span",
     "lowpass",
     "mean_frequency",

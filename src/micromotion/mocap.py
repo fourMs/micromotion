@@ -26,6 +26,8 @@ Source: still standing study and Westney-comparisons study (Jensenius).
 
 import numpy as np
 
+from .spectral import _floor_spectrum, _warn_band_floor, is_band_floor
+
 
 def read_qtm_tsv(path):
     """
@@ -135,6 +137,18 @@ def dominant_frequency(x, fs, band=(0.3, 4.0)):
     inside ``band`` -- e.g. the dominant oscillation rate of a body-part
     speed or vertical-position signal.
 
+    A bare maximum, and it stays one, because published figures were computed
+    with it. It now warns when the band holds no peak at all, by
+    :func:`~micromotion.spectral.is_band_floor`, and returns the value
+    unchanged. Take that warning seriously on position and speed signals, whose
+    spectra fall steeply: on synthetic 1/f series with nothing in a 0.7-2.2 Hz
+    band this returns a median 1.07 times the lower edge and lands exactly on
+    that edge on none of forty of them, so an audit looking for values that sit
+    on a band boundary would not have found one. Use
+    :func:`~micromotion.spectral.spectral_peak` where a NaN is preferable to a
+    number, and :func:`~micromotion.spectral.band_edge_sweep` to test an
+    estimate that has already been computed.
+
     Source: Westney-comparisons study (Jensenius), extended motion-feature
     analysis (motion dominant frequency of vertical trunk position).
 
@@ -158,7 +172,10 @@ def dominant_frequency(x, fs, band=(0.3, 4.0)):
     mask = (f >= lo) & (f <= hi)
     if not mask.any():
         return np.nan
-    return float(f[mask][np.argmax(P[mask])])
+    out = float(f[mask][np.argmax(P[mask])])
+    if is_band_floor(*_floor_spectrum(x, fs, (lo, hi)), (lo, hi)):
+        _warn_band_floor("dominant_frequency()", out, (lo, hi))
+    return out
 
 
 def compare_modality_envelopes(env_a, env_b, fs_a, fs_b):

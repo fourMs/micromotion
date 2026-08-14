@@ -21,14 +21,80 @@ RESPIRATORY_BAND = (0.1, 0.5)
 """Hz. 6-30 breaths per minute."""
 
 
-def _peak(x, fs: float, band: tuple[float, float], window_s: float) -> float:
+def is_band_floor(f, p, band: tuple[float, float]) -> bool:
+    """Whether the largest value in ``band`` is where the band starts rather than a rhythm.
+
+    The test is :func:`peak_from_spectrum`'s, so the package holds one peak rule and not two: is
+    there an interior local maximum of the spectrum divided by a log-log straight-line fit across
+    the band. ``True`` means there is not, and that whatever a bare argmax returned is a property
+    of the search band rather than of the body.
+
+    GIVE THIS AN UNFILTERED SPECTRUM. A band-pass applied before the transform builds its own
+    rising skirt inside the passband, and that skirt survives dividing out the log-log slope. On
+    twenty synthetic 1/f series with nothing in the band, the rule called the filtered spectrum a
+    peak 16 times and the raw spectrum once at a single-segment Welch, and 17 against 6 at the
+    averaging :func:`_floor_spectrum` uses. Every caller in this package therefore runs it on the
+    raw segment even where the estimate itself is taken from a filtered one. It is a difference of
+    sensitivity rather than of verdict: at the call sites here, where a warning follows if ANY
+    window is flagged, both choices still warn on all twenty series.
+
+    GIVE IT AN AVERAGED SPECTRUM TOO, which is the less obvious half. The rule asks whether any bin
+    stands a factor above a fitted slope, and in a lightly averaged Welch some bin always does, by
+    chance. On the same twenty 1/f series over a 0.7-2.2 Hz band this correctly returns True on
+    20 of 20 at about thirty Welch averages, on 14 of 20 at fifteen, and on 0 of 20 at the five
+    that `mocap.dominant_frequency`'s own `nperseg=2048` leaves — which is why every caller here
+    recomputes its own diagnostic spectrum instead of reusing the one the estimate came from. The
+    failure is one-sided: too few averages makes this MISS a band floor, never invent one. A short
+    record, or a band narrow enough that resolving it uses up the record, therefore gets a weaker
+    test rather than a wrong one.
+    """
+    return not peak_from_spectrum(np.asarray(f, float), np.asarray(p, float), band)["is_peak"]
+
+
+def _floor_spectrum(x, fs: float, band: tuple[float, float]):
+    """A deliberately over-averaged Welch, for :func:`is_band_floor` and not for any estimate.
+
+    Two constraints pull against each other: the band needs bins in it, and the bins need
+    averaging. This takes about sixteen segments where the record allows it and otherwise buys
+    eight bins across the band, since a band with nothing in it cannot be tested at all.
+    """
+    x = np.asarray(x, float)
+    need = int(np.ceil(8 * fs / max(band[1] - band[0], 1e-9)))
+    nper = int(min(len(x), max(len(x) // 16, need)))
+    return signal.welch(signal.detrend(x), fs, nperseg=max(nper, 8))
+
+
+def _warn_band_floor(where: str, freq: float, band: tuple[float, float],
+                     n: int = 1, n_total: int = 1) -> None:
+    """The one message all the bare-argmax finders raise. See :func:`is_band_floor`."""
+    share = "" if n_total <= 1 else f"on {n} of {n_total} windows, "
+    warnings.warn(
+        f"{where} {share}returned {freq:.4g} Hz, which is {freq / band[0]:.2f} times the lower "
+        f"edge of its own search band ({band[0]:g}-{band[1]:g} Hz) and is not a peak: the "
+        "spectrum has no interior local maximum there once its own log-log slope is divided out. "
+        "A bounded search returns its own boundary when it finds nothing, and it does not have to "
+        "land ON the boundary to BE the boundary -- a steep spectrum, or a band-pass over the "
+        "same band, puts the answer at a near-constant multiple of the edge instead, where a "
+        "check for equality with the edge passes it clean. The value is returned unchanged. Use "
+        "spectral_peak(), which returns NaN in this case, or band_edge_sweep(), which moves the "
+        "edge and reports whether the answer follows it.",
+        RuntimeWarning, stacklevel=3)
+
+
+def _peak(x, fs: float, band: tuple[float, float], window_s: float,
+          where: str = "cardiac_peak()") -> float:
     x = np.asarray(x, float)
     if len(x) < fs * 10:
         return float("nan")
     nper = int(min(len(x), fs * window_s))
     f, p = signal.welch(signal.detrend(x), fs, nperseg=nper)
     m = (f >= band[0]) & (f <= band[1])
-    return float(f[m][np.argmax(p[m])]) if m.any() else float("nan")
+    if not m.any():
+        return float("nan")
+    out = float(f[m][np.argmax(p[m])])
+    if where and is_band_floor(*_floor_spectrum(x, fs, band), band):
+        _warn_band_floor(where, out, band)
+    return out
 
 
 def cardiac_peak(x, fs: float, window_s: float = 60.0) -> float:
@@ -36,6 +102,15 @@ def cardiac_peak(x, fs: float, window_s: float = 60.0) -> float:
 
     Pass the acceleration magnitude. Multiply by 60 for beats per minute. Returns NaN if
     the recording is too short for the band to be resolved.
+
+    This is a bare maximum inside the band, unlike :func:`spectral_peak`, and it stays one
+    because published beats-per-minute figures in this corpus were computed with it. What it
+    gained instead is a warning: when the band holds no peak it says so and returns the value
+    anyway. On synthetic 1/f series with nothing in the cardiac band it returns a median 1.05
+    times the 0.7 Hz lower edge, and lands exactly on that edge on only a quarter of them, so a
+    check for values sitting on the boundary would have passed most of them. Use
+    :func:`spectral_peak` where a NaN is preferable to a number, and :func:`band_edge_sweep` to
+    settle whether an estimate already computed is following its own band edge.
     """
     return _peak(x, fs, CARDIAC_BAND, window_s)
 
@@ -57,10 +132,21 @@ def respiratory_peak(x, fs: float, window_s: float = 120.0) -> float:
 
     Four repairs were measured and all four rejected, which is why the spectral approach was
     abandoned rather than patched. Raising the band floor to 0.20 Hz leaves a 3.4 breaths-per-minute
-    gap. Band-passing before the periodogram changes nothing whatever, and cannot, because the
-    maximum inside a band is unaffected by filtering inside that same band. The most prominent local
+    gap. Band-passing before the periodogram does not rescue it. The most prominent local
     maximum instead of the global one reaches Spearman +0.22. Dividing out a fitted power law before
     taking the maximum reaches +0.26 and biases the median high, to 21.5.
+
+    ONE REASON GIVEN FOR THE SECOND OF THOSE WAS WRONG, and it matters because it is the reason
+    people go on proposing it. This docstring used to say that band-passing "changes nothing
+    whatever, and cannot, because the maximum inside a band is unaffected by filtering inside that
+    same band". The maximum inside a band is NOT unaffected: a Butterworth is not flat inside its
+    own passband, its rising skirt reaches in, and multiplying a falling spectrum by that skirt
+    moves the maximum up. Measured on twenty synthetic 1/f series over a 0.12-0.40 Hz band, the
+    unfiltered maximum sits at 1.11 times the lower edge, a fourth-order zero-phase band-pass over
+    the same band moves it to 1.25 and a second-order one to 1.39, and the filtered and unfiltered
+    answers agree on 6 and 4 of the twenty. So band-passing moves the number by about a fifth and
+    still returns the edge; the repair fails because the answer is the edge either way, not
+    because filtering is a no-op. See :func:`band_edge_sweep`.
 
     :func:`cardiac_peak` still uses the periodogram and is right to: its band sits above the slope
     and the ballistocardiac impulse is a genuinely prominent peak, giving a median 75 bpm with an
@@ -188,6 +274,128 @@ def spectral_peak(x, fs: float, band: tuple[float, float],
     nper = int(min(len(x), fs * window_s))
     f, p = signal.welch(signal.detrend(x), fs, nperseg=nper)
     return peak_from_spectrum(f, p, band, require_peak=require_peak, min_excess=min_excess)
+
+
+DEFAULT_EDGE_FACTORS = (0.70, 0.85, 1.00, 1.15, 1.30)
+"""What :func:`band_edge_sweep` multiplies a band's lower edge by when given no ``edges``."""
+
+
+def band_edge_sweep(signals, fs: float, band: tuple[float, float], *,
+                    estimator=None, edges=None, reference=None) -> dict:
+    """Move the lower edge of a search band and see whether the answer follows it.
+
+    The question this answers is not "did the estimate land on the boundary" but "is the estimate
+    the boundary". Those are different, and the second is the one that catches things. An estimator
+    that reports the largest peak inside a band, run on a spectrum that falls steeply, returns a
+    number that MOVES WITH the band edge at a near-constant multiple of it -- not the edge itself,
+    a plausible-looking interior value a fifth or a third above it. Checking whether values sit ON
+    a boundary passes that clean. Moving the boundary does not.
+
+    Pass one signal, or a sequence of signals from a collection. ``estimator`` is called as
+    ``estimator(item, fs, (lo, hi))`` and must return a frequency in Hz; it defaults to the bare
+    in-band maximum, which is the thing usually under suspicion, and it can be any callable, so an
+    estimator from outside this package -- a whole pipeline, reading video -- can be audited by the
+    same rule. Items are passed through untouched, so they need only be whatever that callable
+    accepts. Warnings raised inside it are suppressed, since the sweep deliberately calls it in the
+    regime where it complains.
+
+    ``edges`` are the lower edges to try, defaulting to :data:`DEFAULT_EDGE_FACTORS` times
+    ``band[0]``. The upper edge is held fixed throughout: this tests one boundary at a time.
+
+    Returns a dict:
+
+    - ``edges``, and ``freq``, the answer at each edge (the median across signals if there are
+      several), with ``freq_by_signal`` shaped ``(n_edges, n_signals)``
+    - ``ratio``, ``freq / edges``, which is flat for an estimate that is the edge
+    - ``factor``, the least-squares multiple of the edge through the origin
+    - ``rss_edge`` and ``rss_constant``, how well "the answer is c times the edge" and "the answer
+      is a fixed frequency" each fit the sweep
+    - ``follows``, which is ``rss_edge < rss_constant``: the edge explains the answers better than
+      a rhythm does
+    - ``r`` against ``reference`` at each edge, and ``r_max``, when a reference frequency per
+      signal is given
+
+    WHY THE VERDICT COMPARES TWO FITS rather than thresholding a slope. A genuine rhythm returns
+    the same frequency at every edge below it, so a constant fits perfectly and the edge fits
+    badly. An estimate that is the edge fits ``c * edge`` and not a constant. The comparison needs
+    no threshold, and it covers both shapes of the failure at once: an answer sitting exactly on
+    the boundary is this with ``factor`` at 1.0.
+
+    WHAT IT CANNOT DO. Push the edge above the rhythm and every estimator follows it, correctly,
+    because the rhythm is no longer in the band. So keep the swept edges below the frequency you
+    expect; the default range spans 0.7 to 1.3 times a band edge that was presumably chosen to sit
+    below it. A ``follows`` verdict from edges that straddle the answer says nothing.
+
+    A single sweep is a strong test of one estimator on one collection. ``reference`` makes it
+    conclusive: if the estimate carries information about the body, it correlates with an
+    independent measurement of the same quantity at SOME edge. The case this was written from --
+    a heart rate read from a year of video -- reported 1.24 to 1.33 times its own 0.7 Hz lower
+    edge, moved from 40 to 116 beats a minute as the edge moved from 0.5 to 1.5 Hz, and never
+    correlated with a worn reference above 0.21 at any setting.
+
+    >>> import numpy as np
+    >>> t = np.arange(0, 300, 0.1)
+    >>> rng = np.random.default_rng(0)
+    >>> tone = np.sin(2 * np.pi * 0.9 * t) + 0.5 * rng.normal(size=len(t))
+    >>> band_edge_sweep(tone, 10.0, (0.5, 2.0))["follows"]
+    False
+    """
+    lo, hi = float(band[0]), float(band[1])
+    if not (np.isfinite(lo) and np.isfinite(hi)) or lo <= 0 or hi <= lo:
+        raise ValueError(f"band {lo}-{hi} Hz is not a band; need 0 < lo < hi")
+    e = (np.asarray(DEFAULT_EDGE_FACTORS, float) * lo if edges is None
+         else np.asarray(edges, float))
+    if len(e) < 3 or not np.all(np.diff(e) > 0) or e[0] <= 0 or e[-1] >= hi:
+        raise ValueError(
+            f"edges must be at least three increasing frequencies in (0, {hi:g}) Hz; got {e}")
+
+    if isinstance(signals, np.ndarray) and signals.ndim == 1 and signals.dtype != object:
+        items = [signals]
+    elif (isinstance(signals, (list, tuple)) and len(signals)
+          and isinstance(signals[0], (int, float, np.number))):
+        items = [np.asarray(signals, float)]      # a plain list of samples, i.e. one signal
+    else:
+        items = list(signals)
+    if not items:
+        raise ValueError("band_edge_sweep() needs at least one signal")
+
+    est = estimator if estimator is not None else (
+        lambda x, rate, b: _peak(x, rate, b, 60.0, where=""))
+
+    by_signal = np.full((len(e), len(items)), np.nan)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for i, edge in enumerate(e):
+            for j, item in enumerate(items):
+                by_signal[i, j] = float(est(item, fs, (float(edge), hi)))
+
+    freq = np.nanmedian(by_signal, axis=1) if len(items) > 1 else by_signal[:, 0]
+    ok = np.isfinite(freq)
+    if ok.sum() < 3:
+        rss_edge = rss_const = factor = float("nan")
+        follows = False
+    else:
+        fe, ff = e[ok], freq[ok]
+        factor = float(np.sum(ff * fe) / np.sum(fe ** 2))
+        rss_edge = float(np.sum((ff - factor * fe) ** 2))
+        rss_const = float(np.sum((ff - ff.mean()) ** 2))
+        follows = bool(rss_edge < rss_const)
+
+    r = np.full(len(e), np.nan)
+    if reference is not None:
+        ref = np.asarray(reference, float)
+        if len(ref) != len(items):
+            raise ValueError(
+                f"reference has {len(ref)} values for {len(items)} signals; one each or none")
+        for i in range(len(e)):
+            good = np.isfinite(by_signal[i]) & np.isfinite(ref)
+            if good.sum() >= 3 and np.std(by_signal[i][good]) > 0 and np.std(ref[good]) > 0:
+                r[i] = float(np.corrcoef(by_signal[i][good], ref[good])[0, 1])
+
+    return {"edges": e, "freq": freq, "freq_by_signal": by_signal,
+            "ratio": freq / e, "factor": factor, "follows": follows,
+            "rss_edge": rss_edge, "rss_constant": rss_const,
+            "r": r, "r_max": float(np.nanmax(np.abs(r))) if np.isfinite(r).any() else float("nan")}
 
 
 def band_rms(x, fs: float, band: tuple[float, float]) -> float:

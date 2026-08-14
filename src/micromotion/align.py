@@ -20,7 +20,7 @@ from __future__ import annotations
 import numpy as np
 from scipy import signal as _signal
 
-from .spectral import CARDIAC_BAND
+from .spectral import CARDIAC_BAND, _floor_spectrum, _warn_band_floor, is_band_floor
 
 
 def instantaneous_rate(x, fs: float, band: tuple[float, float] = CARDIAC_BAND,
@@ -35,12 +35,23 @@ def instantaneous_rate(x, fs: float, band: tuple[float, float] = CARDIAC_BAND,
     measure entirely different quantities. A haemoglobin trace and a chest accelerometer have
     no common units, but both carry a heartbeat, and the way that heart rate wanders over ten
     minutes is a signature specific enough to align them.
+
+    Each window is a bare maximum inside the band, and it stays one, because the values are what
+    published alignments were computed from. What is new is that the function counts the windows
+    whose band held no peak at all, by :func:`~micromotion.spectral.is_band_floor`, and warns once
+    if any did. On synthetic 1/f series with nothing in the cardiac band every window returns the
+    band's lowest bin, so the track is a flat line sitting on the edge — and two such flat lines
+    from two instruments will cross-correlate with each other perfectly while carrying nothing.
+    Where a NaN per window is preferable to a number, loop over
+    :func:`~micromotion.spectral.spectral_peak` instead; where a track already exists,
+    :func:`~micromotion.spectral.band_edge_sweep` settles whether it is the band edge.
     """
     x = np.asarray(x, float)
     n, s = int(win_s * fs), int(step_s * fs)
     if n <= 0 or s <= 0 or len(x) < n:
         return np.array([]), np.array([])
     times, out = [], []
+    n_floor = 0
     nper = int(min(n, fs * 10))
     for i in range(0, len(x) - n, s):
         seg = _signal.detrend(x[i:i + n])
@@ -49,6 +60,9 @@ def instantaneous_rate(x, fs: float, band: tuple[float, float] = CARDIAC_BAND,
         if m.any():
             out.append(f[m][np.argmax(p[m])])
             times.append((i + n / 2) / fs)
+            n_floor += is_band_floor(*_floor_spectrum(x[i:i + n], fs, band), band)
+    if n_floor:
+        _warn_band_floor("instantaneous_rate()", float(np.median(out)), band, n_floor, len(out))
     rate = np.array(out) * (60.0 if per_minute else 1.0)
     return np.array(times), rate
 

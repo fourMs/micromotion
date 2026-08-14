@@ -12,6 +12,79 @@
 >    0.4.0, whose feature extraction imports the functions that moved.
 
 
+## 1.12.0 — 2026-08-14
+
+### Added
+- **`band_edge_sweep`: move the search boundary and see whether the answer follows it.** This
+  package documents the trap that a bounded search returns its own boundary, and every check it
+  had — and every check the corpus around it had — tested for values sitting ON a boundary. That
+  is the weaker of the two symptoms. The stronger one is an answer PROPORTIONAL to the boundary:
+  a plausible interior frequency a fifth or a third above the edge, moving with the edge, which an
+  equality check passes clean. `band_edge_sweep(signals, fs, band)` re-runs a peak search across a
+  range of lower edges and fits two hypotheses to the answers — that they are a fixed rhythm, and
+  that they are `c` times the edge — returning whichever fits better as `follows`, along with
+  `factor`, the ratio at each edge, and a correlation against an optional reference measurement.
+
+  The estimator is injectable and called as `estimator(item, fs, (lo, hi))`, so a whole pipeline
+  from outside this package can be audited by the same rule; items are passed through untouched.
+  It defaults to the bare in-band maximum, which is the thing usually under suspicion. The case it
+  was written from is a remote-photoplethysmography pipeline that band-passed a colour signal
+  between 0.7 and 4 Hz, reported a heart rate at a near-constant 1.24 to 1.33 times its own lower
+  edge over a year of daily recordings, moved from 40 to 116 beats a minute as that edge was swept
+  from 0.5 to 1.5 Hz, and never correlated with a worn reference above 0.21 at any setting.
+
+  What it cannot do is stated in its docstring and held by a test: push the edge above the rhythm
+  and every estimator follows it, correctly, so the swept edges must stay below the frequency
+  being looked for.
+
+- **`is_band_floor`: the peak rule, asked as a yes-or-no question about a spectrum.** It is
+  `peak_from_spectrum`'s test with nothing else attached, so the package holds one peak rule and
+  not two, and it is what the finders below now call.
+
+### Changed
+- **The four bare-maximum finders now say when the band held no peak.** `cardiac_peak`,
+  `mocap.dominant_frequency`, `align.instantaneous_rate` and `physio.respiration_rate` each pick
+  the largest value inside a band with no test that it is a peak. Audited on synthetic 1/f series
+  with nothing in a 0.7–2.2 Hz band, they return a median 1.05, 1.07, 1.00 and 1.41 times the lower
+  edge, and sweeping that edge from 0.3 to 1.5 Hz drags all four along with it. Only `cardiac_peak`
+  lands exactly on the edge at all, on 10 of 40 series; `dominant_frequency` and `respiration_rate`
+  land on it on none of 40, so the corpus's own audit for values piled up on a search boundary
+  would have passed three of the four without a word. `spectral_peak` was already safe: it returns
+  NaN on all of them at every colour of noise tried, which is what `require_peak` buys.
+
+  **No returned value changed**, and a test holds that against the pre-1.12 arithmetic computed
+  inline. Published beats-per-minute and breaths-per-minute figures came out of these functions and
+  still do; what is new is a `RuntimeWarning` naming the multiple of the edge, saying that a value
+  need not sit on a boundary to be one, and pointing at `spectral_peak` and `band_edge_sweep`.
+
+  The check has its own well-averaged Welch rather than reusing the one the estimate came from, and
+  that is load-bearing. The peak rule asks whether a bin stands a factor above a fitted slope, and
+  in a lightly averaged spectrum some bin always does: on the same twenty 1/f series it correctly
+  finds no peak on 20 of 20 at about thirty Welch averages, 14 of 20 at fifteen, and 0 of 20 at the
+  five `dominant_frequency`'s own `nperseg=2048` leaves. The failure is one-sided — too few
+  averages makes the check MISS a band floor, never invent one — so a short record or a narrow band
+  gets a weaker warning rather than a false one.
+
+- **`dynamics.first_ami_minimum` warns when it only reached its own `maxlag`.** Where mutual
+  information has no local minimum within the search it falls back to the smallest value, which on
+  a monotone curve is where the search stopped. On synthetic 1/f² series it returns 96 with the
+  default `maxlag=100` every time. The same failure wearing a lag instead of a frequency; the value
+  is unchanged.
+
+### Fixed
+- **A docstring claim that measurement contradicts, again.** `respiratory_peak` and
+  `docs/methods.md` both said that band-passing before a periodogram "changes nothing whatever,
+  and cannot, because the maximum inside a band is unaffected by filtering inside that same band".
+  The maximum inside a band is not unaffected: a Butterworth is not flat inside its own passband,
+  and multiplying a falling spectrum by its rising skirt moves the maximum up. Measured on twenty
+  synthetic 1/f series over a 0.12–0.40 Hz band, the unfiltered maximum sits at 1.11 times the
+  lower edge, a fourth-order zero-phase band-pass moves it to 1.25 and a second-order one to 1.39,
+  and filtered and unfiltered agree on 6 and 4 of the twenty. The conclusion stands — band-passing
+  is not a repair — but for the opposite reason to the one given: the answer is the edge either
+  way. `physio.respiration_rate` has exactly that shape, and it is the worst of the four finders
+  above because of it.
+
+
 ## 1.11.1 — 2026-08-13
 
 ### Fixed

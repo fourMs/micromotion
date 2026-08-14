@@ -23,6 +23,8 @@ import warnings
 
 import numpy as np
 
+from .spectral import _floor_spectrum, _warn_band_floor, is_band_floor
+
 
 def respiration_rate(waveform, fs, *, band=(0.1, 0.6), window_s=30,
                      step_s=30):
@@ -35,6 +37,31 @@ def respiration_rate(waveform, fs, *, band=(0.1, 0.6), window_s=30,
     seconds. The default band ``(0.1, 0.6)`` Hz corresponds to about
     6-36 breaths/min. Each window must contain at least 15 seconds of valid
     samples for spectral estimation.
+
+    THIS IS THE SHAPE THAT FAILS WORST ON A FALLING SPECTRUM, and the rate is
+    unchanged but the function now says so. Band-passing to the same band the
+    maximum is then searched in does not leave the maximum where it was: the
+    filter's own rising skirt reaches into the passband and multiplies the
+    falling spectrum by it, so the largest surviving value sits a fixed
+    fraction above the lower edge. Measured on synthetic 1/f series with
+    nothing in a 0.7-2.2 Hz band, the bare maximum returns a median 1.05 times
+    the lower edge and this returns 1.41 times it, and neither lands on the
+    edge itself. Sweeping the lower edge from 0.3 to 1.5 Hz drags this
+    function's answer along at 1.17 to 1.61 times whatever it is set to.
+
+    So a window whose band holds no peak returns a plausible interior
+    frequency, not a boundary value, and an audit for values sitting on a
+    boundary passes it. Every window is therefore tested with
+    :func:`~micromotion.spectral.is_band_floor` on its own UNFILTERED
+    spectrum, which is the more sensitive of the two: on the filtered one the
+    skirt reads as a genuine peak on 17 of 20 such windows against 6 of 20 raw.
+    The function then warns once, naming how many windows failed. At this
+    function's own defaults, a 1/f series with no breathing in it returns 8 to
+    11 breaths a minute -- which is where this corpus was reading respiration
+    rates before any of this was found -- and warns on every one. Use
+    :func:`~micromotion.spectral.spectral_peak` where NaN is preferable to a
+    number, and :func:`~micromotion.spectral.band_edge_sweep` on a rate
+    already computed.
 
     Source: still standing study (Jensenius), Deichman respiration analysis
     (``compute_qom_resp``).
@@ -74,6 +101,7 @@ def respiration_rate(waveform, fs, *, band=(0.1, 0.6), window_s=30,
 
     rates = []
     times = []
+    n_floor = n_tested = 0
     for start in range(0, max(len(xf) - win + 1, 1), step):
         seg = xf[start:start + win]
         if len(seg) < int(fs * 15):  # need at least 15 s for spectral estimation
@@ -86,11 +114,18 @@ def respiration_rate(waveform, fs, *, band=(0.1, 0.6), window_s=30,
         if mask.any() and P[mask].sum() > 0:
             fpk = f[mask][np.argmax(P[mask])]
             rates.append(float(fpk * 60.0))
+            # On the raw segment, not the filtered one: see the docstring.
+            n_tested += 1
+            n_floor += is_band_floor(
+                *_floor_spectrum(x[start:start + win], fs, (lo, hi)), (lo, hi))
         else:
             rates.append(np.nan)
         times.append((start + win / 2) / fs)
 
     rate_bpm = np.array(rates, dtype=float)
+    if n_floor:
+        _warn_band_floor("respiration_rate()", float(np.nanmedian(rate_bpm)) / 60.0,
+                         (lo, hi), n_floor, n_tested)
     return dict(rate_bpm=rate_bpm, times_s=np.array(times, dtype=float),
                 median_bpm=float(np.nanmedian(rate_bpm))
                 if np.isfinite(rate_bpm).any() else np.nan)

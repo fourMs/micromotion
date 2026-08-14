@@ -13,6 +13,8 @@ ones that upsampling corrupts. Resample downwards only, and use
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 from scipy import signal as _signal
 from scipy.spatial import cKDTree
@@ -322,6 +324,13 @@ def first_ami_minimum(x, maxlag: int = 100, smooth: int = 9) -> int:
     The curve is smoothed first. Estimated from a histogram it is noisy enough that the
     first local minimum of the raw curve is usually spurious: on a clean sine, whose true
     answer is a quarter period, the unsmoothed rule returns a delay of 2.
+
+    When the curve has no local minimum within ``maxlag`` the answer is its smallest value,
+    which on a monotone curve is the end of the search and not a property of the signal. This
+    is a bounded search returning its own boundary, and it warns rather than passing a plausible
+    integer on silently: on synthetic 1/f² series it returns 96 with the default ``maxlag=100``
+    every time, four short of the boundary only because the smoothing flattens the tail. Raise
+    ``maxlag`` until a minimum appears, or accept that this signal does not have one.
     """
     a = ami(x, maxlag)
     if smooth > 1 and len(a) > smooth:
@@ -332,7 +341,15 @@ def first_ami_minimum(x, maxlag: int = 100, smooth: int = 9) -> int:
     for i in range(1, len(a) - 1):
         if a[i] < a[i - 1] and a[i] < a[i + 1]:
             return i + 1
-    return int(np.argmin(a)) + 1
+    out = int(np.argmin(a)) + 1
+    warnings.warn(
+        f"first_ami_minimum() found no local minimum of mutual information within maxlag="
+        f"{maxlag}, so it returns {out}, which is where the search stopped rather than where "
+        "the curve turns. A bounded search returns its own boundary when it finds nothing. "
+        "Raise maxlag until a minimum appears, or treat this signal as having no embedding "
+        "delay by this rule.",
+        RuntimeWarning, stacklevel=2)
+    return out
 
 
 def embed(x, dim: int, tau: int) -> np.ndarray:

@@ -225,6 +225,8 @@ mm.cardiac_peak(x, fs)
 mm.respiratory_peak(x, fs)
 mm.respiration_rate(x, fs)
 mm.detect_breaths(x, fs)
+mm.is_band_floor(f, p, band)                        # is the largest value in there a peak at all
+mm.band_edge_sweep(signals, fs, band)               # does the answer follow the band edge
 ```
 
 Spectra are estimated by Welch's method, with priors on where to look and a signal-to-noise
@@ -234,6 +236,16 @@ criterion, so that a peak is only returned when it stands above the local backgr
 of computing one spectrum and reading several bands off it. It exists so that the rule is imported
 rather than reimplemented: recomputing a Welch per band to get at the rule is wasteful, and a rule
 that is easier to copy than to import gets copied.
+
+`is_band_floor` is that same rule asked as a yes-or-no question about a spectrum, and it is what
+`cardiac_peak`, `dominant_frequency`, `instantaneous_rate` and `respiration_rate` call before
+warning. Give it a raw spectrum and an averaged one: a band-pass over the same band, or a lightly
+averaged Welch, both make it call a slope a peak. See
+[a bounded search returns its own boundary](conventions.md#a-bounded-search-returns-its-own-boundary).
+
+`band_edge_sweep` moves the lower edge of a search band and reports whether the answer moves with
+it. That is the test for an estimate that is its own band edge without ever landing on it, which is
+the case a check for equality with the edge cannot see.
 
 `band_share` is the fraction of power in one band over another, with both bands mandatory and
 keyword-only. Four hand-rolled versions of that fraction produced four published-looking shares —
@@ -260,9 +272,18 @@ becomes the global maximum inside the band. Measured against sixteen thoracic be
 version returned a median 7.5 breaths per minute where the belts' own breath timing gives 16.8,
 and it ranked participants at Spearman −0.32 against that timing, which carries no usable
 information about who was breathing faster. Four repairs were tried and all rejected: raising
-the band floor, band-passing first (which cannot help, since the maximum inside a band is
-unaffected by filtering inside that same band), taking the most prominent local maximum, and
-dividing out a fitted power law.
+the band floor, band-passing first, taking the most prominent local maximum, and dividing out a
+fitted power law.
+
+An earlier version of that list said band-passing first "cannot help, since the maximum inside a
+band is unaffected by filtering inside that same band". The second half is false. A Butterworth is
+not flat inside its own passband: its rising skirt reaches in, and multiplying a falling spectrum
+by that skirt moves the maximum up. Over a 0.12-0.40 Hz band on twenty synthetic 1/f series the
+unfiltered maximum sits at 1.11 times the lower edge, a fourth-order zero-phase band-pass moves it
+to 1.25 and a second-order one to 1.39, and filtered and unfiltered agree on 6 and 4 of the twenty.
+Band-passing is still not a repair, but for the opposite reason to the one given: the answer is the
+band edge either way, and filtering moves it about a fifth further from the edge, which is why it
+is harder to spot.
 
 `respiratory_peak` is therefore measured in the time domain, from `detect_breaths`, and returns
 that rate in Hz. Its `window_s` argument is accepted and ignored. `cardiac_peak` keeps the

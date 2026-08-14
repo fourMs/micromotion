@@ -90,6 +90,95 @@ channel cannot carry `WIDEBAND` may have a faster channel on the same instrument
 the fusion discussion in [Sampling rates](rates.md). "This collection has no jerk" and "this
 channel has no jerk" are different statements, and only the second is usually true.
 
+## A bounded search returns its own boundary
+
+Ask for the largest peak between two frequencies and you will always get an answer, including when
+there is no peak between them. What comes back then is a property of the band you drew rather than
+of the body you recorded. It does not raise, it is not a NaN, and it is a plausible number that
+goes straight into a mean.
+
+**The answer does not have to sit ON the boundary to BE the boundary.** This is the part that keeps
+being missed, and it is why the failure survives being found. There are two symptoms and only the
+first is obvious:
+
+| symptom | what it looks like | what finds it |
+| --- | --- | --- |
+| the answer sits on the edge | a column of values all reading exactly 6.0 breaths a minute, or exactly 0.7 Hz | a check for values piled up on an extreme |
+| the answer is proportional to the edge | a spread of ordinary-looking values that happen to average 1.3 times the edge, none of them equal to it | moving the edge |
+
+The second is the common one on real data, and every equality check passes it. A spectrum that
+falls steeply has no maximum to offer except near the bottom of whatever band you drew, and the
+exact bin it lands in depends on the noise, the Welch grid and any filter you applied — so the
+values scatter, look like measurements, and move together when the band moves. Put a band-pass over
+the same band first and it is worse: the filter's rising skirt reaches inside the passband, so the
+largest surviving value sits a fixed fraction above the lower edge instead of on it.
+
+This corpus has now met it five times. The sharpest case is a remote-photoplethysmography pipeline
+that band-passed a colour signal between 0.7 and 4 Hz and reported the largest peak inside. Over a
+year of daily recordings it returned 1.24 to 1.33 times its own lower edge; sweeping that edge from
+0.5 to 1.5 Hz dragged the reported heart rate from 40 to 116 beats a minute; and it never
+correlated with a worn reference above 0.21 at any setting. None of its values sat on a boundary.
+The diagnostics it shipped with — the peak's height over the band median, the share of power in the
+band — predicted nothing, because on a falling spectrum the artefact scores well on both.
+
+### The test is to move the boundary
+
+```python
+r = mm.band_edge_sweep(signals, fs, (0.7, 2.2))
+r["follows"]     # True: the edge explains the answers better than a rhythm does
+r["factor"]      # what multiple of the edge they sit at
+r["r_max"]       # the best correlation against a reference, at any edge
+```
+
+A genuine rhythm returns the same frequency at every edge below it. An estimate that is the edge
+returns `c` times the edge at every edge. `band_edge_sweep` fits both hypotheses and reports which
+fits better, so there is no threshold to argue about, and it covers both rows of the table above —
+an answer sitting exactly on the edge is the same test with `factor` at 1.0. Pass a whole
+collection and a `reference` and the second question follows: if the estimate carries information
+about the body, it correlates with an independent measurement of the same quantity at *some* edge.
+
+Two limits, both real. Push the swept edges above the rhythm and every estimator follows them,
+correctly, because the rhythm is no longer in the band — so keep the sweep below the frequency you
+expect. And the estimator is injectable, called as `estimator(item, fs, (lo, hi))`, precisely
+because the pipeline under suspicion is usually not a function in this package.
+
+### What this package's own finders do
+
+Audited on synthetic 1/f series with nothing in a 0.7–2.2 Hz band:
+
+| function | median answer, as a multiple of the lower edge | exactly on the edge |
+| --- | --- | --- |
+| `mm.spectral_peak` | — (returns NaN) | — |
+| `mm.cardiac_peak` | 1.05× | 10 of 40 |
+| `mm.dominant_frequency` | 1.07× | 0 of 40 |
+| `mm.instantaneous_rate` | 1.00× | 0 of 40 |
+| `mm.respiration_rate` | 1.41× | 0 of 40 |
+
+`spectral_peak` is the only one that refuses, and that is what `require_peak` buys: it asks whether
+the largest value is a local maximum of the spectrum divided by a log-log line fit across the band,
+and returns NaN when it is not. The other four are bare maxima and stay bare maxima, because
+published figures came out of them; since 1.12.0 they warn instead, naming the multiple. Note the
+bottom row: `respiration_rate` band-passes to the band it then searches, which is the shape that
+lands furthest from the edge and is therefore hardest to see.
+
+Note also the third column. Three of the four never land on the edge at all, so an audit that looks
+for values piled up on a search boundary — which is what this corpus ran, and what found the first
+four instances — would have passed them without a word.
+
+### If you are writing the estimator
+
+State the band beside every rate. Prefer `mm.spectral_peak`, which fails to NaN, and treat the
+count of NaNs as part of the result rather than a nuisance; a rate aggregated over many recordings
+under this rule is missing its weakest cases, and that is a fact about the aggregate. Where a bare
+maximum is what you want, say so with `require_peak=False` and know what you are asking for.
+
+Two repairs that do not work, both tried and measured. Rejecting the edge bin moves the maximum to
+the next bin along: on one corpus 662 of 930 values on the edge became 198 of 268 one bin up.
+Raising a signal-to-noise threshold selects the artefact rather than excluding it, because the
+lowest bin of a falling spectrum has both the most power and the highest power-over-band-median of
+anything in a band drawn above the knee — tightening it from nothing to 5 took the share of days
+reading exactly the band floor from 21 per cent to 32.
+
 ## A share of power needs both its bands named
 
 A "fraction of power in band X" is a ratio of two integrals, and it moves when either band
