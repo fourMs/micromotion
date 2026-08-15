@@ -211,9 +211,17 @@ def marker_noise(x, fs: float, where: str = "", max_ratio: float = 5.0) -> list[
     The test compares the two. Raw path speed is the mean sample-to-sample displacement per second,
     which counts everything including the sensor's own jitter; band-limited speed keeps only the
     frequencies a standing body moves in. Their ratio is therefore how much of the measured path
-    lies outside the band, and it is bounded below by 1 rather than by 0. Over 193 Sverm
-    person-recordings it has a median of 1.39 and a 95th percentile of 2.30, then a gap to 4.5,
-    5.8, 10.7 and 16.0 -- so the default threshold sits in empty space rather than on a shoulder.
+    lies outside the band, and it is bounded below by 1 rather than by 0. Over 195 Sverm
+    person-recordings it has a median of 1.39 and a 95th percentile of 2.37, then a gap to 4.5,
+    5.9, 10.8 and 16.2 -- so the default threshold sits in empty space rather than on a shoulder.
+
+    THE DENOMINATOR IS THE MEDIAN, and that was checked rather than assumed. Re-measured on
+    2026-08-15 both ways over the same recordings: against the median band-limited speed, which is
+    what this function uses, the ratio reproduces the figures above; against the MEAN it gives a
+    median of 1.22, a 95th percentile of 2.10 and a tail of 3.8, 5.2, 9.7 and 11.0, which is not
+    what is quoted here. So the calibration and the code agree about which statistic they are
+    dividing by. `_curation/marker_jitter_sweep.py` in the standstill corpus reports the MEAN-based
+    ratio in its own table, so its numbers are the second set and are not comparable with these.
 
     Sampling rate matters and is already accounted for: a faster recording accumulates more raw
     path for identical behaviour, but it accumulates the same band-limited speed, so the ratio
