@@ -12,6 +12,16 @@
 >    0.4.0, whose feature extraction imports the functions that moved.
 
 
+## 1.12.1 — 2026-08-15
+
+No code change. This release exists to be archived.
+
+The Zenodo GitHub integration was enabled on 2026-08-15, and it archives only releases published
+after it is switched on — it does not backfill. Re-publishing the existing 1.12.0 release to trigger
+it failed: Zenodo returned 500 while processing the event and now answers 409, "The release has
+already been received", so that tag can never be archived. 1.12.1 is a fresh tag Zenodo has not
+seen, cut so the package has a citable DOI. `micromotion.__version__` moves and nothing else does.
+
 ## 1.12.0 — 2026-08-14
 
 ### Added
