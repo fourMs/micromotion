@@ -346,3 +346,43 @@ def test_marker_noise_leaves_a_median_measure_alone():
 
 def test_marker_noise_too_short_to_judge():
     assert mm.validate.marker_noise(_sway(n=20), 100.0) == []
+
+
+# ------------------------------------------ marker_noise, and gaps that used to silence it
+
+def test_marker_noise_still_flags_a_jittering_marker_with_a_gap():
+    """The defect this guards: one NaN used to return [], which is what a CLEAN trace returns.
+
+    So a jittering marker with a single dropped sample read as checked and sound. It must still be
+    caught, and the finding must say it was measured on a span.
+    """
+    x = _sway(noise_mm=1.5)
+    x[3000] = np.nan                                    # one dropped frame, mid-recording
+    f = mm.validate.marker_noise(x, 100.0)
+    assert len(f) == 1 and f[0].severity == "error"
+    assert "marker jitter" in f[0].message
+    assert "longest unbroken run" in f[0].message
+
+
+def test_marker_noise_clean_trace_with_a_gap_is_still_clean():
+    """The other half: measuring on a span must not manufacture a finding out of a good recording."""
+    x = _sway()
+    x[3000] = np.nan
+    assert mm.validate.marker_noise(x, 100.0) == []
+
+
+def test_marker_noise_says_so_when_a_gap_leaves_nothing_to_measure():
+    """No run long enough to filter is an unchecked recording, not a clean one."""
+    x = _sway(n=600)
+    x[::7] = np.nan                                     # no unbroken run reaches 50 samples
+    f = mm.validate.marker_noise(x, 100.0)
+    assert len(f) == 1 and f[0].severity == "warning"
+    assert "could not run" in f[0].message
+
+
+def test_longest_run_bounds():
+    from micromotion.validate import _longest_run
+    assert _longest_run([False, True, True, False, True]) == (1, 3)
+    assert _longest_run([True, True, True]) == (0, 3)     # a run touching both ends
+    assert _longest_run([False, False]) == (0, 0)         # nothing to measure
+    assert _longest_run([True, False, True, True]) == (2, 4)

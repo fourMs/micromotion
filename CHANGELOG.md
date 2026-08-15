@@ -12,6 +12,25 @@
 >    0.4.0, whose feature extraction imports the functions that moved.
 
 
+## 1.12.2 — 2026-08-15
+
+### Fixed
+- **`validate.marker_noise` no longer goes silent on a trace with a gap.** Its guard was
+  `not np.isfinite(x).all() -> return []`, and an empty list is what a CLEAN recording returns, so
+  one dropped sample anywhere made a jittering marker read as checked and sound. That is the exact
+  defect this module exists to prevent, occurring inside the module. The guard had a real reason —
+  a NaN propagates through `diff` into the summed path and through the filter into every sample of
+  the band-limited series, so neither number survives it — but the answer is to measure what can be
+  measured and say so. It now runs on the longest contiguous finite run, reports the ratio for that
+  span and says in the message that it is a span; where no run reaches the 50 samples a filter
+  needs it returns a WARNING that the check could not run, so an unchecked recording is visible in
+  the same list as everything else rather than looking like a clean one.
+
+  Verified by breaking the thing the check watches: a marker with a ratio of 17.4 and one NaN
+  returned nothing before and is an error now. No verdict moves in the corpus this was written for
+  — of 934 optical position recordings swept, 10 carry any gap and none of the 10 comes near the
+  threshold — so this is a latent defect rather than one that has fired.
+
 ## 1.12.1 — 2026-08-15
 
 No code change. This release exists to be archived.

@@ -44,6 +44,23 @@ def _finding(check, severity, message, where):
     return Finding(check=check, severity=severity, message=message, where=where)
 
 
+def _longest_run(mask) -> tuple[int, int]:
+    """Half-open bounds of the longest unbroken run of True in a boolean mask, or ``(0, 0)``.
+
+    For measuring what CAN be measured in a series with gaps, rather than declining to measure and
+    returning the same empty list a clean series returns.
+    """
+    m = np.asarray(mask, bool)
+    if not m.any():
+        return 0, 0
+    # Pad with False so a run touching either end is closed by the diff rather than by an index.
+    edges = np.diff(np.concatenate(([False], m, [False])).astype(np.int8))
+    starts = np.flatnonzero(edges == 1)
+    ends = np.flatnonzero(edges == -1)
+    k = int(np.argmax(ends - starts))
+    return int(starts[k]), int(ends[k])
+
+
 def zero_triplets(x, where: str = "", max_fraction: float = 0.0) -> list[Finding]:
     """Rows where every coordinate is exactly zero, which are gaps and not positions.
 
@@ -204,12 +221,44 @@ def marker_noise(x, fs: float, where: str = "", max_ratio: float = 5.0) -> list[
     is not the body, and the answer legitimately depends on how often the sensor was asked.
 
     Requires positions in millimetres. Returns nothing for a series too short to filter.
+
+    A GAP DOES NOT SILENCE IT, since 1.12.2. Until then a single non-finite sample anywhere in the
+    trace returned no finding at all, which is the failure this library exists to prevent: no
+    finding is what a clean recording returns, so one NaN made a jittering marker read as checked
+    and sound. The guard was there for a real reason -- a NaN propagates through ``diff`` into the
+    sum and through the filter into every sample of the band-limited series, so neither number
+    survives it -- but the answer is to measure what can be measured and say so, not to fall
+    silent. The check now runs on the longest contiguous finite run, reports the ratio for that
+    span, and says in the message that it is a span rather than the recording. Where no run is long
+    enough to filter it returns a WARNING saying the check could not run, so the gap is visible in
+    the same list as everything else.
+
+    This changes no verdict in the corpus it was written for: of 934 optical position recordings
+    swept, 10 carry any gap at all and none of the 10 has a ratio anywhere near the threshold. It is
+    a latent defect rather than one that has fired, and it is fixed because a check that cannot fail
+    reads as coverage.
     """
     from .qom import speed_from_position          # local: qom imports filters, not this module
 
     x = np.atleast_2d(np.asarray(x, float).T).T
-    if x.shape[1] < 2 or len(x) < 50 or not np.isfinite(x).all():
+    if x.shape[1] < 2 or len(x) < 50:
         return []
+
+    finite = np.isfinite(x).all(axis=1)
+    span_note = ""
+    if not finite.all():
+        lo, hi = _longest_run(finite)
+        if hi - lo < 50:
+            return [_finding(
+                "marker_noise", "warning",
+                f"the jitter check could not run: {100*(1-finite.mean()):.1f} per cent of the "
+                f"series is non-finite and its longest unbroken run is {hi-lo} samples, fewer than "
+                f"the 50 a filter needs. This is not a clean recording, it is an unchecked one",
+                where)]
+        x = x[lo:hi]
+        span_note = (f" Measured on the longest unbroken run, {hi-lo} of {len(finite)} samples, "
+                     f"because {100*(1-finite.mean()):.1f} per cent of the series is non-finite.")
+
     step = np.linalg.norm(np.diff(x, axis=0), axis=1)
     raw = float(step.sum()) * fs / len(step)
     band = float(np.median(speed_from_position(x, fs, unit="mm")))
@@ -223,7 +272,7 @@ def marker_noise(x, fs: float, where: str = "", max_ratio: float = 5.0) -> list[
         f"raw path length runs at {raw:.1f} mm/s against a band-limited {band:.2f} mm/s, a ratio "
         f"of {ratio:.1f} where this corpus sits at a median of 1.4. Most of what a cumulative or "
         f"summing measure would count here is marker jitter rather than the body; median-based "
-        f"measures are unaffected",
+        f"measures are unaffected." + span_note,
         where)]
 
 
