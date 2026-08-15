@@ -23,6 +23,10 @@ authors:
     given-names: "Dana"
     affiliation: "RITMO Centre for Interdisciplinary Studies in Rhythm, Time and Motion, University of Oslo"
     orcid: "https://orcid.org/0000-0001-7242-9138"
+  - family-names: Riaz
+    given-names: "Maham"
+    affiliation: "University of Oslo"
+    orcid: "https://orcid.org/0000-0002-4636-7436"
 repository-code: "https://github.com/fourMs/micromotion"
 abstract: >-
   One implementation of quantity of motion — the average speed of a body part,
