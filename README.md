@@ -5,6 +5,7 @@
 [![PyPI](https://img.shields.io/pypi/v/micromotion.svg)](https://pypi.org/project/micromotion/)
 [![Python](https://img.shields.io/pypi/pyversions/micromotion.svg)](https://pypi.org/project/micromotion/)
 [![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21948988.svg)](https://doi.org/10.5281/zenodo.21948988)
 
 A Python package for measuring human micromotion: the small movement of a body that is
 standing, sitting or otherwise trying to stay still. It reads optical marker data, body-worn
@@ -102,3 +103,16 @@ agrees with the same measure computed in another.
 - [Musical Gestures Toolbox](https://github.com/fourMs/MGT-python) (`musicalgestures`)—video and audio: motiongrams, videograms, and motion analysis from ordinary video files
 - [ambiscape](https://github.com/fourMs/ambiscape)—soundscapes: the sonic ambience of a place, across level, spectral, spatial, temporal, ecological and source descriptors
 - [musiscape](https://github.com/fourMs/musiscape)—music collections: comparing many tracks and albums held as audio files in folders
+
+## Citing
+
+Cite the CONCEPT DOI, which always resolves to the newest version:
+
+> Jensenius, A. R., Upham, F., Zelechowska, A., Gonzalez-Sanchez, V. E., & Swarbrick, D. (2026). *micromotion: analysis of human micromotion in motion time series* (Version 1.12.1) [Computer software]. Zenodo.
+> https://doi.org/10.5281/zenodo.21948988
+
+Where the exact behaviour matters, cite the version you ran instead. This package HAS changed
+behaviour at releases — `read_phone` at 0.15.0, `group_qom` at 1.0.0, `to_rate` at 1.2.2 — so which
+version produced a number is part of the method. Version 1.12.1 is https://doi.org/10.5281/zenodo.21948989.
+
+`CITATION.cff` in this repository carries the same information in machine-readable form.
