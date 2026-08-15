@@ -5,7 +5,7 @@
 [![PyPI](https://img.shields.io/pypi/v/micromotion.svg)](https://pypi.org/project/micromotion/)
 [![Python](https://img.shields.io/pypi/pyversions/micromotion.svg)](https://pypi.org/project/micromotion/)
 [![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21948988.svg)](https://doi.org/10.5281/zenodo.21948988)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21953120.svg)](https://doi.org/10.5281/zenodo.21953120)
 
 A Python package for measuring human micromotion: the small movement of a body that is
 standing, sitting or otherwise trying to stay still. It reads optical marker data, body-worn
@@ -108,11 +108,17 @@ agrees with the same measure computed in another.
 
 Cite the CONCEPT DOI, which always resolves to the newest version:
 
-> Jensenius, A. R., Upham, F., Zelechowska, A., Gonzalez-Sanchez, V. E., & Swarbrick, D. (2026). *micromotion: analysis of human micromotion in motion time series* (Version 1.12.1) [Computer software]. Zenodo.
-> https://doi.org/10.5281/zenodo.21948988
+> Jensenius, A. R., Upham, F., Zelechowska, A., Gonzalez-Sanchez, V. E., Swarbrick, D., & Riaz, M.
+> (2026). *micromotion: analysis of human micromotion in motion time series* (Version 1.12.2)
+> [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.21953120
 
 Where the exact behaviour matters, cite the version you ran instead. This package HAS changed
 behaviour at releases — `read_phone` at 0.15.0, `group_qom` at 1.0.0, `to_rate` at 1.2.2 — so which
-version produced a number is part of the method. Version 1.12.1 is https://doi.org/10.5281/zenodo.21948989.
+version produced a number is part of the method. Version 1.12.2 is
+https://doi.org/10.5281/zenodo.21953121.
+
+An older concept DOI, https://doi.org/10.5281/zenodo.21948988, is frozen at 1.12.1. It was created
+by a hand deposit made before the Zenodo GitHub integration was archiving this repository, and
+Zenodo cannot merge two concepts; that record says so itself and points here. Cite the DOI above.
 
 `CITATION.cff` in this repository carries the same information in machine-readable form.
