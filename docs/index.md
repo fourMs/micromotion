@@ -76,3 +76,13 @@ methods as well, since [Methods](methods.md) gives the reference for each.
 
 Licence: GPL-3.0-or-later. Built at the fourMs lab, RITMO Centre for Interdisciplinary Studies
 in Rhythm, Time and Motion, University of Oslo.
+
+
+## Citing
+
+Jensenius, A. R., Upham, F., Zelechowska, A., Gonzalez-Sanchez, V. E., & Swarbrick, D. (2026). *micromotion: analysis of human micromotion in motion time series* (Version 1.12.1) [Computer software]. Zenodo.
+<https://doi.org/10.5281/zenodo.21948988>
+
+That is the CONCEPT DOI and it always resolves to the newest version. Where the exact behaviour
+matters, name the version you ran as well: version 1.12.1 is
+<https://doi.org/10.5281/zenodo.21948989>. This package has changed behaviour at releases — `read_phone` at 0.15.0, `group_qom` at 1.0.0, `to_rate` at 1.2.2 — so which version produced a number is part of the method.
