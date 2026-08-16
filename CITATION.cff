@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "micromotion: analysis of human micromotion in motion time series"
+title: "micromotion: A Python toolbox for analysing human micromotion in motion time series"
 message: "If you use this software, please cite it."
 type: software
 authors:
@@ -41,5 +41,6 @@ keywords:
   - accelerometer
   - postural sway
 license: GPL-3.0-or-later
+doi: "10.5281/zenodo.21953120"
 version: 1.12.2
 date-released: "2026-08-15"
