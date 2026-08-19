@@ -14,6 +14,29 @@
 
 ## 1.13.0 — 2026-08-19
 
+### Added
+
+- **`micromotion.examples`, so the documentation runs with no data of your own.** Every example
+  on the quickstart page began `mm.read("mocap_data/A0001.tsv")`, a file the reader does not
+  have, so a student following it got as far as line one. `examples.standstill_record()` returns
+  a synthetic head marker as a `MotionRecord`, and `examples.worn_acceleration()` returns the
+  acceleration a body-worn sensor would report for the same motion, so the accelerometer path
+  can be run without a sensor. Deterministic, so two people comparing notes see the same
+  numbers.
+
+  The generator is the one `docs/img/make_figures.py` was already using; that script now imports
+  it rather than keeping a private copy, and every figure reproduces byte-identically after the
+  move. `tests/test_examples.py` pins the values the quickstart prints, so the documentation
+  cannot silently go stale.
+
+  They are synthetic and that is the limit as well as the point. Nothing concluded from them is
+  a finding about bodies.
+
+- A figure drawing the package's headline claim, which had no picture anywhere: one synthetic
+  body motion read as optical position at 100 Hz, as worn acceleration, and as position at
+  50 Hz gives 2.29, 2.35 and 2.29 mm/s, a spread of 2.6 per cent. Its caveat is stated beside
+  it, since all three come from one trajectory and so say nothing about two real recordings.
+
 ### Changed
 
 - **`align.xcorr_lag` and `align.search_lag` return the opposite sign, which is the sign they

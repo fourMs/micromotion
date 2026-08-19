@@ -10,11 +10,30 @@ Python 3.10 or newer, with numpy, scipy and pandas. There is no computer-vision 
 to install. One function, `intraclass_correlation`, needs statsmodels; install it with
 `pip install "micromotion[mixed]"`.
 
-## Quantity of motion from a motion-capture file
+## Run something now, with no data of your own
+
+Every other example on this page opens a file you do not have. This one does not, so it is the
+one to start with:
 
 ```python
 import micromotion as mm
 
+rec = mm.examples.standstill_record()          # a synthetic head marker, six minutes at 100 Hz
+result = mm.qom(rec.data, rec.fs, kind=rec.kind, unit=rec.unit)
+print(round(result.median_mm_s, 2))            # 2.29
+```
+
+`mm.examples` holds synthetic recordings built from components whose frequencies are known:
+postural sway near 0.3 Hz, breathing at 0.25, heartbeat at 1.2, a slow drift below the band and
+one three-second fidget. `worn_acceleration()` returns the acceleration a body-worn sensor
+would report for the same motion, so you can run the accelerometer path below without a sensor.
+
+They are useful for learning what the package does to a signal, and useless as evidence about
+bodies. Nothing you conclude from them is a finding about micromotion.
+
+## Quantity of motion from a motion-capture file
+
+```python
 rec = mm.read("mocap_data/A0001.tsv")
 head = rec.marker("P01")                       # (n_samples, 3), gaps already NaN
 result = mm.qom(head, rec.fs, kind="position", unit=rec.unit)
@@ -87,3 +106,8 @@ mm.search_lag(t1, hr1, t2, hr2, max_lag_s=300)
 Two instruments that share no clock can still be aligned if both carry the same physiological
 rhythm. Always check `confident`. See the `xcorr_lag` entry in the [API reference](api.md) for
 why a sharp-looking correlation peak is not evidence.
+
+A POSITIVE lag means the second series starts later than the first, so here the chest
+accelerometer runs 126 s behind the haemoglobin trace. Both alignment functions returned the
+negative of that until 1.13.0, against what their own documentation said, so check the sign of
+any offset stored by an earlier version before reusing it.

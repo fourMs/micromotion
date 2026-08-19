@@ -58,41 +58,12 @@ plt.rcParams.update(
 )
 
 
-def standstill(fs: float = 100.0, dur_s: float = 360.0, seed: int = 7) -> np.ndarray:
-    """A synthetic head marker: postural sway, breathing, heartbeat and one fidget.
-
-    Amplitudes are chosen so that the band-limited speed lands in the few-mm/s range
-    that quiet standing actually produces.
-    """
-    rng = np.random.default_rng(seed)
-    n = int(fs * dur_s)
-    t = np.arange(n) / fs
-
-    drift = np.cumsum(rng.standard_normal((n, 3)), axis=0) / fs
-    drift -= drift.mean(axis=0)
-    sway = 0.9 * np.column_stack(
-        [
-            np.sin(2 * np.pi * 0.31 * t),
-            0.7 * np.sin(2 * np.pi * 0.27 * t + 1.1),
-            0.2 * np.sin(2 * np.pi * 0.29 * t + 2.0),
-        ]
-    )
-    breathing = 0.6 * np.column_stack(
-        [0.3 * np.sin(2 * np.pi * 0.25 * t), 0.3 * np.cos(2 * np.pi * 0.25 * t),
-         np.sin(2 * np.pi * 0.25 * t)]
-    )
-    heartbeat = 0.08 * np.column_stack(
-        [np.sin(2 * np.pi * 1.2 * t), 0.5 * np.sin(2 * np.pi * 1.2 * t + 0.4),
-         np.sin(2 * np.pi * 1.2 * t + 0.9)]
-    )
-    noise = 0.03 * rng.standard_normal((n, 3))
-
-    xyz = 4.0 * drift + sway + breathing + heartbeat + noise
-    xyz[:, 2] += 1700.0  # a head marker stands about 1.7 m off the floor
-
-    fidget = (t > 210.0) & (t < 213.0)
-    xyz[fidget, 0] += 9.0 * np.hanning(int(fidget.sum()))
-    return xyz
+# The generator these figures are drawn from lives in the package now, as
+# `micromotion.examples`, so that the documentation's own examples can be run by a
+# reader with no data of their own. It was defined here first and copied nowhere; this
+# import is what keeps it that way, since a figure drawn from a private copy of the
+# signal would drift away from the one the quickstart shows.
+standstill = mm.examples.standstill
 
 
 def figure_qom() -> None:
@@ -247,11 +218,8 @@ def figure_one_measure() -> None:
 
     optical = mm.qom(xyz, fs, kind="position", unit="mm")
 
-    # The acceleration the same motion would produce, in m/s^2: two derivatives of a
-    # trajectory in mm, divided by 1000. No gravity, because `variant="raw"` does not
-    # remove it and adding a constant would only test the high-pass.
-    accel_mm = np.gradient(np.gradient(xyz, 1 / fs, axis=0), 1 / fs, axis=0)
-    worn = mm.qom(accel_mm / 1000.0, fs, kind="acceleration", unit="m/s^2")
+    worn = mm.qom(mm.examples.worn_acceleration(fs=fs), fs,
+                  kind="acceleration", unit="m/s^2")
 
     fs_low = 50.0
     slow = mm.qom(xyz[::2], fs_low, kind="position", unit="mm")

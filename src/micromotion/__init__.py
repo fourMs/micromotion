@@ -17,7 +17,7 @@ what frequencies, :mod:`~micromotion.circular` in which direction, and
 reads the files and :mod:`~micromotion.resample` enforces the rate rules.
 """
 
-from . import align, circular, dynamics, group, posture, validate, windows
+from . import align, circular, dynamics, examples, group, posture, validate, windows
 from . import balance, mocap, physio
 from .balance import dfa
 from .balance import (
@@ -182,6 +182,7 @@ __all__ = [
     "ellipse_area_95",
     "envelope",
     "equalise_windows",
+    "examples",
     "equivalence_correlation",
     "event_train",
     "feature_vector",
