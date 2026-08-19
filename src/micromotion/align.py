@@ -75,6 +75,13 @@ def xcorr_lag(a, b, fs: float = 1.0, max_lag_s: float | None = None,
     which is whether that correlation reaches ``min_r``. A positive lag means ``b`` starts
     later than ``a``.
 
+    That sentence was false until 1.13.0. The function returned the negative of what it
+    documented, and the test asserted the value the code produced rather than the value the
+    docstring promised, so the two agreed with each other and neither agreed with the
+    convention. A sign is exactly the kind of error a test written after the fact preserves.
+    ``musicalgestures.xcorr_lag`` documented and returned the opposite -- the correct --
+    sign throughout, which is how this was found.
+
     Both series are differenced first, and that default is load-bearing rather than a
     stylistic choice. Correlating two drifting series and taking the best lag is the classic
     spurious-regression trap: over 200 pairs of independent random walks, the best-lag
@@ -98,15 +105,22 @@ def xcorr_lag(a, b, fs: float = 1.0, max_lag_s: float | None = None,
     a = (a - a.mean()) / (a.std() + 1e-12)
     b = (b - b.mean()) / (b.std() + 1e-12)
 
-    c = _signal.correlate(a, b, mode="full") / min(len(a), len(b))
-    lags = _signal.correlation_lags(len(a), len(b), mode="full")
+    # correlate(b, a), not correlate(a, b): the lag wanted is b's relative to a, so b is the
+    # series being slid. Reversing these two arguments is the whole of the sign error above.
+    c = _signal.correlate(b, a, mode="full") / min(len(a), len(b))
+    lags = _signal.correlation_lags(len(b), len(a), mode="full")
     if max_lag_s is not None:
         keep = np.abs(lags) <= int(max_lag_s * fs)
         c, lags = c[keep], lags[keep]
     if not len(c):
         return {"lag_s": float("nan"), "r": float("nan"), "confident": False}
 
-    k = int(np.argmax(c))
+    # Among near-tied maxima, take the SMALLEST lag. A periodic envelope correlates almost
+    # as well at plus or minus one period as at the true offset, and which of those wins is
+    # then floating-point noise: the answer jumps a whole period between two runs that differ
+    # in the last bit. Adopted from musicalgestures.xcorr_lag, which had it first.
+    tied = np.flatnonzero(c >= c.max() - 1e-9)
+    k = int(tied[np.argmin(np.abs(lags[tied]))])
     peak = float(c[k])
     return {
         "lag_samples": int(lags[k]),
@@ -124,6 +138,11 @@ def search_lag(t_a, x_a, t_b, x_b, max_lag_s: float = 300.0, step_s: float = 1.0
     scored by Pearson correlation over whatever the two share at that offset. Slower than
     :func:`xcorr_lag` and far more tolerant: the series may differ in length, in sampling,
     and in how much of the session they cover.
+
+    A positive lag means ``x_b`` starts later than ``x_a``, the same convention as
+    :func:`xcorr_lag`. This function stated no convention at all until 1.13.0 and returned
+    the negative of that one; both were corrected together, since two alignment functions in
+    one module disagreeing about a sign is worse than either being wrong alone.
 
     ``confident`` is True only when the best correlation reaches ``min_r`` and the overlap
     reaches ``min_overlap_s``. Recordings that fail the test are better left without an offset
@@ -155,7 +174,7 @@ def search_lag(t_a, x_a, t_b, x_b, max_lag_s: float = 300.0, step_s: float = 1.0
             continue
         r = float(np.corrcoef(aa[:n], bb[:n])[0, 1])
         if np.isfinite(r) and r > best["r"]:
-            best = {"lag_s": origin + k * step_s, "r": r, "n_overlap": n,
+            best = {"lag_s": -(origin + k * step_s), "r": r, "n_overlap": n,
                     "confident": False}
     if not np.isfinite(best["r"]):
         return {"lag_s": float("nan"), "r": float("nan"), "n_overlap": 0,

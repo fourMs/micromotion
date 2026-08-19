@@ -13,12 +13,50 @@ def wandering_rate(n, fs=1.0, seed=0):
     return 70 + np.cumsum(rng.normal(0, 0.3, n)) * 0.5
 
 
+def _delayed_pair(n=600, lag=47):
+    """``a`` and ``b`` cut from one series so that b carries every feature LAG later.
+
+    Cut rather than zero-padded on purpose: these signals sit around 70, so padding with
+    zeros puts a step of 70 at the join and the correlation finds the step instead of the
+    signal. That is a real trap and it cost a wrong sign here once already.
+    """
+    x = wandering_rate(n)
+    return x[lag:], x[: len(x) - lag]
+
+
 def test_xcorr_recovers_an_imposed_lag():
-    x = wandering_rate(600)
+    """``b`` carries each feature later than ``a``, so the lag must come back POSITIVE.
+
+    This assertion read ``-lag`` until 1.13.0 -- the value the implementation produced
+    rather than the one the docstring promised. A test written after the fact locks in
+    whichever sign the code had.
+    """
     lag = 47
-    r = align.xcorr_lag(x[lag:], x[: len(x) - lag], fs=1.0)
-    assert r["lag_s"] == pytest.approx(-lag, abs=1)
+    a, b = _delayed_pair(600, lag)
+    r = align.xcorr_lag(a, b, fs=1.0)
+    assert r["lag_s"] == pytest.approx(lag, abs=1)
     assert r["confident"]
+    assert align.xcorr_lag(b, a, fs=1.0)["lag_s"] == pytest.approx(-lag, abs=1)
+
+
+def test_xcorr_and_search_lag_agree_on_the_sign():
+    """Two alignment functions in one module must not disagree about which way is later."""
+    lag = 40
+    a, b = _delayed_pair(1200, lag)
+    ta = np.arange(len(a), dtype=float)
+    tb = np.arange(len(b), dtype=float)
+    assert align.xcorr_lag(a, b, fs=1.0)["lag_s"] == pytest.approx(lag, abs=2)
+    assert align.search_lag(ta, a, tb, b, max_lag_s=200.0,
+                            min_overlap_s=200.0)["lag_s"] == pytest.approx(lag, abs=2)
+
+
+def test_xcorr_agrees_with_musicalgestures():
+    """The sibling package's convention is the reference; it was right when this was not."""
+    mg = pytest.importorskip("musicalgestures")
+    lag = 25
+    a, b = _delayed_pair(800, lag)
+    theirs, _ = mg.xcorr_lag(a, b, 1.0, max_lag=200)
+    assert align.xcorr_lag(a, b, fs=1.0)["lag_s"] == pytest.approx(theirs, abs=1)
 
 
 def test_xcorr_rejects_unrelated_noise():
@@ -47,11 +85,17 @@ def test_differencing_kills_spurious_random_walk_correlation():
 
 
 def test_search_lag_handles_unequal_lengths_and_offsets():
+    """Shifting b's TIMESTAMPS back by 126 makes every feature happen 126 EARLIER in b.
+
+    So the lag is negative, and this assertion read ``+offset`` until 1.13.0. It is the
+    same inverted sign as the xcorr test above, from the same implementation, and having
+    both wrong in the same direction is what made them look consistent.
+    """
     x = wandering_rate(900)
     t = np.arange(len(x), dtype=float)
     offset = 126.0
     r = align.search_lag(t, x, t[:600] - offset, x[:600], max_lag_s=300)
-    assert r["lag_s"] == pytest.approx(offset, abs=2)
+    assert r["lag_s"] == pytest.approx(-offset, abs=2)
     assert r["confident"]
 
 

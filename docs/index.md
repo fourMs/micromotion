@@ -19,6 +19,22 @@ by `docs/img/make_figures.py`. The dashed line is the median, the dotted line th
 lower panel shows the same series in five-second bins, with the filter-contaminated ends
 flagged rather than dropped.
 
+The claim that the instrument does not matter is worth seeing rather than taking on trust. Here
+is one synthetic body motion read three ways — as optical position at 100 Hz, as the
+acceleration a worn sensor would report, and as position sampled at 50 Hz:
+
+![The same body motion read as optical position at 100 Hz, as worn acceleration, and as position at 50 Hz: three bars at 2.29, 2.35 and 2.29 mm/s](img/one-measure.png)
+
+2.29, 2.35 and 2.29 mm/s, a spread of 2.6 per cent across a change of sensor family and a
+halving of the sampling rate. That agreement is the reason this package exists as one package
+rather than three.
+
+What it does NOT mean is that any two real recordings are comparable. These three are derived
+from one trajectory, so nothing differs except the pipeline. Real instruments also differ in
+where they sit on the body, what they are made of and where their noise floor is, and those
+differences are large: see [The three bands](conventions.md) and
+[Validating data](validation.md).
+
 ## Who this is for
 
 Anyone measuring small involuntary movement in a standing, sitting or otherwise stationary

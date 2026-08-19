@@ -12,6 +12,33 @@
 >    0.4.0, whose feature extraction imports the functions that moved.
 
 
+## 1.13.0 — 2026-08-19
+
+### Changed
+
+- **`align.xcorr_lag` and `align.search_lag` return the opposite sign, which is the sign they
+  were documented to return.** `xcorr_lag`'s docstring has always said that a positive lag means
+  `b` starts later than `a`. It returned the negative of that. `search_lag` did the same while
+  documenting no convention at all, so the two agreed with each other and neither agreed with the
+  page describing them. Build `b` as `a` delayed by 0.25 s and the old code answered −0.25.
+
+  Anyone who read the docstring and trusted it had the sign backwards; anyone who calibrated
+  against the observed output was right and is now wrong. Check any stored offset that came from
+  either function. Nothing in the Oslo Standstill Database corpus is affected, which was
+  established by search rather than assumed: no analysis in that repository calls either
+  function, and the two places that estimate a lag define their own local copy.
+
+  The sibling package's `musicalgestures.xcorr_lag` documented and returned the correct sign
+  throughout, and comparing the two is how this surfaced. `tests/test_align.py` now asserts
+  agreement between the two packages, so they cannot drift apart on this silently again.
+
+- **The reusable part is about the test rather than the sign.**
+  `test_xcorr_recovers_an_imposed_lag` asserted `-lag`. It was written from the implementation's
+  output rather than from the documented contract, so it passed for exactly as long as the bug
+  existed and would have failed the moment the bug was fixed. A test written after the fact locks
+  in whichever behaviour the code had. Both alignment tests now build the delayed pair through a
+  named helper that says which series is later, and assert the convention the docstring states.
+
 ## 1.12.2 — 2026-08-15
 
 ### Fixed

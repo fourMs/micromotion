@@ -19,17 +19,23 @@ theme:
       scheme: slate
       toggle: { icon: material/weather-sunny, name: Light mode }
 
+# Ordered overarching-first, then progressively more detail. `conventions.md` sits
+# second because the README calls it the one convention that cannot be skipped, and the
+# nav used to contradict the README by putting the 684-line methods reference there
+# instead. A reference is what you consult; it is not what you read second.
 nav:
   - Home: index.md
   - Getting started: quickstart.md
-  - Methods: methods.md
   - The three bands: conventions.md
-  - Sampling rates: rates.md
-  - Reading files: formats.md
-  - Validating data: validation.md
-  - One feature vector: features.md
-  - Stating a null: nulls.md
-  - Working with other packages: interop.md
+  - Working with your data:
+      - Reading files: formats.md
+      - Sampling rates: rates.md
+      - Validating data: validation.md
+  - Going further:
+      - One feature vector: features.md
+      - Stating a null: nulls.md
+      - Working with other packages: interop.md
+  - Methods and references: methods.md
   - API reference: api.md
 
 plugins:

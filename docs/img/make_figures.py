@@ -231,7 +231,59 @@ def figure_zero_triplets() -> None:
     )
 
 
+def figure_one_measure() -> None:
+    """The package's headline claim, drawn: one number from three instruments.
+
+    The same synthetic body motion is presented three ways -- as optical position at
+    100 Hz, as the acceleration a body-worn sensor would report, and as position
+    sampled at 50 Hz -- and reduced by the same band. If the shared abstraction really
+    is the frequency band rather than the instrument, the three medians agree.
+
+    The gyroscope-free acceleration route is the honest one to draw: it is derived from
+    the same trajectory, so any disagreement here is the pipeline's and not the body's.
+    """
+    fs = 100.0
+    xyz = standstill(fs=fs)
+
+    optical = mm.qom(xyz, fs, kind="position", unit="mm")
+
+    # The acceleration the same motion would produce, in m/s^2: two derivatives of a
+    # trajectory in mm, divided by 1000. No gravity, because `variant="raw"` does not
+    # remove it and adding a constant would only test the high-pass.
+    accel_mm = np.gradient(np.gradient(xyz, 1 / fs, axis=0), 1 / fs, axis=0)
+    worn = mm.qom(accel_mm / 1000.0, fs, kind="acceleration", unit="m/s^2")
+
+    fs_low = 50.0
+    slow = mm.qom(xyz[::2], fs_low, kind="position", unit="mm")
+
+    names = ["optical position\n100 Hz", "worn accelerometer\n100 Hz",
+             "optical position\n50 Hz"]
+    vals = [optical.median_mm_s, worn.median_mm_s, slow.median_mm_s]
+
+    fig, ax = plt.subplots(figsize=(6.4, 3.0))
+    bars = ax.bar(names, vals, width=0.55, color=[BLUE, ORANGE, BLUE])
+    bars[2].set_alpha(0.55)
+    for name, v in zip(names, vals):
+        ax.annotate(f"{v:.2f}", (name, v), xytext=(0, 4), textcoords="offset points",
+                    ha="center", fontsize=8, color=MUTED)
+    ax.axhline(vals[0], color=GRID, linewidth=1.0, zorder=0)
+    ax.set_ylabel("median quantity of motion (mm/s)")
+    ax.set_ylim(0, max(vals) * 1.35)
+    ax.set_title("One body, three instruments, one number", loc="left")
+    ax.grid(axis="y")
+    ax.set_axisbelow(True)
+
+    fig.tight_layout()
+    fig.savefig(HERE / "one-measure.png", bbox_inches="tight")
+    plt.close(fig)
+    spread = max(vals) / min(vals)
+    print("one-measure.png  " + "  ".join(f"{n.splitlines()[0]} {v:.3f}"
+                                          for n, v in zip(names, vals))
+          + f"  spread {spread:.3f}x")
+
+
 if __name__ == "__main__":
     figure_qom()
     figure_rolloff()
     figure_zero_triplets()
+    figure_one_measure()
