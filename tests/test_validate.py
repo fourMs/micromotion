@@ -386,3 +386,29 @@ def test_longest_run_bounds():
     assert _longest_run([True, True, True]) == (0, 3)     # a run touching both ends
     assert _longest_run([False, False]) == (0, 0)         # nothing to measure
     assert _longest_run([True, False, True, True]) == (2, 4)
+
+
+def test_too_still_flags_equipment_and_passes_a_body():
+    """The check that was missing when four tripods entered a corpus as participants."""
+    rng = np.random.default_rng(0)
+    fs, n = 100.0, 6000
+    t = np.arange(n) / fs
+    tripod = 0.02 * rng.standard_normal((n, 3))
+    body = np.column_stack([2.5 * np.sin(2 * np.pi * 0.30 * t),
+                            2.0 * np.sin(2 * np.pi * 0.27 * t),
+                            np.zeros(n)]) + 0.05 * rng.standard_normal((n, 3))
+    found = validate.too_still(tripod, fs, "tripod")
+    assert len(found) == 1 and found[0].check == "too_still"
+    assert "0.137" in found[0].message          # the measured speed, not a category
+    assert validate.too_still(body, fs, "body") == []
+
+
+def test_too_still_is_silent_on_a_series_too_short_to_filter():
+    assert validate.too_still(np.zeros((10, 3)), 100.0, "short") == []
+
+
+def test_too_still_does_not_swallow_a_failure():
+    """An early draft wrapped the measurement in a bare except and returned [] for
+    everything, which is the failure this module exists to prevent, inside this module."""
+    with pytest.raises(Exception):
+        validate.too_still(np.zeros((6000, 3)), 0.0, "bad rate")

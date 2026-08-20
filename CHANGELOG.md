@@ -12,6 +12,35 @@
 >    0.4.0, whose feature extraction imports the functions that moved.
 
 
+## Unreleased
+
+### Added
+
+- **`validate.too_still`, the check whose absence let four tripods into a corpus as
+  participants.** Every other check in that module asks whether a recording moved WRONGLY; this
+  one asks whether it moved at all. It flags an optical trace whose band-limited speed is below
+  `HUMAN_FLOOR_MM_S`, 1.0 mm/s, which is calibrated rather than chosen: across 649 championship
+  person-recordings the people span 2.326 to 17.705 mm/s and 84 known reference markers span
+  0.024 to 0.306, with an order of magnitude of empty space between them.
+
+  It exists because a name list cannot be trusted to be complete, and that has now failed twice
+  in the same corpus. First 84 tripod traces were carried as participants because the pattern
+  missed `St01`, `ST1` and `Tripod`. Then on 2026-08-19 four more entered as `static1` to
+  `static4`, because the corrected pattern allowed a bare `static` and `st1` but not a trailing
+  digit on the word it already contained. Both times the numbers looked ordinary — a median is
+  robust to a tripod — and both times the physics found what the name did not.
+
+  Validated on the file that motivated it: over the 21 markers of the 2012 pilot recording it
+  flags exactly `static1` to `static4`, at 0.074 to 0.280 mm/s, and leaves all 17 people alone.
+
+  Treat what it returns as labels to add to whatever pattern excludes equipment, not as a filter
+  — a check that quietly removes data reads as coverage. The docstring says so.
+
+  The measurement is deliberately NOT wrapped in a try/except. An early draft was, and the bare
+  `except Exception: return []` swallowed an `AttributeError` and made the check report "nothing
+  wrong" for every input — the failure this module exists to prevent, occurring inside it. A test
+  now asserts that a bad rate raises rather than returning empty.
+
 ## 1.13.0 — 2026-08-19
 
 ### Added

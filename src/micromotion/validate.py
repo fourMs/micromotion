@@ -520,6 +520,65 @@ def duplicate_files(paths, where: str = "") -> list[Finding]:
     return out
 
 
+HUMAN_FLOOR_MM_S = 1.0
+"""Below this band-limited speed, an optical trace is equipment rather than a person.
+
+Calibrated on the Oslo Standstill Database rather than chosen: across 649 championship
+person-recordings the people span 2.326 to 17.705 mm/s and the 84 known tripod and
+reference-marker traces span 0.024 to 0.306, with an order of magnitude of empty space
+between them. 1.0 sits in that gap.
+"""
+
+
+def too_still(x, fs: float, where: str = "", floor_mm_s: float = HUMAN_FLOOR_MM_S,
+              band: tuple[float, float] | None = None) -> list[Finding]:
+    """A trace too still to be a body: a tripod, a floor marker, a mount.
+
+    Every other check here asks whether a recording moved WRONGLY. This one asks whether
+    it moved at all, and it exists because a name list cannot be trusted to be complete.
+
+    THE CASE THAT MOTIVATES IT, twice over. A corpus of optical recordings carried 84
+    tripod traces as participants for months, because the label pattern matching
+    equipment missed `St01`, `ST1` and `Tripod`. Fixing the pattern was not enough: on
+    2026-08-19 four more entered the same corpus as `static1` to `static4`, because the
+    pattern allowed a bare `static` and `st1` but not a trailing digit on the word it
+    already contained. Both times the numbers looked ordinary -- a median is robust to a
+    tripod, so nothing downstream complained -- and both times what found them was a
+    check on the PHYSICS rather than on the name.
+
+    Use it that way. Run it over everything, and treat what it returns as a list of
+    labels to add to whatever pattern you filter by, not as a filter itself: a check that
+    quietly removes data reads as coverage.
+
+    Requires positions in millimetres. Returns nothing for a series too short to filter,
+    which is deliberate -- a short recording is a different complaint, and
+    :func:`frame_count` makes it.
+    """
+    from .qom import qom as _qom_of
+
+    x = np.asarray(x, float)
+    if x.ndim == 1:
+        x = x[:, None]
+    finite = np.isfinite(x).all(axis=1)
+    if finite.sum() < 50:
+        return []
+    # No try/except around the measurement. An early draft of this function wrapped it
+    # in a bare `except Exception: return []`, which swallowed an AttributeError and made
+    # the check silently return "nothing wrong" for every input -- the exact failure this
+    # module exists to prevent, inside this module. If the speed cannot be computed, the
+    # caller should see why.
+    speed = _qom_of(x[finite], fs, kind="position", unit="mm").median_mm_s
+    if not np.isfinite(speed) or speed >= floor_mm_s:
+        return []
+    return [Finding(
+        check="too_still", severity="error", where=where,
+        message=(
+        f"band-limited speed is {speed:.3f} mm/s, below the {floor_mm_s} mm/s floor for a "
+        f"human body. This is almost certainly equipment -- a tripod, a floor marker or a "
+        f"mount -- rather than a person. Add its label to whatever pattern excludes "
+        f"reference markers rather than dropping it here."))]
+
+
 def validate_series(x, t=None, documented_hz: float | None = None, where: str = "",
                     min_finite: float = 0.8, expect_positions: bool = True) -> list[Finding]:
     """Run every applicable check on one series and return what is wrong with it.
