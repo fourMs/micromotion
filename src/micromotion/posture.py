@@ -28,6 +28,26 @@ def sway_geometry(xy) -> dict:
     direction of greatest sway, and is axial: 10 degrees and 190 degrees describe the same
     posture. Test it with :func:`micromotion.circular.rayleigh_axial`, never with the
     ordinary Rayleigh test.
+
+    ``axis_deg`` IS IN THE RECORDING'S OWN FRAME AND IS NOT COMPARABLE ACROSS RECORDINGS
+    unless you know that the frames agree. Two things have to hold: the laboratory
+    coordinate convention, and which way the body was facing. A sway axis is anatomical --
+    it is front-to-back -- so turning the person turns this number without anything about
+    their posture changing.
+
+    Both failed in one corpus on one afternoon, which is why this paragraph exists. One
+    championship edition is stored with its horizontal axes about 90 degrees from every
+    other, at the same concentration, so a comparison of mean axes across editions
+    measured the laboratories rather than the bodies. And a three-performer collection
+    recorded many sessions with the performers standing in a circle facing each other, so
+    within-person axial concentration came out at R = 0.23 to 0.48 with axes spread over
+    nearly 180 degrees, against 0.75 to 0.85 in a group all facing one way -- and an
+    analysis read that as a weak personal trait when varying facing predicts it exactly.
+
+    ``anisotropy`` and ``dispersion`` are rotation-invariant and carry neither problem.
+    So is the CONCENTRATION of a set of axes, which is why a clustering result can survive
+    where a mean angle cannot. If you need the angle itself across recordings, establish
+    the facing geometry first; if you cannot, use the invariant quantities and say so.
     """
     p = np.asarray(xy, float)
     p = p[np.isfinite(p).all(axis=1)][:, :2]

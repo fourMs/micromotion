@@ -36,6 +36,22 @@
   Treat what it returns as labels to add to whatever pattern excludes equipment, not as a filter
   — a check that quietly removes data reads as coverage. The docstring says so.
 
+- **`posture.sway_geometry` now says that `axis_deg` is in the recording's own frame.** It
+  documented the axial convention carefully and said nothing about what makes the angle
+  comparable between recordings, which is two things: the laboratory coordinate convention and
+  which way the body was facing. A sway axis is anatomical, so turning the person turns the
+  number without their posture changing.
+
+  Both failed in one corpus on one afternoon, which is the evidence for the paragraph. A
+  championship edition is stored with its horizontal axes about 90 degrees from every other at
+  the same concentration, so comparing mean axes across editions measured the laboratories. And
+  a three-performer collection recorded many sessions in a circle facing each other, giving
+  within-person concentration of R = 0.23 to 0.48 against 0.75 to 0.85 for a group facing one
+  way -- which an analysis read as a weak personal trait when varying facing predicts it exactly.
+
+  No behaviour changes. `anisotropy`, `dispersion` and the concentration of a set of axes are
+  rotation-invariant and were always safe; the docstring now says which is which.
+
   The measurement is deliberately NOT wrapped in a try/except. An early draft was, and the bare
   `except Exception: return []` swallowed an `AttributeError` and made the check report "nothing
   wrong" for every input — the failure this module exists to prevent, occurring inside it. A test
