@@ -12,7 +12,7 @@ mm.read_phone(p).meta["channel_rates"]
 ```
 
 A multi-sensor log is usually an interleaved union of streams that update at different rates, so the
-spacing of its rows belongs to no instrument. On one Physics Toolbox file the rows arrive at about
+spacing of its rows belongs to no device. On one Physics Toolbox file the rows arrive at about
 426 Hz while the accelerometer updates at 51 Hz and the fused channel at 15 Hz. `measured_rate` on
 the time column answers a question about the file; `channel_rate` answers the one about the sensor.
 
@@ -47,7 +47,7 @@ quantisation artefact:
 Nominal rates in headers and documentation were wrong by up to 4.4 per cent in one corpus,
 and by a factor of 37 in one record.
 
-## A file's grid is not its sampling rate, and a channel's rate is not its instrument's
+## A file's grid is not its sampling rate, and a channel's rate is not its device's
 
 Three distinct numbers get called "the sampling rate", and confusing them is the most expensive
 mistake in this document.
@@ -64,7 +64,7 @@ differentiation amplifies once per derivative.
 refuses to upsample precisely to prevent this, but it never sees the raw file. Carry the measured
 sensor rate as its own column and check deliverability against *that*.
 
-**And a channel's rate is not its instrument's.** This one is the subtlest. That phone's deposited
+**And a channel's rate is not its device's.** This one is the subtlest. That phone's deposited
 motion channel is *linear acceleration*, which the logger derives by fusing accelerometer,
 gyroscope and magnetometer. Measured per sensor across a year:
 
@@ -77,7 +77,7 @@ gyroscope and magnetometer. Measured per sensor across a year:
 
 **A fusion runs at the speed of its slowest input.** The fused channel is pinned to the gyroscope,
 so the ceiling is a property of the channel that was recorded, not of the hardware. The same
-instrument has a raw channel three times faster sitting underneath it.
+device has a raw channel three times faster sitting underneath it.
 
 Which does not make the raw channel simply better. It reports total g-force including gravity, so a
 lean rotates the gravity vector into the band and reads as movement, and on that corpus it inflates

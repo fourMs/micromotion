@@ -87,7 +87,7 @@ def path_length(xy, fs: float | None = None) -> dict:
 
     Unfiltered and undifferentiated, so it is not a quantity of motion and is not comparable
     with one: sensor noise adds to path length monotonically, which means a noisier
-    instrument reports a longer path for an identical movement. Reported because the balance
+    device reports a longer path for an identical movement. Reported because the balance
     literature uses it, and because it correlates with head quantity of motion at 0.61 in
     this corpus, which is worth knowing but is not an equivalence.
     """

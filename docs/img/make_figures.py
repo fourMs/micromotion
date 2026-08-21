@@ -203,12 +203,12 @@ def figure_zero_triplets() -> None:
 
 
 def figure_one_measure() -> None:
-    """The package's headline claim, drawn: one number from three instruments.
+    """The package's headline claim, drawn: one number from three devices.
 
     The same synthetic body motion is presented three ways -- as optical position at
     100 Hz, as the acceleration a body-worn sensor would report, and as position
     sampled at 50 Hz -- and reduced by the same band. If the shared abstraction really
-    is the frequency band rather than the instrument, the three medians agree.
+    is the frequency band rather than the device, the three medians agree.
 
     The gyroscope-free acceleration route is the honest one to draw: it is derived from
     the same trajectory, so any disagreement here is the pipeline's and not the body's.
@@ -237,7 +237,7 @@ def figure_one_measure() -> None:
     ax.axhline(vals[0], color=GRID, linewidth=1.0, zorder=0)
     ax.set_ylabel("median quantity of motion (mm/s)")
     ax.set_ylim(0, max(vals) * 1.35)
-    ax.set_title("One body, three instruments, one number", loc="left")
+    ax.set_title("One body, three devices, one number", loc="left")
     ax.grid(axis="y")
     ax.set_axisbelow(True)
 

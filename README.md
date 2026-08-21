@@ -17,7 +17,7 @@ That measure is quantity of motion: the average speed of a body part, band-limit
 ![Band-limited speed of a synthetic head marker, with the median, the mean, and the same series in five-second bins](docs/img/qom-standstill.png)
 
 It can be computed from every sensor family, because the shared abstraction is the frequency
-band rather than the instrument. One synthetic body motion, read three ways — as optical
+band rather than the device. One synthetic body motion, read three ways — as optical
 position at 100 Hz, as the acceleration a worn sensor would report, and as position sampled at
 50 Hz — gives medians of 2.29, 2.35 and 2.29 mm/s, a spread of 2.6 per cent.
 
@@ -81,7 +81,7 @@ produce plausible numbers rather than errors.
 | `spectral`, `physio` | cardiac and respiratory peaks, band power, breathing rate and breath phase |
 | `dynamics` | detrended fluctuation analysis, multifractality, recurrence, entropy, surrogates |
 | `group` | whether several people moved at the same moments |
-| `align` | offsets between instruments that share no clock |
+| `align` | offsets between devices that share no clock |
 | `circular` | directional statistics, including the axial tests postural sway needs |
 | `features` | `feature_vector`, one fixed set of eleven descriptors per recording |
 | `equivalence` | stating that an effect is absent rather than failing to show it is present |

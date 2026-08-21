@@ -159,7 +159,7 @@ def equalise(onset_s, offset_s, cap_s: float | None = None, by=None):
     ``cap_s`` sets the length; by default it is the shortest segment present, which keeps as much
     of every segment as can be kept while making them equal. ``by`` groups the segments, so each
     group is capped against its own shortest segment rather than against the study's — see the
-    module docstring for why a single cap across groups is the wrong instrument.
+    module docstring for why a single cap across groups is the wrong tool.
 
     Only offsets are returned. The onsets are unchanged, so the caller's other columns stay aligned
     and nothing needs reordering.

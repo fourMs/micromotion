@@ -496,7 +496,7 @@ def test_the_canonical_band_actually_rejects_above_its_ceiling():
 
 
 def test_the_canonical_ceiling_is_deliverable_by_every_corpus_rate():
-    """The reason the ceiling is 5 Hz: every instrument in the corpus must reach it.
+    """The reason the ceiling is 5 Hz: every device in the corpus must reach it.
 
     The slowest is the phone accelerometer at about 15 Hz. If a future change raises the
     ceiling above half that, the band stops being computable on a whole collection.

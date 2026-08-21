@@ -62,7 +62,7 @@ def test_anisotropy_is_large_for_a_line_and_near_one_for_a_circle():
 
 
 def test_jerk_is_nan_when_the_sensor_cannot_carry_wideband():
-    """The rate that matters is the instrument's, not the grid the file is stored on."""
+    """The rate that matters is the device's, not the grid the file is stored on."""
     x = sway(fs=100.0)
     on_grid = feature_vector(x, 100.0, kind="position", unit="mm")                      # grid says 100 Hz
     truth = feature_vector(x, 100.0, kind="position", unit="mm", sensor_fs=15.0)        # sensor actually ran at 15

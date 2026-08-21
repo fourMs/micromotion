@@ -675,7 +675,7 @@ worth knowing:
 
 | Choice | Default here | Why |
 |---|---|---|
-| Filter band | 0.2–5 Hz | Lower edge swept across seven datasets, spread smallest at 0.2 Hz; upper edge set by the slowest instrument's Nyquist. `WIDEBAND` (0.2–10 Hz) for jerk where the rate allows. See [the four bands](conventions.md) |
+| Filter band | 0.2–5 Hz | Lower edge swept across seven datasets, spread smallest at 0.2 Hz; upper edge set by the slowest device's Nyquist. `WIDEBAND` (0.2–10 Hz) for jerk where the rate allows. See [the four bands](conventions.md) |
 | Embedding delay | first AMI minimum | The autocorrelation-zero rule assumes linearity |
 | RQA threshold | fixed recurrence rate | A fixed absolute threshold confounds determinism with amplitude |
 

@@ -27,7 +27,7 @@ placement are all held fixed — against optical markers on the stack itself:
 Almost the whole disagreement between devices lives below 0.5 Hz. Quantity of motion integrates
 acceleration and integration divides by frequency, so a device that misbehaves only at 0.3 Hz
 misbehaves badly. The worst of the four carried 62 times another's power at 0.2–0.5 Hz and 0.6 times
-it at 2–5 Hz — the noisiest instrument in the band and the quietest above it.
+it at 2–5 Hz — the noisiest device in the band and the quietest above it.
 
 This is not an argument for moving `BAND`. It is an argument for STATING the lower edge beside any
 inertial figure, and for expecting cross-device comparisons at 0.2 Hz to be dominated by whichever
@@ -86,7 +86,7 @@ recording the gate was meant to exclude. Carry the measured sensor rate alongsid
 test against it.
 
 **Deliverability is a property of a channel, not of a collection.** A collection whose deposited
-channel cannot carry `WIDEBAND` may have a faster channel on the same instrument that can, as in
+channel cannot carry `WIDEBAND` may have a faster channel on the same device that can, as in
 the fusion discussion in [Sampling rates](rates.md). "This collection has no jerk" and "this
 channel has no jerk" are different statements, and only the second is usually true.
 
@@ -313,11 +313,11 @@ not affect standstill protocols, which run six minutes or more.
 
 ## Why 5 Hz at the top
 
-**Because that is what the instruments can deliver.** A band above Nyquist is not a convention,
+**Because that is what the devices can deliver.** A band above Nyquist is not a convention,
 it is a defect that returns a plausible number, and the ceiling has to be one every collection
 can support:
 
-| instrument | sampling | Nyquist | 5 Hz? |
+| device | sampling | Nyquist | 5 Hz? |
 |---|---|---|---|
 | phone, fused linear acceleration | ~15 Hz | 7.5 | yes |
 | optical, 20 Hz subset | 20 Hz | 10 | yes |
@@ -426,7 +426,7 @@ edge from 0.3 to 0.2 Hz:
 The asymmetry is structural. Speed comes from *differentiating* position and from *integrating*
 acceleration, so the operator converting the recorded quantity to velocity is multiplication by
 *f* in one case and division by *f* in the other. Measurement noise is roughly white in whatever
-the instrument records, which means the same sliver of extra low-frequency bandwidth is
+the device records, which means the same sliver of extra low-frequency bandwidth is
 suppressed for a marker and amplified for an accelerometer. It is largest on chest-worn sensors,
 where 0.2 Hz sits on the respiration fundamental.
 

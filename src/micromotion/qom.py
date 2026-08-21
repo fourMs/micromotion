@@ -289,7 +289,7 @@ BANDS = {
 }
 """The four conventions in use, by name.
 
-``micromotion`` is 0.2-5 Hz and is the only one every instrument in the corpus can deliver, so
+``micromotion`` is 0.2-5 Hz and is the only one every device in the corpus can deliver, so
 it is the one a cross-collection comparison must use.
 
 ``wideband`` is 0.2-10 Hz, for jerk and other high-derivative measures that need the octave the

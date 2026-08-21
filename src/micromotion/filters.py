@@ -7,7 +7,7 @@ and moved quantity of motion by up to 10 per cent.
 The canonical band is 0.2-5 Hz, a zero-phase Butterworth of order 4 applied as
 second-order sections. The lower edge sits below the respiratory rate and above the
 postural drift that integration turns into a ramp; the upper edge is set by what the
-slowest instrument in the corpus can actually deliver.
+slowest device in the corpus can actually deliver.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ rises if drift is leaking in, is 2.07 at 0.2 Hz against 2.00 at 0.3 -- flat.
 
 **The upper edge is set by deliverability, not by taste.** A band above Nyquist is not a
 convention but a defect that returns a plausible number, and the ceiling must therefore be one
-that every instrument in the corpus can support:
+that every device in the corpus can support:
 
 ============================  ==================  ==========  ==========
 collection                    sampling            Nyquist     5 Hz?

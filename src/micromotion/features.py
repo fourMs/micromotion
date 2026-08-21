@@ -45,7 +45,7 @@ def feature_vector(x, fs: float, kind: str | None = None, unit: str | None = Non
     position shifts every descriptor two derivatives up and still returns finite,
     plausible-looking numbers, which is the failure mode this signature exists to prevent.
 
-    ``sensor_fs`` is the rate the instrument actually sampled at, which is not always the rate
+    ``sensor_fs`` is the rate the device actually sampled at, which is not always the rate
     the file is stored on: a uniform grid can be an upsample of a much slower sensor, and
     checking the grid would admit a band the data cannot carry. Pass it whenever the two differ.
 

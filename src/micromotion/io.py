@@ -238,7 +238,7 @@ def channel_rate(t: np.ndarray, x: np.ndarray) -> float:
     """How often a channel actually advances, not how often the file has a row for it.
 
     A multi-sensor log is usually an interleaved union of streams that update at different
-    rates, so the spacing of its rows belongs to no instrument. On one Physics Toolbox file the
+    rates, so the spacing of its rows belongs to no device. On one Physics Toolbox file the
     rows arrive at about 426 Hz while the accelerometer updates at 51 Hz and the fused channel
     at 15 Hz. Taking the row rate as the sensor rate is how a 100 Hz resampling grid and a
     12.5 Hz decimation both came to be quoted as sampling rates in this project.
@@ -349,7 +349,7 @@ def read_phone(path: str, trim_clap_s: float = 0.0, *,
 
     Whichever you choose, the other is in ``meta["extra"]`` and both are in the same unit, m/s^2.
     ``meta["channel_rates"]`` gives each sensor's own rate, which is not the rate of the file's
-    rows: an interleaved log's row spacing belongs to no instrument. See ``channel_rate``.
+    rows: an interleaved log's row spacing belongs to no device. See ``channel_rate``.
 
     **The rate is neither constant nor the nominal one.** Physics Toolbox delivers whatever the
     Android sensor stack gives it, so a log requested at 100 Hz arrives between roughly 100 and
