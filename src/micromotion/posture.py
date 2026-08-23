@@ -82,6 +82,71 @@ def ellipse_area_95(xy) -> float:
     return float(np.pi * _stats.chi2.ppf(0.95, 2) * np.sqrt(max(np.linalg.det(cov), 0)))
 
 
+def heading_persistence(xy, speed_percentile: float = 20.0) -> dict:
+    """Does the trace reverse along a line, wander at random, or loop?
+
+    Takes the heading of each step, and averages the cosine of the change in heading from
+    one step to the next. It measures smoothness, not shape: +1 is a trace whose direction
+    barely changes between samples, 0 is a random walk, and -1 is a trace that reverses at
+    every single step.
+
+    A back-and-forth sway along one line reads near +1, not -1, which is worth saying
+    because the intuition runs the other way. Such a trace holds its heading for the whole
+    of each excursion and reverses only at the turning points, so the reversals are a
+    handful of steps among hundreds. Quiet standing in the championship corpus reads about
+    0.95. Reaching -1 takes a zigzag that flips direction at the sampling rate, which is a
+    signature of noise rather than of movement.
+
+    ``straightness`` is the net displacement over the distance walked to achieve it, so it
+    is near 0 for someone who stays put however much they move, and near 1 for someone who
+    walks away in a straight line.
+
+    The slowest steps are dropped before averaging, ``speed_percentile`` of them by default.
+    A heading is the direction of a step, and the direction of a step that barely happened
+    is mostly noise; including them pulls the mean towards the 0 of a random walk.
+
+    .. warning::
+
+       This descriptor is unusually sensitive to how the series was brought to its sampling
+       rate, because a change of heading between consecutive samples is a different question
+       at every sampling interval. In the standstill corpus a bare polyphase resample read
+       0.15 here for the two 120 Hz editions --- which need a 5:12 conversion, where the
+       anti-alias filter has least room --- against about 0.95 for the others, and the split
+       was very nearly published as a difference between tracking systems. Through
+       :func:`~micromotion.to_rate` every edition reads 0.949 to 0.964. Bring series to a
+       common rate with that, and compare only series that share one.
+
+    Args:
+        xy: Positions, shape (N, 2). Non-finite rows are dropped.
+        speed_percentile (float): Percentile of step speeds below which steps are excluded
+            from the heading average. Defaults to 20.
+
+    Returns:
+        dict: ``persistence`` in [-1, 1] as described above, and ``straightness`` in [0, 1].
+            Both are NaN when fewer than three finite samples remain.
+    """
+    p = np.asarray(xy, float)
+    p = p[np.isfinite(p).all(axis=1)]
+    if len(p) < 3:
+        return {"persistence": float("nan"), "straightness": float("nan")}
+
+    v = np.diff(p, axis=0)
+    speed = np.hypot(v[:, 0], v[:, 1])
+    path = float(np.sum(speed))
+    straightness = float(np.hypot(*(p[-1] - p[0])) / path) if path > 0 else float("nan")
+
+    if len(v) < 2:
+        return {"persistence": float("nan"), "straightness": straightness}
+
+    heading = np.arctan2(v[:, 1], v[:, 0])
+    turn = np.diff(heading)
+    turn = (turn + np.pi) % (2 * np.pi) - np.pi
+    fast = speed >= np.percentile(speed, speed_percentile)
+    keep = fast[:-1]
+    persistence = float(np.mean(np.cos(turn[keep]))) if keep.any() else float("nan")
+    return {"persistence": persistence, "straightness": straightness}
+
+
 def path_length(xy, fs: float | None = None) -> dict:
     """Total distance travelled, and the rate at which it accumulated.
 

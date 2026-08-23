@@ -76,7 +76,7 @@ from .io import (
     read_sverm,
     sniff,
 )
-from .posture import ellipse_area_95, path_length, sway_geometry
+from .posture import ellipse_area_95, heading_persistence, path_length, sway_geometry
 from .qom import (
     BANDS,
     G,
@@ -204,6 +204,7 @@ __all__ = [
     "normalized_qom",
     "notch",
     "participation_ratio",
+    "heading_persistence",
     "path_length",
     "physio",
     "pose_qom",
