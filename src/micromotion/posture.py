@@ -15,6 +15,8 @@ from __future__ import annotations
 import numpy as np
 from scipy import stats as _stats
 
+from .descriptors import effective_dimensionality
+
 
 def sway_geometry(xy) -> dict:
     """Principal axis, anisotropy and dispersion of a two-dimensional trace.
@@ -176,3 +178,199 @@ def dispersion_radius(xy, quantile: float = 0.95) -> float:
         return float("nan")
     c = p - p.mean(axis=0)
     return float(np.quantile(np.linalg.norm(c, axis=1), quantile))
+
+
+def shared_axis_projection(markers, reference, mask: str = "reference") -> dict:
+    """Project several markers onto ONE axis, the reference marker's principal axis.
+
+    This is the difference between asking "does this marker sway along a line" and asking
+    "do these segments sway along the SAME line". :func:`micromotion.principal_axis_projection`
+    answers the first, per marker, giving each its own axis -- and two markers swaying at right
+    angles, each on its own axis, then correlate perfectly while sharing no direction of motion.
+    Correlating segments only means something once they are on a common axis, which is what
+    this builds.
+
+    The axis is anatomical -- front-to-back for a standing person -- so it is taken from one
+    named marker rather than from the pooled cloud, which would be dominated by whichever
+    segment moved most. ``axis_deg`` carries the same warning as
+    :func:`sway_geometry`'s: it is in the recording's own frame and is not comparable across
+    recordings unless the laboratory convention and the direction the body faced are both known.
+
+    Args:
+        markers: Mapping of name -> horizontal coordinates, each ``(T, 2)``. Extra columns
+            are ignored, so a full ``(T, 3)`` marker may be passed.
+        reference: Key naming the marker whose axis every other is projected onto.
+        mask (str, optional): Which samples count. ``"reference"`` (the default) keeps the
+            frames where the reference marker is finite, and centres and projects every marker
+            over exactly those -- the convention of the still-standing coordination analysis,
+            kept as the default so its results reproduce. ``"own"`` gives each marker its own
+            finite samples, which is more defensible per marker but makes the projections rest
+            on different frames.
+
+    Returns:
+        dict: ``projection`` (name -> ``(T,)`` array, NaN where masked out), ``axis`` (the
+        unit vector), ``axis_deg`` (its direction, axial, 0-180), ``mask`` (the boolean frame
+        mask used when ``mask="reference"``, else None), and ``n_finite`` (name -> count of
+        finite samples in that marker's projection).
+
+    Raises:
+        KeyError: If ``reference`` is not among the markers.
+        ValueError: If ``mask`` is neither "reference" nor "own", or the reference marker has
+            fewer than three usable frames.
+    """
+    if mask not in ("reference", "own"):
+        raise ValueError(
+            f"mask must be 'reference' or 'own', not {mask!r}. 'reference' keeps the frames "
+            "where the reference marker is finite; 'own' gives each marker its own.")
+    if reference not in markers:
+        raise KeyError(
+            f"reference marker {reference!r} is not among the markers "
+            f"({sorted(markers)!r}). The axis has to come from a named marker, because it is "
+            "anatomical rather than a property of the pooled cloud.")
+
+    ref = np.asarray(markers[reference], float)[:, :2]
+    ok = np.isfinite(ref).all(axis=1)
+    if ok.sum() < 3:
+        raise ValueError(
+            f"reference marker {reference!r} has {int(ok.sum())} usable frames; "
+            "need at least three to define an axis.")
+
+    centred = ref[ok] - ref[ok].mean(axis=0)
+    cov = np.cov(centred.T)
+    _, vecs = np.linalg.eigh(cov)
+    axis = vecs[:, -1]
+
+    projection: dict = {}
+    n_finite: dict = {}
+    for name, xy in markers.items():
+        p = np.asarray(xy, float)[:, :2]
+        keep = ok if mask == "reference" else np.isfinite(p).all(axis=1)
+        s = np.full(len(p), np.nan)
+        if keep.any():
+            good = keep & np.isfinite(p).all(axis=1)
+            s[good] = (p[good] - p[good].mean(axis=0)) @ axis
+        projection[name] = s
+        n_finite[name] = int(np.isfinite(s).sum())
+
+    return {
+        "projection": projection,
+        "axis": axis,
+        "axis_deg": float(np.degrees(np.arctan2(axis[1], axis[0])) % 180.0),
+        "mask": ok if mask == "reference" else None,
+        "n_finite": n_finite,
+    }
+
+
+def segmental_coordination(markers, reference, ratios=None, mask: str = "reference",
+                           min_finite: float = 0.8, reduce=None) -> dict:
+    """Do a body's segments sway as one rigid link, or as several?
+
+    Projects every marker onto the reference marker's axis with
+    :func:`shared_axis_projection`, then reduces the result three ways: how strongly each pair
+    of segments agrees, how many independent axes the set spans, and which of a named pair
+    sways further. A body rocking at the ankles as a single inverted pendulum gives high
+    correlations, an effective degrees-of-freedom near one, and a head-to-hip amplitude ratio
+    above one -- the head is further from the ankle, so the same rotation carries it further.
+
+    The effective degrees of freedom is :func:`micromotion.effective_dimensionality` called on
+    the projections with ``rank=False``, not a second implementation of the participation
+    ratio. Ranking is right for heavy-tailed descriptors and wrong here, where the columns are
+    sway signals and their actual covariance is the quantity of interest.
+
+    **The correlations are pairwise-complete and each carries its own n.** ``np.corrcoef``
+    returns NaN if a single sample is missing, which drops whole sessions from a pair without
+    saying so -- one or two per pair in the corpus this comes from, under a heading that
+    reported one N for every row. Read ``n`` beside any correlation.
+
+    No body-part taxonomy is built in: ``markers`` is whatever the caller names, and
+    "inverted pendulum" is an interpretation of a ratio above one rather than something this
+    computes. Group membership stays with the study.
+
+    Args:
+        markers: Mapping of name -> horizontal coordinates, each ``(T, 2)``.
+        reference: Key naming the marker whose axis defines the shared direction.
+        ratios (optional): Pairs ``(a, b)`` to report an amplitude ratio for, as
+            ``std(a) / std(b)`` over their shared finite samples. Defaults to none.
+        mask (str, optional): Passed to :func:`shared_axis_projection`. Defaults to
+            ``"reference"``.
+        reduce (optional): Which markers enter the dimensionality reduction, by name.
+            Defaults to all of them. Pass an explicit list when ``markers`` carries a derived
+            marker -- a midpoint of two others, say, wanted only for an amplitude ratio --
+            because such a marker is a linear combination of segments already present and
+            entering it as a ninth segment changes the effective degrees of freedom.
+        min_finite (float, optional): Markers finite on a smaller fraction of the *usable*
+            frames than this -- the reference-valid frames under ``mask="reference"``, the
+            whole recording under ``mask="own"`` --
+            are excluded from the effective-dimensionality reduction, which needs a complete
+            matrix. They still appear in the pairwise correlations. Defaults to 0.8.
+
+    Returns:
+        dict: ``correlation`` and ``n`` (both keyed by the ``(a, b)`` pair, a and b sorted as
+        given), ``pc1_fraction`` and ``effective_dof``, ``amplitude_ratio`` (keyed by the
+        requested pairs), ``axis_deg``, ``n_finite`` per marker, ``used`` (the markers that
+        entered the reduction) and ``n_excluded``.
+
+    Raises:
+        KeyError: If ``reference``, or either member of a requested ratio, is not a marker.
+        ValueError: If ``mask`` is invalid, or fewer than two markers survive ``min_finite``.
+    """
+    proj = shared_axis_projection(markers, reference, mask=mask)
+    sig = proj["projection"]
+    names = list(sig)
+    n_frames = len(sig[reference])
+
+    correlation: dict = {}
+    n_pairs: dict = {}
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            both = np.isfinite(sig[a]) & np.isfinite(sig[b])
+            n_pairs[(a, b)] = int(both.sum())
+            if both.sum() < 3:
+                correlation[(a, b)] = float("nan")
+                continue
+            x, y = sig[a][both], sig[b][both]
+            if x.std() == 0 or y.std() == 0:
+                correlation[(a, b)] = float("nan")
+                continue
+            correlation[(a, b)] = float(np.corrcoef(x, y)[0, 1])
+
+    # The denominator is the frames that COULD have been used, not the length of the
+    # recording: under mask="reference" a marker cannot be finite where the reference is not,
+    # so dividing by the full length would penalise every marker for the reference's dropouts.
+    usable = int(proj["mask"].sum()) if proj["mask"] is not None else n_frames
+    candidates = list(names) if reduce is None else list(reduce)
+    missing = [n for n in candidates if n not in sig]
+    if missing:
+        raise KeyError(f"reduce names markers that were not given: {missing!r}")
+    used = [n for n in candidates
+            if usable and proj["n_finite"][n] / usable >= min_finite]
+    if len(used) < 2:
+        raise ValueError(
+            f"only {len(used)} marker(s) are finite on at least {min_finite:.0%} of frames, "
+            "so there is nothing to reduce. Lower min_finite or check the markers.")
+
+    matrix = np.column_stack([sig[n] for n in used])
+    matrix = matrix[np.isfinite(matrix).all(axis=1)]
+    dims = effective_dimensionality(matrix, rank=False)
+
+    amplitude_ratio: dict = {}
+    for a, b in (ratios or []):
+        for key in (a, b):
+            if key not in sig:
+                raise KeyError(f"amplitude ratio asked for {key!r}, which is not a marker.")
+        both = np.isfinite(sig[a]) & np.isfinite(sig[b])
+        denom = sig[b][both].std() if both.sum() >= 2 else 0.0
+        amplitude_ratio[(a, b)] = (float(sig[a][both].std() / denom) if denom > 0
+                                   else float("nan"))
+
+    return {
+        "correlation": correlation,
+        "n": n_pairs,
+        "pc1_fraction": float(dims["variance_fraction"][0]),
+        "effective_dof": float(dims["participation_ratio"]),
+        "amplitude_ratio": amplitude_ratio,
+        "axis_deg": proj["axis_deg"],
+        "n_finite": proj["n_finite"],
+        "used": used,
+        "n_excluded": len(candidates) - len(used),
+    }

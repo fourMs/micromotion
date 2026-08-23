@@ -12,6 +12,39 @@
 >    0.4.0, whose feature extraction imports the functions that moved.
 
 
+## Unreleased
+
+### Added
+
+- **`shared_axis_projection` and `segmental_coordination`: does a body sway as one link, or
+  several?** MGT issue #358 asked for inter-segment correlation along a shared sway axis, an
+  effective degrees-of-freedom count across markers, and a head-to-hip amplitude ratio. Markers
+  are this package's domain, so they land here and MGT closes with a pointer.
+
+  The gap was not the arithmetic. `effective_dimensionality` already computes the participation
+  ratio the effective-DOF metric wants, and calling it with `rank=False` reproduces the
+  still-standing analysis's `pc1` and `eff_dof` on all 81 sessions to 1e-10 — so it is called,
+  not copied. What was missing is the projection: `principal_axis_projection` gives each marker
+  **its own** axis, and two markers swaying at right angles, each on its own axis, correlate
+  perfectly while sharing no direction of motion. Correlating segments only means something once
+  they are on one axis, and that axis has to come from a named marker because it is anatomical.
+
+  Verified against the study that asked for it: correlations reproduce to 4e-16 on every session
+  it produced a number for, and the amplitude ratio to 4e-16 on the 79 sessions where both hip
+  markers are present throughout.
+
+  **Three things it does that the study code did not.** Correlations are pairwise-complete and
+  each carries its own `n`: `np.corrcoef` returns NaN if one sample is missing, which dropped one
+  or two sessions per pair into a `dropna()` under a heading that reported a single N for every
+  row. `mask` chooses between the study's convention (every marker masked by the reference
+  marker's valid frames) and each marker's own, so the coupling is a decision rather than an
+  accident. And `reduce` names which markers enter the dimensionality reduction, because a
+  derived marker wanted only for a ratio — the midpoint of two hips, say — is a linear
+  combination of segments already there, and silently entering it as a ninth changes the answer.
+
+  No body-part taxonomy is built in. "Inverted pendulum" is an interpretation of a ratio above
+  one, not something this computes.
+
 ## 1.14.0 — 2026-08-20
 
 ### Added

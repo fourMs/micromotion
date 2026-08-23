@@ -76,7 +76,8 @@ from .io import (
     read_sverm,
     sniff,
 )
-from .posture import ellipse_area_95, heading_persistence, path_length, sway_geometry
+from .posture import (ellipse_area_95, heading_persistence, path_length,
+                      segmental_coordination, shared_axis_projection, sway_geometry)
 from .qom import (
     BANDS,
     G,
@@ -243,6 +244,8 @@ __all__ = [
     "speed_from_acceleration",
     "speed_from_position",
     "stabilogram_diffusion",
+    "segmental_coordination",
+    "shared_axis_projection",
     "sway_geometry",
     "sway_orientation",
     "sway_texture",
