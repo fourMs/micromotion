@@ -12,7 +12,7 @@
 >    0.4.0, whose feature extraction imports the functions that moved.
 
 
-## Unreleased
+## 1.15.0 — 2026-08-24
 
 ### Added
 
