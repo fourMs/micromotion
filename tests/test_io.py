@@ -200,3 +200,93 @@ def test_channel_resolution_handles_a_block_and_a_constant():
     assert set(out) == {"col0", "col1"}
     assert out["col0"]["step"] > out["col1"]["step"] * 100
     assert mm.channel_resolution(np.zeros(10))["levels"] == 1
+
+
+def _cwa_bytes(n_blocks=4, rate_code=10, packed=True, samples=120, exponent=0,
+               start=(2015, 8, 12, 17, 18, 55), block_seconds=None):
+    """A minimal but real CWA-3 file: 1024-byte header then `n_blocks` 512-byte data blocks."""
+    import struct
+
+    rate = 3200 / (1 << (15 - (rate_code & 15)))
+    if block_seconds is None:
+        block_seconds = samples / rate
+    y, mo, d, hh, mi, ss = start
+    t0 = hh * 3600 + mi * 60 + ss
+    out = bytearray(b"\0" * 1024)
+    out[0:2] = b"MD"
+    for i in range(n_blocks):
+        # The CWA timestamp field holds WHOLE SECONDS. Sub-second block starts are expressed by
+        # `timestampOffset`, in samples, which is why the reader applies it -- without that a file
+        # whose blocks are 1.23 s apart cannot state where any block begins.
+        sec = t0 + i * block_seconds
+        whole = round(sec)
+        offset = int(round((whole - sec) * rate))
+        hh_, rem = divmod(int(whole), 3600)
+        mi_, ss_ = divmod(rem, 60)
+        packed_time = ((y - 2000) << 26) | (mo << 22) | (d << 17) | (hh_ << 12) | (mi_ << 6) | ss_
+        b = bytearray(b"\0" * 512)
+        b[0:2] = b"AX"
+        struct.pack_into("<H", b, 2, 508)
+        struct.pack_into("<I", b, 14, packed_time)
+        struct.pack_into("<H", b, 18, 0 << 13)            # range code 0 -> +/-16 g
+        b[24] = rate_code
+        b[25] = (3 << 4) | (0 if packed else 2)
+        struct.pack_into("<h", b, 26, offset)
+        struct.pack_into("<H", b, 28, samples)
+        if packed:
+            # 1 g on z, on the 256-counts-per-g scale the reader restores
+            raw = int(round(256 / (2 ** exponent)))
+            word = (exponent << 30) | ((raw & 0x3FF) << 20)
+            for s in range(samples):
+                struct.pack_into("<I", b, 30 + 4 * s, word)
+        else:
+            for s in range(samples):
+                struct.pack_into("<hhh", b, 30 + 6 * s, 0, 0, 256)
+        out += b
+    return bytes(out)
+
+
+@pytest.mark.parametrize("packed,samples", [(True, 120), (False, 80)])
+def test_read_cwa_both_packings_read_one_g(tmp_path, packed, samples):
+    """Packed and unpacked must land on the same scale, which is what the exponent is for."""
+    p = tmp_path / "x.cwa"
+    p.write_bytes(_cwa_bytes(packed=packed, samples=samples))
+    r = mm.read_cwa(str(p))
+    assert r.kind == "acceleration" and r.unit == "g"
+    assert r.data.shape == (4 * samples, 3)
+    assert np.allclose(np.linalg.norm(r.data, axis=1), 1.0, atol=1e-6)
+    assert mm.identify_acceleration_unit(r.data) == "g"
+
+
+@pytest.mark.parametrize("exponent", [0, 1, 2, 3])
+def test_read_cwa_exponent_does_not_change_the_value(tmp_path, exponent):
+    """A wrong exponent scales the whole recording by a constant and nothing downstream complains.
+
+    That is why it is asserted here rather than left to a spot check: every packed block carries its
+    own exponent, and a file that switches exponent mid-recording would otherwise change units
+    part-way through with no symptom in any correlation.
+    """
+    p = tmp_path / "x.cwa"
+    p.write_bytes(_cwa_bytes(exponent=exponent))
+    r = mm.read_cwa(str(p))
+    assert np.allclose(np.linalg.norm(r.data, axis=1), 1.0, atol=0.02)
+
+
+def test_read_cwa_time_axis_follows_the_blocks_not_the_configured_rate(tmp_path):
+    """The logger's true rate is not the configured one, so `fs` must come from the timestamps."""
+    p = tmp_path / "x.cwa"
+    # Blocks arrive slower than 120 samples at 100 Hz would imply: a true rate near 97.3 Hz.
+    p.write_bytes(_cwa_bytes(n_blocks=8, samples=120, block_seconds=120 / 97.3))
+    r = mm.read_cwa(str(p))
+    assert 97.0 < r.fs < 97.6, r.fs
+    assert r.meta["configured_rate_hz"] == 100.0
+    assert np.all(np.diff(r.t) > 0)                       # monotonic, no sawtooth at boundaries
+    assert r.t[0] == pytest.approx(17 * 3600 + 18 * 60 + 55)
+
+
+def test_read_cwa_header_only_raises(tmp_path):
+    """A 1024-byte `.cwa` is a logger that recorded nothing; six such files are in this corpus."""
+    p = tmp_path / "empty.cwa"
+    p.write_bytes(b"\0" * 1024)
+    with pytest.raises(ValueError):
+        mm.read_cwa(str(p))

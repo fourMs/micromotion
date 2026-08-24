@@ -12,6 +12,32 @@
 >    0.4.0, whose feature extraction imports the functions that moved.
 
 
+## Unreleased
+
+### Added
+
+- **`read_cwa`: the Axivity AX3 raw file, not just the export.** `read_ax3` reads the
+  `ts,x,y,z` CSV made from a `.cwa`. Studies deposit the raw file often enough that this
+  is a wall: the Solberg 2015 dance record ships twenty `.cwa` and no export, so every
+  reuser either writes a decoder or installs a second toolbox to reach deposited data.
+
+  Two decisions in it are worth knowing, because both are the kind of error that leaves no
+  symptom. The packed format stores three 10-bit values and a shared 2-bit exponent per
+  block, and the values need scaling by `2**exponent` to land where the unpacked format
+  puts them; get it wrong and the whole recording is off by a constant, which changes no
+  correlation and no rank statistic. It is checked against gravity with the existing
+  `identify_acceleration_unit` rather than asserted, and all twenty deposited files read
+  as `g` at 0.96 to 1.06 on their quietest stretch.
+
+  And the time axis comes from the block boundaries rather than the configured rate. Each
+  512-byte block carries its own clock reading plus a `timestampOffset` in samples, and
+  the loggers' true rates run 97.3 to 101.3 Hz against a configured 100 --- so spacing
+  samples at the configured rate inside a block and then jumping to the next block's clock
+  leaves a sawtooth at every boundary. `t` is seconds from midnight on the logger's own
+  clock, which is the form a session log tends to be written in, and a dropped block
+  leaves a gap there instead of silently shifting everything after it.
+
+
 ## 1.15.0 — 2026-08-24
 
 ### Added

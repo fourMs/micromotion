@@ -195,6 +195,141 @@ def read_ax3(path: str) -> MotionRecord:
     )
 
 
+_CWA_HEADER = 1024
+_CWA_BLOCK = 512
+
+
+def _cwa_time(packed: int):
+    """The AX3 packs Y/M/D h:m:s into one uint32. Returns None where the field is not a date."""
+    y = ((packed >> 26) & 0x3F) + 2000
+    mo = (packed >> 22) & 0x0F
+    d = (packed >> 17) & 0x1F
+    hh = (packed >> 12) & 0x1F
+    mi = (packed >> 6) & 0x3F
+    ss = packed & 0x3F
+    if not (2000 < y < 2100 and 1 <= mo <= 12 and 1 <= d <= 31):
+        return None
+    return (y, mo, d, hh, mi, ss)
+
+
+def read_cwa(path: str) -> MotionRecord:
+    """Axivity AX3 raw ``.cwa``, the file the logger itself writes.
+
+    :func:`read_ax3` reads the ``ts,x,y,z`` export made from one of these. Studies deposit the raw
+    file instead often enough that a reader is worth having: the Solberg 2015 dance record ships
+    twenty ``.cwa`` and no export, so without this every reuser writes their own decoder or installs
+    a second toolbox to get at deposited data.
+
+    THE TIMEBASE IS THE POINT, and it is why this returns wall-clock seconds rather than seconds
+    from the start. Each 512-byte block carries its own clock reading and a ``timestampOffset``
+    saying which sample inside the block that reading applies to, so the time axis is rebuilt block
+    by block: a dropped block then leaves a gap in ``t`` instead of silently shifting every sample
+    after it forward. ``t`` is seconds from midnight on the recording's own day, which is the form a
+    session log tends to be written in; ``t0`` carries that day.
+
+    TWO PACKINGS EXIST AND BOTH ARE IN THE WILD. The unpacked one stores three ``int16`` per sample;
+    the packed one stores three 10-bit values and a shared 2-bit exponent in four bytes, and its
+    values must be scaled by ``2**exponent`` to land on the same scale as the unpacked form. Getting
+    that exponent wrong is not obvious from the numbers --- it scales the whole recording by a
+    constant, which leaves every correlation and every rank statistic untouched. Check a decode with
+    :func:`identify_acceleration_unit`, which reads gravity off a still stretch and is the test this
+    reader was verified with: the twenty deposited Solberg files read 0.96 to 1.06 g.
+
+    Returns:
+        MotionRecord: ``kind="acceleration"``, ``unit="g"``, three channels, with the logger's
+        measured rate in ``fs`` and its configured rate and range in ``meta``.
+    """
+    import struct
+
+    raw = open(path, "rb").read()
+    if len(raw) <= _CWA_HEADER:
+        raise ValueError(f"{path}: header only, no data blocks")
+
+    times: list[float] = []
+    chunks: list[np.ndarray] = []
+    counts: list[int] = []
+    rate = None
+    day = None
+    rng_g = None
+    for i in range((len(raw) - _CWA_HEADER) // _CWA_BLOCK):
+        b = raw[_CWA_HEADER + i * _CWA_BLOCK: _CWA_HEADER + (i + 1) * _CWA_BLOCK]
+        if len(b) < _CWA_BLOCK or b[0:2] != b"AX":
+            continue
+        stamp = _cwa_time(struct.unpack("<I", b[14:18])[0])
+        if stamp is None:
+            continue
+        light_scale = struct.unpack("<H", b[18:20])[0]
+        sr_code = b[24]
+        axes_bps = b[25]
+        offset = struct.unpack("<h", b[26:28])[0]
+        count = struct.unpack("<H", b[28:30])[0]
+        block_rate = 3200 / (1 << (15 - (sr_code & 15)))
+        if rate is None:
+            rate, day, rng_g = block_rate, stamp[:3], 16 >> (light_scale >> 13)
+        n_axes = (axes_bps >> 4) & 0x0F
+        packing = axes_bps & 0x0F
+
+        if packing == 2:                                  # three int16 per sample
+            need = count * n_axes * 2
+            if len(b) < 30 + need:
+                continue
+            v = np.frombuffer(b[30:30 + need], dtype="<i2").astype(np.float64)
+            v = v.reshape(count, n_axes)[:, :3] / 256.0
+        elif packing == 0:                                # 3 x 10 bit + 2 bit exponent
+            need = count * 4
+            if len(b) < 30 + need:
+                continue
+            w = np.frombuffer(b[30:30 + need], dtype="<u4")
+            ex = ((w >> 30) & 0x03).astype(np.float64)
+
+            def _axis(shift: int) -> np.ndarray:
+                a = ((w >> shift) & 0x3FF).astype(np.int32)
+                return np.where(a > 511, a - 1024, a)
+
+            v = np.stack([_axis(0), _axis(10), _axis(20)], axis=1).astype(np.float64)
+            v = v * (2.0 ** ex)[:, None] / 256.0
+        else:
+            continue
+
+        # The block's clock reading applies at sample `timestampOffset` within the block.
+        t_sec = stamp[3] * 3600 + stamp[4] * 60 + stamp[5]
+        times.append(t_sec - offset / block_rate)
+        chunks.append(v)
+        counts.append(len(v))
+
+    if not chunks:
+        raise ValueError(f"{path}: no decodable data blocks")
+
+    # Sample times come from the block BOUNDARIES, not from the configured rate. The AX3's true
+    # rate is a property of the physical logger and is not the number it was configured with --- the
+    # Solberg units run about 97.3 Hz against a configured 100 --- so spacing samples at 1/configured
+    # inside each block and jumping to the next block's clock leaves a sawtooth at every boundary.
+    # Interpolating between consecutive block starts removes it and makes `fs` the measured rate.
+    # Where a block is missing, the implied spacing is absurd; those fall back to the nominal rate
+    # so one dropped block cannot stretch the samples around it.
+    nominal = 1.0 / rate
+    starts = np.asarray(times, dtype=float)
+    spacing = np.full(len(counts), nominal)
+    if len(counts) > 1:
+        implied = np.diff(starts) / np.asarray(counts[:-1], dtype=float)
+        ok = (implied > 0.5 * nominal) & (implied < 2.0 * nominal)
+        spacing[:-1] = np.where(ok, implied, nominal)
+        spacing[-1] = spacing[-2]
+    t = np.concatenate([starts[i] + np.arange(counts[i]) * spacing[i] for i in range(len(counts))])
+    return MotionRecord(
+        data=np.concatenate(chunks, axis=0),
+        fs=measured_rate(t),
+        channels=["x", "y", "z"],
+        kind="acceleration",
+        unit="g",
+        t=t,
+        t0=day,
+        source=path,
+        meta={"configured_rate_hz": rate, "range_g": rng_g, "n_blocks": len(counts),
+              "clock": "seconds from midnight on the logger's own clock"},
+    )
+
+
 def _read_physics_toolbox_raw(path: str) -> pd.DataFrame:
     """A Physics Toolbox Sensor Suite export exactly as the app writes it.
 

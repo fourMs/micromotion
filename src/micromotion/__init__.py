@@ -66,6 +66,7 @@ from .filters import (BAND, NORESP_BAND, OPTICAL_LEGACY_BAND, WIDEBAND, bandpass
 from .io import (
     read,
     read_ax3,
+    read_cwa,
     read_balance_board,
     read_equivital,
     read_fnirs,
@@ -216,6 +217,7 @@ __all__ = [
     "rate_quality",
     "read",
     "read_ax3",
+    "read_cwa",
     "read_balance_board",
     "read_equivital",
     "read_fnirs",
