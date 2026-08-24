@@ -132,13 +132,13 @@ of the sign it documented until 1.13.0, and what caught it was comparing against
 Cite the CONCEPT DOI, which always resolves to the newest version:
 
 > Jensenius, A. R., Upham, F., Zelechowska, A., Gonzalez-Sanchez, V. E., Swarbrick, D., & Riaz, M.
-> (2026). *micromotion: analysis of human micromotion in motion time series* (Version 1.12.2)
+> (2026). *micromotion: analysis of human micromotion in motion time series* (Version 1.15.0)
 > [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.21953120
 
 Where the exact behaviour matters, cite the version you ran instead. This package HAS changed
 behaviour at releases — `read_phone` at 0.15.0, `group_qom` at 1.0.0, `to_rate` at 1.2.2 — so which
-version produced a number is part of the method. Version 1.12.2 is
-https://doi.org/10.5281/zenodo.21953121.
+version produced a number is part of the method. Version 1.15.0 is
+https://doi.org/10.5281/zenodo.22080495.
 
 An older concept DOI, https://doi.org/10.5281/zenodo.21948988, is frozen at 1.12.1. It was created
 by a hand deposit made before the Zenodo GitHub integration was archiving this repository, and
