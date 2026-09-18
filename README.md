@@ -103,6 +103,21 @@ Issues and pull requests are welcome at
 [fourMs/micromotion](https://github.com/fourMs/micromotion/issues). A case where a default here
 gives a misleading answer is the most useful kind of issue to file.
 
+## What you can reuse
+
+Parts of the package that work on any time series, not only on a standing body:
+
+- the readers, one per file layout with a content sniffer, which return a `MotionRecord` whatever the device
+- the band definitions and filters (band-pass, low-pass, high-pass, notch) and the downsample-only resampler with gap handling
+- `align`, which finds the offset between devices that share no clock, and `group`, which asks whether several people moved at the same moments
+- `dynamics`: detrended fluctuation analysis, multifractality, recurrence, entropy and surrogates on any one-dimensional series
+- `circular`, directional statistics including the axial tests sway needs, which the other three toolboxes import
+- `features`, one fixed set of eleven descriptors per recording, and `equivalence`, for stating that an effect is absent
+
+## What it does not do
+
+micromotion measures how much a body moves, not how it is shaped. It does not compute joint angles, segment models, coordinate-frame changes or 3D animation; [Kinetics Toolkit](https://kineticstoolkit.uqam.ca/) does, with C3D and events, and its `TimeSeries` converts to a DataFrame that micromotion reads. It is not real-time; [PyEyesWeb](https://github.com/InfoMusCP/PyEyesWeb) computes expressive features on a sliding window. It does not read video, which is musicalgestures' job, and `MotionRecord` carries no event table yet.
+
 ## The four toolboxes
 
 Four packages from the fourMs lab, each released separately on PyPI. Which one you want is

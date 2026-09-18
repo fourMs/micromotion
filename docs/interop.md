@@ -137,3 +137,7 @@ fs = 1.0 / np.mean(np.diff(df.index))     # do not round
 ```
 
 `micromotion.detect_breaths` covers the common case without the dependency.
+
+## Outside the fourMs family
+
+Two packages in the wider toolbox landscape meet this one at a DataFrame. [Kinetics Toolkit](https://kineticstoolkit.uqam.ca/) keeps data, time and events in a `TimeSeries` with `to_dataframe` and `from_dataframe`; read a C3D there, convert, and hand the frame to this package's functions. [mopipe](https://github.com/au-imclab/mopipe) composes motion-capture processing as typed nodes over pandas; a function from this package can be wrapped as one node, since every function here takes and returns arrays or frames and holds no state.

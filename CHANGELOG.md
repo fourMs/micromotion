@@ -14,6 +14,10 @@
 
 ## Unreleased
 
+- Documentation: README gains "What you can reuse" and "What it does not do", naming Kinetics Toolkit, PyEyesWeb and librosa as the tools for what this package leaves out (2026-09-18).
+
+## Unreleased
+
 ### Added
 
 - **`read_cwa`: the Axivity AX3 raw file, not just the export.** `read_ax3` reads the
