@@ -20,6 +20,28 @@
 
 ### Added
 
+- **`pulse_envelope` and `pulse_rate`: the heart from a chest accelerometer's vibration, not
+  its sway.** On a standing body the acceleration spectrum falls so steeply through the cardiac
+  band that the heartbeat does not stand above it: on 160 standstill bouts of 16 performers
+  wearing a chest vest, `spectral_peak` found no peak in 1 to 2 Hz in 96. The heartbeat is a
+  train of short mechanical pulses whose energy sits at 5 to 30 Hz, and their timing does not
+  depend on their shape. `pulse_envelope` band-passes there, rectifies, sums the axes and
+  decimates to 32 Hz; `pulse_rate` reads `spectral_peak` off that envelope in the cardiac band.
+  On the same 160 bouts it finds a peak in 120, within 5 beats a minute of the vest's own ECG in
+  106, median difference 1.1, no bias; on 160 walking bouts of the same people it reads the
+  steps, so it is for a body that is standing or sitting still. Written from three lines in an
+  Oslo Standstill report and checked to reproduce them sample for sample (2026-10-31).
+
+### Changed
+
+- **`peak_from_spectrum` tolerates a band edge by one part in a million.** A band is drawn in
+  round numbers and a Welch grid comes from a measured rate. At 256.0000027 Hz a 30 s window
+  puts the 2.0 Hz bin at 2.00000002 Hz, outside a closed 1 to 2 Hz band under a bare
+  comparison, so the bin below it became the band's last and a heart beating there failed the
+  interior test: 10 of 160 bouts, all in the one performer at the ceiling, returned NaN with
+  nothing to say why. `EDGE_RTOL` names the tolerance; it is far below any bin spacing in use,
+  so a bin changes sides only when the difference is a rounding error (2026-10-31).
+
 - **`read_cwa`: the Axivity AX3 raw file, not just the export.** `read_ax3` reads the
   `ts,x,y,z` CSV made from a `.cwa`. Studies deposit the raw file often enough that this
   is a wall: the Solberg 2015 dance record ships twenty `.cwa` and no export, so every

@@ -174,9 +174,30 @@ def band_power(x, fs: float, band: tuple[float, float], window_s: float = 60.0) 
     return float(np.trapezoid(p[m], f[m])) if m.sum() > 1 else float("nan")
 
 
+EDGE_RTOL = 1e-6
+"""Relative tolerance on a band edge in :func:`peak_from_spectrum`. A band is drawn in round
+numbers and a spectrum's grid comes from a measured rate, so a bin that belongs on the edge can
+land a few microhertz past it. A 30 s Welch of a file whose timestamps give 256.0000027 Hz puts
+its 2.0 Hz bin at 2.00000002 Hz, outside a closed 1 to 2 Hz band under a bare comparison; the
+bin below it then becomes the band's last, so a rhythm sitting there fails the interior test and
+returns NaN. Ten of 160 standstill bouts lost a heart beating at 118 a minute that way, every one
+of them in the single performer whose heart sat at the ceiling, and nothing in the result said so.
+The tolerance is far below any bin spacing in use, so it changes which bins count only when the
+difference is a rounding error."""
+
+
+def _in_band(f, band):
+    lo, hi = band
+    return (f >= lo - EDGE_RTOL * abs(lo)) & (f <= hi + EDGE_RTOL * abs(hi))
+
+
 def peak_from_spectrum(f, p, band: tuple[float, float], require_peak: bool = True,
                        min_excess: float = 2.0) -> dict:
     """The peak rule, for a caller that already has a spectrum.
+
+    Band membership is tested with a relative tolerance of ``EDGE_RTOL`` on each edge, so that a
+    grid from a measured rate does not drop a bin that sits on the edge by a rounding error; see
+    ``EDGE_RTOL`` for the case that made this necessary.
 
     `spectral_peak` is this with a Welch in front of it. It exists separately because several
     analyses compute one spectrum and read three bands off it, and recomputing the transform per
@@ -190,7 +211,7 @@ def peak_from_spectrum(f, p, band: tuple[float, float], require_peak: bool = Tru
     p = np.asarray(p, float)
     nan = {"freq": float("nan"), "power": float("nan"), "snr": float("nan"),
            "excess": float("nan"), "is_peak": False}
-    m = (f >= band[0]) & (f <= band[1]) & np.isfinite(p)
+    m = _in_band(f, band) & np.isfinite(p)
     if not m.any():
         return nan
     fb, pb = f[m], p[m]

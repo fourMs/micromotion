@@ -43,8 +43,8 @@ from .group import (
     sliding_null,
 )
 from .mocap import compare_modality_envelopes, dominant_frequency, read_qtm_tsv
-from .physio import (respiration_onsets, respiration_rate, respiratory_phases,
-                     spectral_band_fractions)
+from .physio import (PULSE_BAND, PULSE_RATE, pulse_envelope, pulse_rate, respiration_onsets,
+                     respiration_rate, respiratory_phases, spectral_band_fractions)
 from .qom import (
     accel_to_speed,
     band_limited_qom,
@@ -145,6 +145,8 @@ __all__ = [
     "MotionRecord",
     "NORESP_BAND",
     "OPTICAL_LEGACY_BAND",
+    "PULSE_BAND",
+    "PULSE_RATE",
     "QomResult",
     "WIDEBAND",
     "accel_to_speed",
@@ -211,6 +213,8 @@ __all__ = [
     "physio",
     "pose_qom",
     "posture",
+    "pulse_envelope",
+    "pulse_rate",
     "principal_axis_projection",
     "qom",
     "raise_on_error",

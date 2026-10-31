@@ -222,6 +222,8 @@ mm.band_share(x, fs, num_band=(0.7, 2.2), den_band=(0.1, 3.0),   # the other con
 mm.band_share_from_spectrum(f, p, num_band=(0.7, 2.2), den_band=(0.1, 3.0))
 mm.mean_frequency(x, fs, band)
 mm.cardiac_peak(x, fs)
+mm.pulse_envelope(acc, fs)                           # the heartbeat's pulses, demodulated
+mm.pulse_rate(acc, fs)                               # and the rate read off that envelope
 mm.respiratory_peak(x, fs)
 mm.respiration_rate(x, fs)
 mm.detect_breaths(x, fs)
@@ -236,6 +238,12 @@ criterion, so that a peak is only returned when it stands above the local backgr
 of computing one spectrum and reading several bands off it. It exists so that the rule is imported
 rather than reimplemented: recomputing a Welch per band to get at the rule is wasteful, and a rule
 that is easier to copy than to import gets copied.
+
+Its band test allows one part in a million on each edge. A band is drawn in round numbers and a
+grid comes from a measured rate, so a bin that belongs on the edge can land a few microhertz past
+it; a 30 s Welch at 256.0000027 Hz puts the 2.0 Hz bin at 2.00000002 Hz, and under a bare
+comparison the bin below it becomes the band's last, so a rhythm there fails the interior test. See
+[measure the rate, do not read it](rates.md#measure-the-rate-do-not-read-it) for the case.
 
 `is_band_floor` is that same rule asked as a yes-or-no question about a spectrum, and it is what
 `cardiac_peak`, `dominant_frequency`, `instantaneous_rate` and `respiration_rate` call before
@@ -294,6 +302,23 @@ A standing body carries both signals mechanically. The heartbeat appears in whol
 a ballistocardiographic component, which is the recoil of blood ejection, and breathing appears
 as a slow postural oscillation. Both are inside the micromotion band, which is why a measure of
 "stillness" is partly a measure of physiology.
+
+On a chest-worn accelerometer the heart is often not a peak in the acceleration spectrum at all.
+The postural spectrum of a standing body falls so steeply through the cardiac band that the
+heartbeat's fundamental does not stand above it: on 160 standstill bouts of 16 performers wearing
+a chest vest, `spectral_peak` found no peak in 1 to 2 Hz in 96. The heartbeat is also a train of
+short mechanical pulses, the seismocardiogram, with their energy at 5 to 30 Hz where the body's
+sway has nothing, and the timing of those pulses does not depend on their shape. `pulse_envelope`
+band-passes to that band, rectifies, sums the axes so that none has to be chosen, and decimates to
+32 Hz; its spectrum has the heart rate where the acceleration's has a slope. `pulse_rate` reads
+`spectral_peak` off it, under the same rule and with the same NaN. On the same 160 bouts it finds a
+peak in 120, within 5 beats a minute of the vest's own ECG in 106, with a median difference of 1.1
+and no bias, and the 40 absences sit in 3 bodies whose vibration is no weaker than the others'.
+Run the control in the same recording before trusting it elsewhere: on the same performers'
+walking bouts the envelope's peak is the step rate, with a peak in 140 of 160 and agreement with
+the ECG in 13, so the function assumes a trunk that is standing or sitting still. Sweep the lower
+edge of the cardiac band once per recording set with `band_edge_sweep`; on these vests the median
+rate stays at 96 a minute from 0.49 to 0.91 Hz.
 
 - Welch (1967). The use of fast Fourier transform for the estimation of power spectra.
   *IEEE Transactions on Audio and Electroacoustics*.

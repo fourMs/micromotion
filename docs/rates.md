@@ -47,6 +47,18 @@ quantisation artefact:
 Nominal rates in headers and documentation were wrong by up to 4.4 per cent in one corpus,
 and by a factor of 37 in one record.
 
+A measured rate has one consequence for a closed frequency band. Welch bins sit at multiples of
+the rate over the window length, so at 256.0000027 Hz and 30 s the bin that would be 2.0 Hz is
+2.00000002 Hz. A band written as 1 to 2 Hz and tested with a bare `f <= 2` then ends one bin lower
+than the same band on the stated-rate grid, and `peak_from_spectrum` requires an interior maximum,
+so a rhythm sitting in that last bin returns NaN. Ten of 160 standstill bouts lost a heart beating
+at 118 a minute this way, every one in the single performer whose heart sat at the ceiling, and
+the count only came to light because a sibling analysis at the stated rate gave 64 where this gave
+54. The band test now tolerates one part in a million on each edge, which is far below any bin
+spacing in use. The lesson stands either way: when one analysis re-measures another's quantity,
+reproduce the other's count on the same grid before trusting any difference between them, and
+keep the measured rate as an assertion that the file is what it says.
+
 ## A file's grid is not its sampling rate, and a channel's rate is not its device's
 
 Three distinct numbers get called "the sampling rate", and confusing them is the most expensive

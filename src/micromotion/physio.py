@@ -6,6 +6,9 @@ Two pure numpy/scipy surfaces ported from the "still standing" study:
 * :func:`respiration_rate` -- windowed breathing rate (breaths per minute)
   from a respiration waveform, via band-pass filtering and a Welch spectral
   peak per window.
+* :func:`pulse_envelope` and :func:`pulse_rate` -- the heart rate of a chest-worn
+  accelerometer read from the timing of its mechanical pulses, the seismocardiogram,
+  rather than from the acceleration spectrum, where a standing body's sway buries it.
 * :func:`spectral_band_fractions` -- the fraction of a signal's Welch power
   falling in each of a set of caller-supplied named frequency bands. This is
   the generic "cardiorespiratory QoM" spectral-composition diagnostic with
@@ -23,7 +26,10 @@ import warnings
 
 import numpy as np
 
-from .spectral import _floor_spectrum, _warn_band_floor, is_band_floor
+from .filters import bandpass
+from .resample import to_rate
+from .spectral import (CARDIAC_BAND, _floor_spectrum, _warn_band_floor, is_band_floor,
+                       spectral_peak)
 
 
 def respiration_rate(waveform, fs, *, band=(0.1, 0.6), window_s=30,
@@ -129,6 +135,77 @@ def respiration_rate(waveform, fs, *, band=(0.1, 0.6), window_s=30,
     return dict(rate_bpm=rate_bpm, times_s=np.array(times, dtype=float),
                 median_bpm=float(np.nanmedian(rate_bpm))
                 if np.isfinite(rate_bpm).any() else np.nan)
+
+
+PULSE_BAND = (5.0, 30.0)
+"""Hz. Where a heartbeat's mechanical pulse sits on a chest accelerometer, above the body's sway."""
+
+PULSE_RATE = 32.0
+"""Hz. The rate :func:`pulse_envelope` decimates to before a spectrum is taken of it."""
+
+
+def pulse_envelope(x, fs, *, band=PULSE_BAND, fs_out=PULSE_RATE):
+    """The envelope of a pulse train: band-pass, rectify, sum the axes, decimate.
+
+    Pass acceleration with time along the first axis and any number of channels along the
+    second, or a single series. Each channel is band-passed to ``band`` with
+    :func:`~micromotion.filters.bandpass`, rectified, and the channels are summed so that no
+    axis has to be chosen; the sum is then decimated to ``fs_out`` with
+    :func:`~micromotion.resample.to_rate`, which anti-aliases. The result rises once per pulse,
+    and its spectrum has the pulse rate where the acceleration's own spectrum has a slope.
+
+    WHY A SECOND QUANTITY FOR THE HEART. A heartbeat on a chest accelerometer is a train of
+    short mechanical pulses, each a few tens of milliseconds wide with its energy above the body's
+    sway. Its fundamental lies in the cardiac band, where on a standing body the postural spectrum
+    falls so steeply that the heartbeat does not stand above it: on 160 standstill bouts of 16
+    performers wearing a chest vest, :func:`~micromotion.spectral.spectral_peak` found no peak in
+    the 1 to 2 Hz band of the acceleration in 96. The timing of the pulses does not depend on
+    their shape, so demodulating where they live recovers it: the same rule on this envelope
+    finds a peak in 120 of the 160, within 5 beats a minute of the vest's own ECG in 106 of them,
+    with a median difference of 1.1 and no bias. The absences concentrate in 3 of the 16 bodies
+    and are not explained by a weaker signal; the toolbox returns NaN there, as it should.
+
+    WHAT IT ASSUMES. A sensor on the trunk and a body that is standing or sitting still. On a
+    walking body the envelope's peak is the step rate, not the heart: in 160 walking bouts of
+    the same performers it found a peak in 140 and agreed with the ECG in 13. The 5 to 30 Hz
+    default was chosen before measuring; 3 to 20 Hz and 10 to 40 Hz give near-identical counts.
+    ``fs_out`` must be at least twice the highest rate you will look for and no more than ``fs``;
+    32 Hz leaves the cardiac band and its first harmonic resolved and the spectrum cheap.
+
+    Returns the envelope at ``fs_out`` as a one-dimensional array. Take its rate with
+    :func:`pulse_rate`, or its spectrum yourself when you need the bins.
+    """
+    x = np.asarray(x, float)
+    if x.ndim == 1:
+        x = x[:, None]
+    if x.shape[0] < 2 * fs:
+        raise ValueError(f"pulse_envelope needs at least 2 s of signal, got {x.shape[0] / fs:.2f} s")
+    y = bandpass(x - x.mean(axis=0), fs, band[0], band[1])
+    env = np.abs(y).sum(axis=1)
+    return to_rate(env, fs, fs_out)
+
+
+def pulse_rate(x, fs, *, band=PULSE_BAND, fs_out=PULSE_RATE, cardiac_band=CARDIAC_BAND,
+               window_s=20.0, min_excess=2.0):
+    """Heart rate of a chest accelerometer from the spectrum of its pulse envelope.
+
+    :func:`pulse_envelope` followed by :func:`~micromotion.spectral.spectral_peak` in
+    ``cardiac_band`` on the envelope, with a Welch window of ``window_s`` seconds. The peak rule
+    is the toolbox's one: the result is NaN unless the band holds an interior local maximum
+    standing ``min_excess`` times above a fitted log-log slope. Returns the ``spectral_peak`` dict
+    with ``bpm`` added, which is ``freq`` times 60 where there is a peak and NaN where there is
+    not. Count the NaNs; they are part of the result.
+
+    The lower edge of ``cardiac_band`` is a choice, and a rate read this way should be checked
+    with :func:`~micromotion.spectral.band_edge_sweep` once per recording set: on the 16 chest
+    vests above the median rate stays at 96 beats a minute while the edge moves from 0.49 to
+    0.91 Hz. The upper edge is a ceiling, and a heart beating at it loses its peak; widen the
+    band before concluding that a fast heart is absent.
+    """
+    env = pulse_envelope(x, fs, band=band, fs_out=fs_out)
+    r = spectral_peak(env, fs_out, cardiac_band, window_s=window_s, min_excess=min_excess)
+    r["bpm"] = r["freq"] * 60.0 if r["is_peak"] else float("nan")
+    return r
 
 
 DEFAULT_TOTAL_BAND = (0.1, 8.0)
